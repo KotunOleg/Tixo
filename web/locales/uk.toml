@@ -1,0 +1,10 @@
+[site]
+name = "Tixo"
+tagline = "Концерти, лекції та мітапи поруч із тобою"
+
+[lang]
+switch = "English"
+switch_short = "EN"
+suggest = "Схоже, ви віддаєте перевагу англійській. Перейти на англійську версію?"
+suggest_accept = "Switch to English"
+suggest_dismiss = "Залишитися"
