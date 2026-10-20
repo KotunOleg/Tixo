@@ -20,14 +20,19 @@ func staticFiles(v *view.Renderer, fsys fs.FS) http.HandlerFunc {
 	if err != nil {
 		panic(err)
 	}
+	files := http.StripPrefix("/static/", http.FileServerFS(static))
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(chi.URLParam(r, "*"), "/")
+		if !fs.ValidPath(name) || name == "." {
+			v.NotFound(w, r)
+			return
+		}
 		info, err := fs.Stat(static, name)
-		if name == "" || err != nil || info.IsDir() {
+		if err != nil || info.IsDir() {
 			v.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Cache-Control", "public, max-age=3600")
-		http.ServeFileFS(w, r, static, name)
+		files.ServeHTTP(w, r)
 	}
 }

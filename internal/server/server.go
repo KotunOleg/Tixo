@@ -28,7 +28,6 @@ type Deps struct {
 func New(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(requestID)
-	r.Use(middleware.RealIP)
 	r.Use(requestLogger(d.Logger))
 	r.Use(recoverer(d.Logger, d.ServerError))
 	r.Use(http.NewCrossOriginProtection().Handler)
@@ -83,7 +82,7 @@ func recoverer(log *slog.Logger, errorPage http.HandlerFunc) func(http.Handler) 
 				if rec == nil {
 					return
 				}
-				if rec == http.ErrAbortHandler {
+				if err, ok := rec.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 					panic(rec)
 				}
 				log.ErrorContext(r.Context(), "panic in handler",

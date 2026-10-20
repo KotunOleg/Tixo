@@ -123,7 +123,7 @@ func TestMiddlewareLanguageFromPath(t *testing.T) {
 				gotLang = FromContext(r.Context())
 				gotPath = r.URL.Path
 			}))
-			h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, tc.path, nil))
+			h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, tc.path, nil))
 			if gotLang != tc.wantLang || gotPath != tc.wantPath {
 				t.Errorf("got (%s, %q), want (%s, %q)", gotLang, gotPath, tc.wantLang, tc.wantPath)
 			}
@@ -166,7 +166,7 @@ func TestSuggestEnglish(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 			if tc.acceptLanguage != "" {
 				r.Header.Set("Accept-Language", tc.acceptLanguage)
 			}

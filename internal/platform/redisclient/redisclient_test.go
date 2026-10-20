@@ -12,7 +12,7 @@ func TestCheckerFailsFastWhenRedisIsDown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { _ = client.Close() })
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 	start := time.Now()
@@ -39,7 +39,7 @@ func TestCheckerAgainstRealRedis(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { _ = client.Close() })
 	if err := Checker(client).Check(context.Background()); err != nil {
 		t.Errorf("check failed against live redis: %v", err)
 	}

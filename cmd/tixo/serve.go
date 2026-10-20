@@ -60,7 +60,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	if err != nil {
 		return err
 	}
-	defer rdb.Close()
+	defer func() { _ = rdb.Close() }()
 
 	handler := server.New(server.Deps{
 		Logger:      log,
@@ -70,7 +70,8 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		ServerError: pages.ServerError,
 	})
 
-	ln, err := net.Listen("tcp", cfg.HTTPAddr)
+	var lc net.ListenConfig
+	ln, err := lc.Listen(ctx, "tcp", cfg.HTTPAddr)
 	if err != nil {
 		return fmt.Errorf("listen %s: %w", cfg.HTTPAddr, err)
 	}

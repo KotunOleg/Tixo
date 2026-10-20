@@ -30,7 +30,7 @@ func newTestHandler(t *testing.T, logs *bytes.Buffer, mount func(r chi.Router)) 
 func TestRequestIDHeader(t *testing.T) {
 	h := newTestHandler(t, &bytes.Buffer{}, nil)
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("/healthz = %d", rec.Code)
 	}
@@ -46,7 +46,7 @@ func TestRequestIDHeader(t *testing.T) {
 
 func TestClientCannotChooseRequestID(t *testing.T) {
 	h := newTestHandler(t, &bytes.Buffer{}, nil)
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil)
 	req.Header.Set("X-Request-Id", "forged\nlevel=ERROR msg=fake")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -61,7 +61,7 @@ func TestPanicBecomes500AndIsLogged(t *testing.T) {
 		r.Get("/boom", func(http.ResponseWriter, *http.Request) { panic("nil map write") })
 	})
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/boom", nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/boom", nil))
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", rec.Code)
 	}
@@ -78,7 +78,7 @@ func TestCrossSiteFormPostIsRejected(t *testing.T) {
 	h := newTestHandler(t, &bytes.Buffer{}, func(r chi.Router) {
 		r.Post("/events/x/buy", func(w http.ResponseWriter, _ *http.Request) { called = true })
 	})
-	req := httptest.NewRequest(http.MethodPost, "/events/x/buy", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/events/x/buy", nil)
 	req.Header.Set("Sec-Fetch-Site", "cross-site")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
@@ -94,7 +94,8 @@ func TestRunWaitsForInFlightRequestOnShutdown(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 		_, _ = io.WriteString(w, "done")
 	})
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,12 +107,17 @@ func TestRunWaitsForInFlightRequestOnShutdown(t *testing.T) {
 
 	respBody := make(chan string, 1)
 	go func() {
-		resp, err := http.Get("http://" + ln.Addr().String())
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+ln.Addr().String(), nil)
 		if err != nil {
 			respBody <- "error: " + err.Error()
 			return
 		}
-		defer resp.Body.Close()
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			respBody <- "error: " + err.Error()
+			return
+		}
+		defer func() { _ = resp.Body.Close() }()
 		b, _ := io.ReadAll(resp.Body)
 		respBody <- string(b)
 	}()

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -25,7 +26,7 @@ func runProbe(ctx context.Context, _ []string, stdout io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("probe: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(stdout, resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("probe: /healthz returned %d", resp.StatusCode)
@@ -34,12 +35,11 @@ func runProbe(ctx context.Context, _ []string, stdout io.Writer) error {
 }
 
 func probeURL(addr string) string {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil || port == "" {
-		port = "8080"
+	port := uint64(8080)
+	if _, raw, err := net.SplitHostPort(addr); err == nil {
+		if n, err := strconv.ParseUint(raw, 10, 16); err == nil && n > 0 {
+			port = n
+		}
 	}
-	if host == "" || host == "0.0.0.0" || host == "::" {
-		host = "127.0.0.1"
-	}
-	return "http://" + net.JoinHostPort(host, port) + "/healthz"
+	return fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
 }
