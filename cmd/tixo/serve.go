@@ -14,6 +14,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/config"
 	"github.com/KotunOleg/Tixo/internal/health"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
+	"github.com/KotunOleg/Tixo/internal/platform/postgres"
 	"github.com/KotunOleg/Tixo/internal/server"
 	"github.com/KotunOleg/Tixo/internal/web/controllers"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
@@ -47,9 +48,15 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		return err
 	}
 
+	pool, err := postgres.NewPool(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
 	handler := server.New(server.Deps{
 		Logger:      log,
-		Health:      health.Handler(healthTimeout),
+		Health:      health.Handler(healthTimeout, postgres.Checker(pool)),
 		Routes:      func(r chi.Router) { controllers.Mount(r, pages, web.FS) },
 		NotFound:    pages.NotFound,
 		ServerError: pages.ServerError,
