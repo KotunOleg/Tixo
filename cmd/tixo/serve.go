@@ -9,10 +9,16 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/KotunOleg/Tixo/internal/config"
 	"github.com/KotunOleg/Tixo/internal/health"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
 	"github.com/KotunOleg/Tixo/internal/server"
+	"github.com/KotunOleg/Tixo/internal/web/controllers"
+	"github.com/KotunOleg/Tixo/internal/web/i18n"
+	"github.com/KotunOleg/Tixo/internal/web/view"
+	"github.com/KotunOleg/Tixo/web"
 )
 
 const (
@@ -32,9 +38,21 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	log := logger.New(os.Stdout, cfg.AppEnv)
 	slog.SetDefault(log)
 
+	tr, err := i18n.New(web.FS)
+	if err != nil {
+		return err
+	}
+	pages, err := view.New(web.FS, tr, view.Config{BaseURL: cfg.BaseURL, Logger: log})
+	if err != nil {
+		return err
+	}
+
 	handler := server.New(server.Deps{
-		Logger: log,
-		Health: health.Handler(healthTimeout),
+		Logger:      log,
+		Health:      health.Handler(healthTimeout),
+		Routes:      func(r chi.Router) { controllers.Mount(r, pages, web.FS) },
+		NotFound:    pages.NotFound,
+		ServerError: pages.ServerError,
 	})
 
 	ln, err := net.Listen("tcp", cfg.HTTPAddr)

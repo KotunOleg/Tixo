@@ -1,0 +1,171 @@
+:root,
+[data-bs-theme="dark"] {
+  --tixo-bg: #0b0b12;
+  --tixo-surface: #14141f;
+  --tixo-surface-2: #1c1c2b;
+  --tixo-border: rgba(255, 255, 255, 0.08);
+  --tixo-accent: #ff3d8b;
+  --tixo-accent-2: #7c4dff;
+  --tixo-gradient: linear-gradient(135deg, var(--tixo-accent) 0%, var(--tixo-accent-2) 100%);
+  --bs-body-bg: var(--tixo-bg);
+  --bs-body-color: #ececf4;
+  --bs-secondary-color: rgba(236, 236, 244, 0.68);
+  --bs-border-color: var(--tixo-border);
+  --bs-link-color: #ff7ab0;
+  --bs-link-hover-color: #ffa3c8;
+  --bs-link-color-rgb: 255, 122, 176;
+  --bs-link-hover-color-rgb: 255, 163, 200;
+  --bs-focus-ring-color: rgba(255, 61, 139, 0.35);
+}
+
+body {
+  background: var(--tixo-bg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1100;
+  padding: 0.5rem 1rem;
+  background: var(--tixo-surface-2);
+  border-radius: 0.5rem;
+}
+
+.tixo-navbar {
+  background: rgba(11, 11, 18, 0.82);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--tixo-border);
+}
+
+.tixo-wordmark {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: var(--tixo-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tixo-accent {
+  color: var(--tixo-accent);
+}
+
+.btn-tixo {
+  --bs-btn-color: #fff;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-color: #fff;
+  --bs-btn-border-width: 0;
+  background: var(--tixo-gradient);
+  box-shadow: 0 0.5rem 1.5rem rgba(255, 61, 139, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.btn-tixo:hover,
+.btn-tixo:focus-visible {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 0.75rem 2rem rgba(255, 61, 139, 0.35);
+}
+
+.tixo-hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(60rem 30rem at 15% -10%, rgba(124, 77, 255, 0.35), transparent 60%),
+    radial-gradient(50rem 28rem at 90% 0%, rgba(255, 61, 139, 0.28), transparent 60%),
+    var(--tixo-bg);
+  border-bottom: 1px solid var(--tixo-border);
+}
+
+.tixo-kicker {
+  background: rgba(255, 61, 139, 0.14);
+  color: #ff9cc4;
+  border: 1px solid rgba(255, 61, 139, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.tixo-search {
+  max-width: 44rem;
+}
+
+.tixo-search .input-group-text,
+.tixo-search .form-control {
+  background: var(--tixo-surface);
+  border-color: var(--tixo-border);
+}
+
+.tixo-card,
+.tixo-feature,
+.tixo-empty,
+.tixo-cta {
+  background: var(--tixo-surface);
+  border: 1px solid var(--tixo-border);
+  border-radius: 1rem;
+}
+
+.tixo-card {
+  color: inherit;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.tixo-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 61, 139, 0.45);
+}
+
+.tixo-card .card-img-top {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.tixo-empty {
+  border-style: dashed;
+}
+
+.tixo-cta {
+  background:
+    radial-gradient(30rem 15rem at 100% 0%, rgba(124, 77, 255, 0.3), transparent 70%),
+    var(--tixo-surface);
+}
+
+.tixo-lang-suggest {
+  background: var(--tixo-surface-2);
+  border: 0;
+  border-bottom: 1px solid var(--tixo-border);
+  color: var(--bs-body-color);
+}
+
+.tixo-footer {
+  background: #08080d;
+  border-top: 1px solid var(--tixo-border);
+}
+
+.tixo-footer a {
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+}
+
+.tixo-footer a:hover {
+  color: var(--bs-body-color);
+}
+
+.tixo-error-code {
+  font-size: clamp(4rem, 12vw, 8rem);
+  font-weight: 800;
+  line-height: 1;
+  background: var(--tixo-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-tixo,
+  .tixo-card {
+    transition: none;
+  }
+}
