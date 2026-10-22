@@ -6,9 +6,10 @@
     <li class="breadcrumb-item active text-break" aria-current="page">{{.Data.Name}}</li>
   </ol></nav>
   <h1 class="mb-2">{{.Data.Name}}</h1>
-  <p class="d-flex flex-wrap gap-2 mb-5">
+  <p class="d-flex flex-wrap align-items-center gap-2 mb-5">
     <span class="tixo-badge">{{.T .Data.PlanLabel}}</span>
     <span class="tixo-badge">{{.T .Data.RoleLabel}}</span>
+    {{if .Data.CanManage}}<a class="btn btn-quiet btn-sm" href="{{.URL (printf "/org/%s/edit" .Data.Slug)}}">{{.T "org.show.edit"}}</a>{{end}}
   </p>
 
   <h2 class="h3 mb-3" id="events-title">{{.T "org.show.events"}}</h2>

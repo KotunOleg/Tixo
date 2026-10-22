@@ -126,6 +126,22 @@ events_empty = "No events yet."
 col_title = "Title"
 col_starts = "Starts (Kyiv)"
 col_status = "Status"
+edit = "Edit"
+
+[org.edit]
+title = "Organizer settings"
+submit = "Save"
+contacts_title = "Contacts"
+contacts_help = "Shown on the event page for attendees."
+contact_email = "Email"
+contact_phone = "Phone"
+contact_telegram = "Telegram"
+saved = "Changes saved."
+
+[org.edit.error]
+name_required = "Enter a name."
+name_length = "The name must be 2 to 100 characters long."
+contact_email_format = "This does not look like an email."
 
 [org.role]
 owner = "Owner"
