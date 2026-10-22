@@ -1,67 +1,29 @@
-package db
+package db_test
 
 import (
 	"bytes"
 	"context"
-	"fmt"
-	neturl "net/url"
-	"os"
 	"strings"
 	"testing"
 
+	"github.com/KotunOleg/Tixo/internal/db"
+	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/platform/postgres"
 )
 
-func testDatabaseURL(t *testing.T) string {
-	t.Helper()
-	raw := os.Getenv("TEST_DATABASE_URL")
-	if raw == "" {
-		t.Skip("TEST_DATABASE_URL not set; start postgres from compose to run integration tests")
-	}
-	if err := requireTestDatabase(raw); err != nil {
-		t.Fatal(err)
-	}
-	return raw
-}
-
-func requireTestDatabase(raw string) error {
-	u, err := neturl.Parse(raw)
-	if err != nil {
-		return fmt.Errorf("TEST_DATABASE_URL: %w", err)
-	}
-	name := strings.TrimPrefix(u.Path, "/")
-	if !strings.Contains(name, "test") {
-		return fmt.Errorf("TEST_DATABASE_URL points to database %q; integration tests drop the schema, so the database name must contain \"test\"", name)
-	}
-	return nil
-}
-
-func TestRefusesNonTestDatabase(t *testing.T) {
-	cases := map[string]bool{
-		"postgres://tixo:tixo@localhost:55432/tixo_test?sslmode=disable": true,
-		"postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable":      false,
-		"postgres://u:p@prod-host:5432/ecommerce":                        false,
-	}
-	for raw, ok := range cases {
-		if err := requireTestDatabase(raw); (err == nil) != ok {
-			t.Errorf("%s: err = %v, want allowed=%v", raw, err, ok)
-		}
-	}
-}
-
 func TestMigrationsRoundTrip(t *testing.T) {
-	url := testDatabaseURL(t)
+	url := dbtest.EmptyURL(t)
 	ctx := context.Background()
 	var out bytes.Buffer
 
-	if err := Migrate(ctx, url, "reset", &out); err != nil {
+	if err := db.Migrate(ctx, url, "reset", &out); err != nil {
 		t.Fatalf("reset: %v", err)
 	}
-	if err := Migrate(ctx, url, "up", &out); err != nil {
+	if err := db.Migrate(ctx, url, "up", &out); err != nil {
 		t.Fatalf("up: %v", err)
 	}
-	if err := Migrate(ctx, url, "up", &out); err != nil {
+	if err := db.Migrate(ctx, url, "up", &out); err != nil {
 		t.Fatalf("second up must be a no-op, got: %v", err)
 	}
 
@@ -79,7 +41,7 @@ func TestMigrationsRoundTrip(t *testing.T) {
 		t.Errorf("health check fails on a migrated database: %v", err)
 	}
 
-	if err := Migrate(ctx, url, "reset", &out); err != nil {
+	if err := db.Migrate(ctx, url, "reset", &out); err != nil {
 		t.Fatalf("reset: %v", err)
 	}
 	if ok, _ := q.SchemaStatus(ctx); ok {
@@ -90,16 +52,16 @@ func TestMigrationsRoundTrip(t *testing.T) {
 		t.Errorf("health check on an unmigrated database = %v, want a 'not migrated' error", err)
 	}
 
-	if err := Migrate(ctx, url, "status", &out); err != nil {
+	if err := db.Migrate(ctx, url, "status", &out); err != nil {
 		t.Fatalf("status: %v", err)
 	}
-	if err := Migrate(ctx, url, "up", &out); err != nil {
+	if err := db.Migrate(ctx, url, "up", &out); err != nil {
 		t.Fatalf("up after reset: %v", err)
 	}
 }
 
 func TestMigrateRejectsUnknownCommand(t *testing.T) {
-	err := Migrate(context.Background(), "postgres://unused", "sideways", &bytes.Buffer{})
+	err := db.Migrate(context.Background(), "postgres://unused", "sideways", &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "sideways") {
 		t.Errorf("err = %v, want unknown command error", err)
 	}
