@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 
@@ -107,6 +108,11 @@ func newAuthSite(t *testing.T) *authSite {
 
 func newAuthSiteWithClient(t *testing.T, client *http.Client) *authSite {
 	t.Helper()
+	return newAuthSiteWith(t, client, nil)
+}
+
+func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)) *authSite {
+	t.Helper()
 	fake := newFakeGoogle(t)
 	if client == nil {
 		client = fake.srv.Client()
@@ -120,7 +126,7 @@ func newAuthSiteWithClient(t *testing.T, client *http.Client) *authSite {
 			Auth:     oauth2.Endpoint{AuthURL: fake.srv.URL + "/authorize", TokenURL: fake.srv.URL + "/token"},
 			Userinfo: fake.srv.URL + "/userinfo",
 		}, client)
-	}, nil)
+	}, extra)
 	return &authSite{h: h, deps: d, fake: fake, svc: svc, pool: pool}
 }
 
