@@ -24,6 +24,22 @@ func TestSearchRequiresMinimumLength(t *testing.T) {
 		t.Errorf("Search(too short) = %+v, want empty", rows)
 	}
 
+	rows, err = svc.Search(context.Background(), "Ok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 0 {
+		t.Errorf("Search(2 chars) = %+v, want empty", rows)
+	}
+
+	rows, err = svc.Search(context.Background(), "Oke")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 || rows[0].Name != "Okean Elzy" {
+		t.Errorf("Search(3 chars) = %+v, want [Okean Elzy]", rows)
+	}
+
 	rows, err = svc.Search(context.Background(), "Okean")
 	if err != nil {
 		t.Fatal(err)
