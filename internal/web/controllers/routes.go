@@ -10,6 +10,7 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/events"
@@ -34,6 +35,7 @@ type Deps struct {
 	Tiers      *tiers.Service
 	Lineup     *lineup.Service
 	Artists    *artists.Service
+	APITokens  *apitokens.Service
 	Storage    *storage.Store
 	Logger     *slog.Logger
 }
@@ -53,6 +55,11 @@ func Mount(r chi.Router, d Deps) {
 		o := Organizers{View: d.View, Sessions: d.Sessions, Svc: d.Organizers, Log: d.Logger}
 		r.Group(func(r chi.Router) {
 			r.Use(requireUser)
+			p := Profile{View: d.View, Sessions: d.Sessions, Svc: d.APITokens, Log: d.Logger}
+			r.Get("/profile", p.Show)
+			r.Post("/profile/tokens", p.CreateToken)
+			r.Post("/profile/tokens/{id}/revoke", p.RevokeToken)
+
 			r.Get("/org", o.List)
 			r.Get("/org/new", o.New)
 			r.Post("/org/new", o.Create)

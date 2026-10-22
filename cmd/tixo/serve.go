@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/config"
@@ -85,7 +86,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 
 	site := controllers.Deps{
-		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Venues: venues.New(pool), Events: events.New(pool), Tiers: tiers.New(pool), Lineup: lineup.New(pool), Artists: artists.New(pool), Storage: posters, Logger: log,
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Venues: venues.New(pool), Events: events.New(pool), Tiers: tiers.New(pool), Lineup: lineup.New(pool), Artists: artists.New(pool), APITokens: apitokens.New(pool), Storage: posters, Logger: log,
 	}
 	handler := server.New(server.Deps{
 		Logger:      log,
