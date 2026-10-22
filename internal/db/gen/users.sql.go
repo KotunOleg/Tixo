@@ -69,3 +69,55 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	)
 	return i, err
 }
+
+const linkGoogleAccount = `-- name: LinkGoogleAccount :one
+UPDATE users
+SET google_sub = $1, name = $2
+WHERE email = lower($3) AND google_sub IS NULL
+RETURNING id, email, name, google_sub, created_at
+`
+
+type LinkGoogleAccountParams struct {
+	GoogleSub pgtype.Text
+	Name      string
+	Email     string
+}
+
+func (q *Queries) LinkGoogleAccount(ctx context.Context, arg LinkGoogleAccountParams) (User, error) {
+	row := q.db.QueryRow(ctx, linkGoogleAccount, arg.GoogleSub, arg.Name, arg.Email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.GoogleSub,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateGoogleUser = `-- name: UpdateGoogleUser :one
+UPDATE users
+SET email = lower($1), name = $2
+WHERE google_sub = $3
+RETURNING id, email, name, google_sub, created_at
+`
+
+type UpdateGoogleUserParams struct {
+	Email     string
+	Name      string
+	GoogleSub pgtype.Text
+}
+
+func (q *Queries) UpdateGoogleUser(ctx context.Context, arg UpdateGoogleUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateGoogleUser, arg.Email, arg.Name, arg.GoogleSub)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Name,
+		&i.GoogleSub,
+		&i.CreatedAt,
+	)
+	return i, err
+}
