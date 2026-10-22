@@ -6,6 +6,8 @@ require github.com/caarlos0/env/v11 v11.4.1
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/alexedwards/scs/goredisstore v0.0.0-20251002162104-209de6e426de
+	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/go-chi/chi/v5 v5.5.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.1

@@ -10,8 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/server"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
@@ -25,7 +27,8 @@ func newSite(t *testing.T, extra func(r chi.Router)) http.Handler {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	v, err := view.New(web.FS, tr, view.Config{BaseURL: url.URL{Scheme: "https", Host: "tixo.example"}, Logger: log})
+	base := url.URL{Scheme: "https", Host: "tixo.example"}
+	v, err := view.New(web.FS, tr, view.Config{BaseURL: base, Logger: log})
 	if err != nil {
 		t.Fatalf("templates failed to parse: %v", err)
 	}
@@ -33,7 +36,7 @@ func newSite(t *testing.T, extra func(r chi.Router)) http.Handler {
 		Logger: log,
 		Health: http.NotFoundHandler(),
 		Routes: func(r chi.Router) {
-			Mount(r, v, web.FS)
+			Mount(r, Deps{View: v, FS: web.FS, Sessions: auth.NewSessionsWithStore(memstore.NewWithCleanupInterval(0), base, log, v.ServerError)})
 			if extra != nil {
 				extra(r)
 			}

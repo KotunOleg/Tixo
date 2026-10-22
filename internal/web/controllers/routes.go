@@ -5,14 +5,24 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
 
-func Mount(r chi.Router, v *view.Renderer, fsys fs.FS) {
-	r.Get("/", Home{View: v}.ServeHTTP)
-	r.Get("/static/*", staticFiles(v, fsys))
+type Deps struct {
+	View     *view.Renderer
+	FS       fs.FS
+	Sessions *scs.SessionManager
+}
+
+func Mount(r chi.Router, d Deps) {
+	r.Get("/static/*", staticFiles(d.View, d.FS))
+	r.Group(func(r chi.Router) {
+		r.Use(d.Sessions.LoadAndSave)
+		r.Get("/", Home{View: d.View}.ServeHTTP)
+	})
 }
 
 func staticFiles(v *view.Renderer, fsys fs.FS) http.HandlerFunc {

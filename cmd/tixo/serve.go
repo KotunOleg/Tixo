@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/config"
 	"github.com/KotunOleg/Tixo/internal/health"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
@@ -62,10 +63,14 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 	defer func() { _ = rdb.Close() }()
 
+	sessions := auth.NewSessions(rdb, cfg.BaseURL, log, pages.ServerError)
+
 	handler := server.New(server.Deps{
-		Logger:      log,
-		Health:      health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
-		Routes:      func(r chi.Router) { controllers.Mount(r, pages, web.FS) },
+		Logger: log,
+		Health: health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
+		Routes: func(r chi.Router) {
+			controllers.Mount(r, controllers.Deps{View: pages, FS: web.FS, Sessions: sessions})
+		},
 		NotFound:    pages.NotFound,
 		ServerError: pages.ServerError,
 	})
