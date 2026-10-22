@@ -13,32 +13,40 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/KotunOleg/Tixo/internal/apitokens"
+	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/tiers"
 	"github.com/KotunOleg/Tixo/internal/venues"
 )
 
 type testSite struct {
-	h      http.Handler
-	pool   *pgxpool.Pool
-	orgs   *organizers.Service
-	venues *venues.Service
-	events *events.Service
-	tiers  *tiers.Service
-	tokens *apitokens.Service
+	h       http.Handler
+	pool    *pgxpool.Pool
+	orgs    *organizers.Service
+	venues  *venues.Service
+	events  *events.Service
+	tiers   *tiers.Service
+	lineup  *lineup.Service
+	artists *artists.Service
+	tokens  *apitokens.Service
 }
 
 func newTestSite(t *testing.T) testSite {
 	t.Helper()
 	pool := dbtest.Pool(t)
 	s := testSite{
-		pool: pool, orgs: organizers.New(pool), venues: venues.New(pool), events: events.New(pool), tiers: tiers.New(pool), tokens: apitokens.New(pool),
+		pool: pool, orgs: organizers.New(pool), venues: venues.New(pool), events: events.New(pool), tiers: tiers.New(pool),
+		lineup: lineup.New(pool), artists: artists.New(pool), tokens: apitokens.New(pool),
 	}
 	r := chi.NewRouter()
-	Mount(r, Deps{Organizers: s.orgs, Venues: s.venues, Events: s.events, APITokens: s.tokens, Logger: discardLog()})
+	Mount(r, Deps{
+		Organizers: s.orgs, Venues: s.venues, Events: s.events, Tiers: s.tiers, Lineup: s.lineup, Artists: s.artists,
+		APITokens: s.tokens, Logger: discardLog(),
+	})
 	s.h = r
 	return s
 }
