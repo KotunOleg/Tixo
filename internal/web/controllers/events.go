@@ -180,18 +180,24 @@ func (c Events) Create(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
-	in, _, ok := c.gateEventInput(w, r, &form, "")
+	in, _, uploadedKey, ok := c.gateEventInput(w, r, &form, "")
 	if !ok {
 		return
 	}
 	e, err := c.Svc.Create(r.Context(), m.Organizer.ID, in)
 	var verr *events.ValidationError
 	if errors.As(err, &verr) {
+		if uploadedKey != "" {
+			_ = c.Storage.Delete(uploadedKey)
+		}
 		form.Errors = translateEventErrors(verr)
 		c.View.Render(w, r, http.StatusUnprocessableEntity, "pages/event_form", form)
 		return
 	}
 	if err != nil {
+		if uploadedKey != "" {
+			_ = c.Storage.Delete(uploadedKey)
+		}
 		c.serverError(w, r, err)
 		return
 	}
@@ -326,7 +332,7 @@ func (c Events) Update(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
-	in, oldPosterKey, ok := c.gateEventInput(w, r, &form, existing.PosterKey.String)
+	in, oldPosterKey, uploadedKey, ok := c.gateEventInput(w, r, &form, existing.PosterKey.String)
 	if !ok {
 		return
 	}
@@ -334,13 +340,22 @@ func (c Events) Update(w http.ResponseWriter, r *http.Request) {
 	var verr *events.ValidationError
 	switch {
 	case errors.Is(err, events.ErrNotFound):
+		if uploadedKey != "" {
+			_ = c.Storage.Delete(uploadedKey)
+		}
 		c.View.NotFound(w, r)
 		return
 	case errors.As(err, &verr):
+		if uploadedKey != "" {
+			_ = c.Storage.Delete(uploadedKey)
+		}
 		form.Errors = translateEventErrors(verr)
 		c.View.Render(w, r, http.StatusUnprocessableEntity, "pages/event_form", form)
 		return
 	case err != nil:
+		if uploadedKey != "" {
+			_ = c.Storage.Delete(uploadedKey)
+		}
 		c.serverError(w, r, err)
 		return
 	}
@@ -472,7 +487,7 @@ func genreOptions(selected string) []eventGenreOption {
 	return opts
 }
 
-func (c Events) gateEventInput(w http.ResponseWriter, r *http.Request, form *eventFormData, currentPosterKey string) (events.Input, string, bool) {
+func (c Events) gateEventInput(w http.ResponseWriter, r *http.Request, form *eventFormData, currentPosterKey string) (events.Input, string, string, bool) {
 	errs := map[string]string{}
 	venueID, err := strconv.ParseInt(form.VenueID, 10, 64)
 	if err != nil {
@@ -506,22 +521,23 @@ func (c Events) gateEventInput(w http.ResponseWriter, r *http.Request, form *eve
 	if len(errs) > 0 {
 		form.Errors = errs
 		c.View.Render(w, r, http.StatusUnprocessableEntity, "pages/event_form", *form)
-		return events.Input{}, "", false
+		return events.Input{}, "", "", false
 	}
 
-	newPosterKey, oldPosterKey, ok := c.resolvePoster(w, r, form, currentPosterKey)
+	newPosterKey, oldPosterKey, uploadedKey, ok := c.resolvePoster(w, r, form, currentPosterKey)
 	if !ok {
-		return events.Input{}, "", false
+		return events.Input{}, "", "", false
 	}
 	in.PosterKey = newPosterKey
-	return in, oldPosterKey, true
+	return in, oldPosterKey, uploadedKey, true
 }
 
-func (c Events) resolvePoster(w http.ResponseWriter, r *http.Request, form *eventFormData, currentPosterKey string) (string, string, bool) {
+func (c Events) resolvePoster(w http.ResponseWriter, r *http.Request, form *eventFormData, currentPosterKey string) (string, string, string, bool) {
 	posterKey := currentPosterKey
 	if r.MultipartForm != nil && len(r.MultipartForm.Value["remove_poster"]) > 0 {
 		posterKey = ""
 	}
+	uploadedKey := ""
 	file, header, err := r.FormFile("poster")
 	if err == nil {
 		defer func() { _ = file.Close() }()
@@ -529,15 +545,16 @@ func (c Events) resolvePoster(w http.ResponseWriter, r *http.Request, form *even
 		if code != "" {
 			form.Errors = map[string]string{"poster": "event.form.error.poster_" + code}
 			c.View.Render(w, r, http.StatusUnprocessableEntity, "pages/event_form", *form)
-			return "", "", false
+			return "", "", "", false
 		}
 		posterKey = key
+		uploadedKey = key
 	}
 	oldPosterKey := ""
 	if currentPosterKey != "" && currentPosterKey != posterKey {
 		oldPosterKey = currentPosterKey
 	}
-	return posterKey, oldPosterKey, true
+	return posterKey, oldPosterKey, uploadedKey, true
 }
 
 func (c Events) uploadPoster(f multipart.File, header *multipart.FileHeader) (string, string) {

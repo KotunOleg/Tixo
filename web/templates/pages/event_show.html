@@ -18,9 +18,9 @@
     <form method="post" action="{{.URL (printf "/org/%s/events/%d/cancel" .Data.Slug .Data.ID)}}" data-confirm="{{.T "event.show.cancel_confirm"}}"><button class="btn btn-quiet btn-sm" type="submit">{{.T "event.show.cancel"}}</button></form>
     {{end}}
   </div>
-  <h2 class="h4 mb-3">{{.T "event.tiers.title"}}</h2>
+  <h2 class="h4 mb-3" id="event-tiers-title">{{.T "event.tiers.title"}}</h2>
   {{if .Data.Tiers}}
-  <div class="table-responsive mb-4">
+  <div class="table-responsive mb-4" tabindex="0" role="region" aria-labelledby="event-tiers-title">
     <table class="table tixo-table align-middle">
       <thead><tr>
         <th scope="col">{{.T "event.tiers.name"}}</th>
