@@ -21,6 +21,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/users"
+	"github.com/KotunOleg/Tixo/internal/venues"
 )
 
 type fakeGoogle struct {
@@ -124,6 +125,7 @@ func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)
 	h, d := buildSite(t, func(d *Deps) {
 		d.Users = svc
 		d.Organizers = organizers.New(pool)
+		d.Venues = venues.New(pool)
 		d.Google = auth.NewGoogleWith("client-id", "client-secret", testBaseURL, auth.GoogleEndpoints{
 			Auth:     oauth2.Endpoint{AuthURL: fake.srv.URL + "/authorize", TokenURL: fake.srv.URL + "/token"},
 			Userinfo: fake.srv.URL + "/userinfo",
