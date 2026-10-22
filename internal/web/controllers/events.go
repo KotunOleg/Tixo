@@ -16,6 +16,7 @@ import (
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
+	"github.com/KotunOleg/Tixo/internal/tiers"
 	"github.com/KotunOleg/Tixo/internal/venues"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
@@ -97,12 +98,22 @@ type eventShowData struct {
 	StatusLabel string
 	Status      string
 	PosterURL   string
+	Tiers       []tierRow
+}
+
+type tierRow struct {
+	ID        int64
+	Name      string
+	Price     string
+	Quantity  string
+	Available int32
 }
 
 type Events struct {
 	View    *view.Renderer
 	Svc     *events.Service
 	Venues  *venues.Service
+	Tiers   *tiers.Service
 	Storage *storage.Store
 	Log     *slog.Logger
 }
@@ -186,9 +197,18 @@ func (c Events) Show(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	rows, err := c.Tiers.List(r.Context(), m.Organizer.ID, e.ID)
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	tierRows := make([]tierRow, len(rows))
+	for i, t := range rows {
+		tierRows[i] = tierRow{ID: t.ID, Name: t.Name, Price: formatPrice(t.Price), Quantity: strconv.FormatInt(int64(t.Quantity), 10), Available: t.Available}
+	}
 	c.View.Render(w, r, http.StatusOK, "pages/event_show", eventShowData{
 		Slug: m.Organizer.Slug, OrgName: m.Organizer.Name, ID: e.ID, Title: e.Title, Status: e.Status,
-		StatusLabel: "org.event_status." + e.Status, PosterURL: posterURL(e.PosterKey),
+		StatusLabel: "org.event_status." + e.Status, PosterURL: posterURL(e.PosterKey), Tiers: tierRows,
 	})
 }
 

@@ -67,12 +67,76 @@ func (q *Queries) DeleteUnsoldTicketTier(ctx context.Context, arg DeleteUnsoldTi
 	return result.RowsAffected(), nil
 }
 
+const getTicketTier = `-- name: GetTicketTier :one
+SELECT t.id, t.event_id, t.name, t.price, t.quantity, t.available FROM ticket_tiers t
+JOIN events e ON e.id = t.event_id
+WHERE t.id = $1 AND e.organizer_id = $2
+`
+
+type GetTicketTierParams struct {
+	ID          int64
+	OrganizerID int64
+}
+
+func (q *Queries) GetTicketTier(ctx context.Context, arg GetTicketTierParams) (TicketTier, error) {
+	row := q.db.QueryRow(ctx, getTicketTier, arg.ID, arg.OrganizerID)
+	var i TicketTier
+	err := row.Scan(
+		&i.ID,
+		&i.EventID,
+		&i.Name,
+		&i.Price,
+		&i.Quantity,
+		&i.Available,
+	)
+	return i, err
+}
+
 const listTicketTiers = `-- name: ListTicketTiers :many
 SELECT id, event_id, name, price, quantity, available FROM ticket_tiers WHERE event_id = $1 ORDER BY price, id
 `
 
 func (q *Queries) ListTicketTiers(ctx context.Context, eventID int64) ([]TicketTier, error) {
 	rows, err := q.db.Query(ctx, listTicketTiers, eventID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TicketTier
+	for rows.Next() {
+		var i TicketTier
+		if err := rows.Scan(
+			&i.ID,
+			&i.EventID,
+			&i.Name,
+			&i.Price,
+			&i.Quantity,
+			&i.Available,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTicketTiersForOrganizer = `-- name: ListTicketTiersForOrganizer :many
+SELECT t.id, t.event_id, t.name, t.price, t.quantity, t.available FROM ticket_tiers t
+JOIN events e ON e.id = t.event_id
+WHERE t.event_id = $1 AND e.organizer_id = $2
+ORDER BY t.price, t.id
+`
+
+type ListTicketTiersForOrganizerParams struct {
+	EventID     int64
+	OrganizerID int64
+}
+
+func (q *Queries) ListTicketTiersForOrganizer(ctx context.Context, arg ListTicketTiersForOrganizerParams) ([]TicketTier, error) {
+	rows, err := q.db.Query(ctx, listTicketTiersForOrganizer, arg.EventID, arg.OrganizerID)
 	if err != nil {
 		return nil, err
 	}

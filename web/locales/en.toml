@@ -260,6 +260,38 @@ cancel_confirm = "Cancel this event? Attendees will see the \"Cancelled\" status
 [event.delete]
 has_tickets = "Delete this event's ticket tiers first."
 
+[event.tiers]
+title = "Ticket tiers"
+name = "Name"
+price = "Price"
+quantity = "Quantity"
+available = "Available"
+actions = "Actions"
+save = "Save"
+delete = "Delete"
+delete_confirm = "Delete this ticket tier? This cannot be undone."
+empty = "No ticket tiers yet."
+add_title = "Add a tier"
+add = "Add"
+
+[tier.create]
+saved = "Ticket tier added."
+
+[tier.update]
+saved = "Ticket tier updated."
+
+[tier.delete]
+saved = "Ticket tier deleted."
+sold = "This tier already has sold tickets and cannot be deleted."
+
+[tier.form.error]
+format = "Check the price and quantity."
+name_required = "Enter a tier name."
+name_length = "Name must be 2 to 100 characters."
+name_taken = "This event already has a tier with that name."
+price_range = "Price cannot be negative."
+quantity_range = "Quantity must be 1 to 1,000,000 and not less than tickets already sold."
+
 [genre]
 rock = "Rock"
 pop = "Pop"

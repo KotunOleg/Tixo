@@ -14,6 +14,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
+	"github.com/KotunOleg/Tixo/internal/tiers"
 	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/venues"
 	"github.com/KotunOleg/Tixo/internal/web/view"
@@ -28,6 +29,7 @@ type Deps struct {
 	Organizers *organizers.Service
 	Venues     *venues.Service
 	Events     *events.Service
+	Tiers      *tiers.Service
 	Storage    *storage.Store
 	Logger     *slog.Logger
 }
@@ -63,7 +65,7 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/edit", v.Update)
 			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/delete", v.Delete)
 
-			ev := Events{View: d.View, Svc: d.Events, Venues: d.Venues, Storage: d.Storage, Log: d.Logger}
+			ev := Events{View: d.View, Svc: d.Events, Venues: d.Venues, Tiers: d.Tiers, Storage: d.Storage, Log: d.Logger}
 			r.With(o.RequireMember).Get("/org/{slug}/events", ev.List)
 			r.With(o.RequireMember).Get("/org/{slug}/events/new", ev.New)
 			r.With(o.RequireMember).Post("/org/{slug}/events/new", ev.Create)
@@ -74,6 +76,11 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/unpublish", ev.SetStatus(events.StatusDraft))
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/cancel", ev.SetStatus(events.StatusCancelled))
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/delete", ev.Delete)
+
+			ti := Tiers{View: d.View, Sessions: d.Sessions, Svc: d.Tiers, Log: d.Logger}
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers", ti.Create)
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers/{tierID}", ti.Update)
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers/{tierID}/delete", ti.Delete)
 		})
 	})
 }
