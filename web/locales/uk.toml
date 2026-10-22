@@ -202,6 +202,76 @@ capacity_format = "Введіть ціле число."
 [venue.delete]
 has_events = "Спершу видаліть або перенесіть події цього майданчика."
 
+[event.list]
+title = "Події"
+create = "Додати подію"
+empty = "Подій поки немає."
+
+[event.form]
+title_new = "Нова подія"
+title_edit = "Редагувати подію"
+event_title = "Назва"
+slug = "Адреса сторінки"
+slug_help = "Латинські літери в нижньому регістрі, цифри й дефіс, 3–80 символів."
+event_description = "Опис"
+venue = "Майданчик"
+venue_placeholder = "Оберіть майданчик"
+starts_at = "Початок"
+ends_at = "Кінець"
+genre = "Жанр"
+genre_placeholder = "Оберіть жанр"
+price_from = "Ціна від"
+price_help = "У гривнях, напр. 350.00. Лишіть порожнім, якщо ціна ще невідома."
+poster = "Постер"
+poster_help = "JPEG, PNG або WebP, до 5 МБ."
+remove_poster = "Прибрати постер"
+submit = "Зберегти"
+delete = "Видалити подію"
+delete_confirm = "Видалити цю подію? Дію не можна скасувати."
+
+[event.form.error]
+venue_id_required = "Оберіть майданчик."
+venue_id_not_found = "Цей майданчик недоступний для вашої організації."
+slug_required = "Вкажіть адресу сторінки."
+slug_format = "Лише латинські літери в нижньому регістрі, цифри й дефіс між ними."
+slug_length = "Адреса має містити від 3 до 80 символів."
+slug_taken = "Ця адреса вже зайнята іншою подією."
+title_required = "Вкажіть назву."
+title_length = "Назва занадто довга."
+starts_at_required = "Вкажіть дату й час початку."
+starts_at_format = "Вкажіть коректні дату й час."
+ends_at_required = "Вкажіть дату й час завершення."
+ends_at_format = "Вкажіть коректні дату й час."
+ends_at_range = "Подія має закінчуватися пізніше, ніж починається."
+genre_invalid = "Оберіть жанр зі списку."
+price_from_range = "Ціна не може бути від'ємною."
+price_from_format = "Введіть ціну числом, напр. 350.00."
+poster_type = "Підтримуються лише JPEG, PNG або WebP."
+poster_size = "Файл завеликий (максимум 5 МБ)."
+poster_io = "Не вдалося зберегти файл, спробуйте ще раз."
+
+[event.show]
+edit = "Редагувати"
+publish = "Опублікувати"
+unpublish = "Зняти з публікації"
+cancel = "Скасувати подію"
+cancel_confirm = "Скасувати цю подію? Відвідувачі побачать статус «Скасована»."
+
+[event.delete]
+has_tickets = "Спершу видаліть категорії квитків цієї події."
+
+[genre]
+rock = "Рок"
+pop = "Поп"
+indie = "Інді"
+alternative = "Альтернатива"
+electronic = "Електронна"
+hip-hop = "Хіп-хоп"
+folk = "Фолк"
+jazz = "Джаз"
+classical = "Класична"
+metal = "Метал"
+
 [errors.403]
 title = "Немає доступу"
 text = "Цю дію може виконати лише власник організатора."

@@ -13,6 +13,7 @@
   </p>
   <p class="d-flex flex-wrap gap-2 mb-5">
     <a class="btn btn-quiet btn-sm" href="{{.URL (printf "/org/%s/venues" .Data.Slug)}}">{{.T "org.show.venues"}}</a>
+    <a class="btn btn-quiet btn-sm" href="{{.URL (printf "/org/%s/events" .Data.Slug)}}">{{.T "event.list.title"}}</a>
   </p>
 
   <h2 class="h3 mb-3" id="events-title">{{.T "org.show.events"}}</h2>
@@ -21,7 +22,7 @@
     <table class="table align-middle tixo-table mb-0">
       <thead><tr><th scope="col">{{$.T "org.show.col_title"}}</th><th scope="col">{{$.T "org.show.col_starts"}}</th><th scope="col">{{$.T "org.show.col_status"}}</th></tr></thead>
       <tbody>
-        {{range .}}<tr><td class="tixo-col-title">{{.Title}}</td><td class="text-nowrap">{{.StartsAt}}</td><td><span class="tixo-status tixo-status-{{.Status}}">{{$.T .StatusLabel}}</span></td></tr>
+        {{range .}}<tr><td class="tixo-col-title"><a href="{{$.URL (printf "/org/%s/events/%d" $.Data.Slug .ID)}}">{{.Title}}</a></td><td class="text-nowrap">{{.StartsAt}}</td><td><span class="tixo-status tixo-status-{{.Status}}">{{$.T .StatusLabel}}</span></td></tr>
         {{end}}
       </tbody>
     </table>

@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/KotunOleg/Tixo/internal/auth"
+	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/users"
@@ -26,6 +27,7 @@ type Deps struct {
 	Users      *users.Service
 	Organizers *organizers.Service
 	Venues     *venues.Service
+	Events     *events.Service
 	Storage    *storage.Store
 	Logger     *slog.Logger
 }
@@ -60,6 +62,18 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Get("/org/{slug}/venues/{id}/edit", v.Edit)
 			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/edit", v.Update)
 			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/delete", v.Delete)
+
+			ev := Events{View: d.View, Svc: d.Events, Venues: d.Venues, Storage: d.Storage, Log: d.Logger}
+			r.With(o.RequireMember).Get("/org/{slug}/events", ev.List)
+			r.With(o.RequireMember).Get("/org/{slug}/events/new", ev.New)
+			r.With(o.RequireMember).Post("/org/{slug}/events/new", ev.Create)
+			r.With(o.RequireMember).Get("/org/{slug}/events/{id}", ev.Show)
+			r.With(o.RequireMember).Get("/org/{slug}/events/{id}/edit", ev.Edit)
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/edit", ev.Update)
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/publish", ev.SetStatus(events.StatusPublished))
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/unpublish", ev.SetStatus(events.StatusDraft))
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/cancel", ev.SetStatus(events.StatusCancelled))
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/delete", ev.Delete)
 		})
 	})
 }

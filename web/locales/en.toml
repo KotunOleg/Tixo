@@ -202,6 +202,76 @@ capacity_format = "Enter a whole number."
 [venue.delete]
 has_events = "Delete or move this venue's events first."
 
+[event.list]
+title = "Events"
+create = "Add event"
+empty = "No events yet."
+
+[event.form]
+title_new = "New event"
+title_edit = "Edit event"
+event_title = "Title"
+slug = "Page address"
+slug_help = "Lowercase Latin letters, digits and hyphens, 3–80 characters."
+event_description = "Description"
+venue = "Venue"
+venue_placeholder = "Choose a venue"
+starts_at = "Starts"
+ends_at = "Ends"
+genre = "Genre"
+genre_placeholder = "Choose a genre"
+price_from = "Price from"
+price_help = "In hryvnias, e.g. 350.00. Leave empty if the price is not set yet."
+poster = "Poster"
+poster_help = "JPEG, PNG or WebP, up to 5 MB."
+remove_poster = "Remove poster"
+submit = "Save"
+delete = "Delete event"
+delete_confirm = "Delete this event? This cannot be undone."
+
+[event.form.error]
+venue_id_required = "Choose a venue."
+venue_id_not_found = "This venue is not available to your organization."
+slug_required = "Enter a page address."
+slug_format = "Only lowercase Latin letters, digits and hyphens between them."
+slug_length = "The address must be 3 to 80 characters long."
+slug_taken = "This address is already used by another event."
+title_required = "Enter a title."
+title_length = "The title is too long."
+starts_at_required = "Enter the start date and time."
+starts_at_format = "Enter a valid date and time."
+ends_at_required = "Enter the end date and time."
+ends_at_format = "Enter a valid date and time."
+ends_at_range = "The event must end after it starts."
+genre_invalid = "Choose a genre from the list."
+price_from_range = "Price cannot be negative."
+price_from_format = "Enter the price as a number, e.g. 350.00."
+poster_type = "Only JPEG, PNG or WebP are supported."
+poster_size = "The file is too large (5 MB max)."
+poster_io = "Could not save the file, please try again."
+
+[event.show]
+edit = "Edit"
+publish = "Publish"
+unpublish = "Unpublish"
+cancel = "Cancel event"
+cancel_confirm = "Cancel this event? Attendees will see the \"Cancelled\" status."
+
+[event.delete]
+has_tickets = "Delete this event's ticket tiers first."
+
+[genre]
+rock = "Rock"
+pop = "Pop"
+indie = "Indie"
+alternative = "Alternative"
+electronic = "Electronic"
+hip-hop = "Hip-hop"
+folk = "Folk"
+jazz = "Jazz"
+classical = "Classical"
+metal = "Metal"
+
 [errors.403]
 title = "Access denied"
 text = "Only the organizer's owner can do this."
