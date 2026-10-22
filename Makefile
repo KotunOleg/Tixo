@@ -1,3 +1,6 @@
+-include .env
+export GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
+
 TEST_ENV = TEST_DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo_test?sslmode=disable \
 	TEST_REDIS_URL=redis://localhost:56379/1 \
 	TEST_AMQP_URL=amqp://tixo:tixo@localhost:55672/
