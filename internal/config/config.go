@@ -31,9 +31,14 @@ type Config struct {
 	RedisURL      string  `env:"REDIS_URL,required,notEmpty"`
 	AMQPURL       string  `env:"AMQP_URL,required,notEmpty"`
 	SessionSecret string  `env:"SESSION_SECRET"`
+
+	GoogleClientID     string `env:"GOOGLE_CLIENT_ID"`
+	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
 }
 
 func (c *Config) IsProd() bool { return c.AppEnv == EnvProd }
+
+func (c *Config) GoogleEnabled() bool { return c.GoogleClientID != "" && c.GoogleClientSecret != "" }
 
 func Load() (*Config, error) {
 	return LoadFrom(environ())
@@ -69,12 +74,22 @@ func (c *Config) validate() error {
 	}
 	c.BaseURL.Path = ""
 
+	switch {
+	case c.GoogleClientID != "" && c.GoogleClientSecret == "":
+		return errors.New("GOOGLE_CLIENT_SECRET must be set together with GOOGLE_CLIENT_ID")
+	case c.GoogleClientID == "" && c.GoogleClientSecret != "":
+		return errors.New("GOOGLE_CLIENT_ID must be set together with GOOGLE_CLIENT_SECRET")
+	}
+
 	if c.IsProd() {
 		if c.BaseURL.Scheme != "https" {
 			return fmt.Errorf("BASE_URL must use https in prod, got %q", c.BaseURL.String())
 		}
 		if len(c.SessionSecret) < minSecretLen {
 			return fmt.Errorf("SESSION_SECRET must be at least %d bytes in prod", minSecretLen)
+		}
+		if !c.GoogleEnabled() {
+			return errors.New("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required in prod: sign-in uses Google")
 		}
 		return nil
 	}

@@ -8,3 +8,15 @@ SELECT * FROM users WHERE id = $1;
 
 -- name: GetUserByEmail :one
 SELECT * FROM users WHERE email = lower(@email);
+
+-- name: UpdateGoogleUser :one
+UPDATE users
+SET email = lower(@email), name = @name
+WHERE google_sub = @google_sub
+RETURNING *;
+
+-- name: LinkGoogleAccount :one
+UPDATE users
+SET google_sub = @google_sub, name = @name
+WHERE email = lower(@email) AND google_sub IS NULL
+RETURNING *;

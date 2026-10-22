@@ -2,6 +2,7 @@ package view
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -20,6 +21,24 @@ import (
 type Config struct {
 	BaseURL url.URL
 	Logger  *slog.Logger
+	SignIn  bool
+}
+
+type Viewer struct {
+	Name  string
+	Email string
+}
+
+type viewerKey struct{}
+
+type flashKey struct{}
+
+func WithViewer(ctx context.Context, v Viewer) context.Context {
+	return context.WithValue(ctx, viewerKey{}, &v)
+}
+
+func WithFlash(ctx context.Context, pop func() string) context.Context {
+	return context.WithValue(ctx, flashKey{}, pop)
 }
 
 type Renderer struct {
@@ -88,6 +107,10 @@ func (v *Renderer) NotFound(w http.ResponseWriter, r *http.Request) {
 	v.Render(w, r, http.StatusNotFound, "errors/404", nil)
 }
 
+func (v *Renderer) Forbidden(w http.ResponseWriter, r *http.Request) {
+	v.Render(w, r, http.StatusForbidden, "errors/403", nil)
+}
+
 func (v *Renderer) ServerError(w http.ResponseWriter, r *http.Request) {
 	v.Render(w, r, http.StatusInternalServerError, "errors/500", nil)
 }
@@ -99,7 +122,12 @@ func (v *Renderer) fail(w http.ResponseWriter, r *http.Request, err error) {
 
 func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 	lang := i18n.FromContext(r.Context())
+	viewer, _ := r.Context().Value(viewerKey{}).(*Viewer)
+	pop, _ := r.Context().Value(flashKey{}).(func() string)
 	return &Page{
+		Viewer:         viewer,
+		SignIn:         v.cfg.SignIn,
+		popFlash:       pop,
 		Name:           name,
 		Lang:           lang,
 		Path:           cleanPath(r.URL.Path),
@@ -113,6 +141,8 @@ func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 }
 
 type Page struct {
+	Viewer         *Viewer
+	SignIn         bool
 	Name           string
 	Lang           i18n.Lang
 	Path           string
@@ -122,6 +152,19 @@ type Page struct {
 	Year           int
 	tr             *i18n.Translator
 	base           url.URL
+	popFlash       func() string
+	flash          *string
+}
+
+func (p *Page) Flash() string {
+	if p.flash == nil {
+		var msg string
+		if p.popFlash != nil {
+			msg = p.popFlash()
+		}
+		p.flash = &msg
+	}
+	return *p.flash
 }
 
 type Alternate struct {

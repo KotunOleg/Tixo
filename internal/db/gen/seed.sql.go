@@ -132,6 +132,22 @@ func (q *Queries) SeedOrganizer(ctx context.Context, arg SeedOrganizerParams) (i
 	return id, err
 }
 
+const seedOwner = `-- name: SeedOwner :exec
+INSERT INTO memberships (user_id, organizer_id, role)
+VALUES ($1, $2, 'owner')
+ON CONFLICT (user_id, organizer_id) DO UPDATE SET role = 'owner'
+`
+
+type SeedOwnerParams struct {
+	UserID      int64
+	OrganizerID int64
+}
+
+func (q *Queries) SeedOwner(ctx context.Context, arg SeedOwnerParams) error {
+	_, err := q.db.Exec(ctx, seedOwner, arg.UserID, arg.OrganizerID)
+	return err
+}
+
 const seedTicketTier = `-- name: SeedTicketTier :exec
 INSERT INTO ticket_tiers (event_id, name, price, quantity, available)
 VALUES ($1, $2, $3, $4, $4)

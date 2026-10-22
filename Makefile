@@ -15,6 +15,8 @@ infra:
 	docker compose up -d postgres redis rabbitmq
 
 run:
+	@if [ -f .env ]; then . ./.env; fi; \
+	GOOGLE_CLIENT_ID="$$GOOGLE_CLIENT_ID" GOOGLE_CLIENT_SECRET="$$GOOGLE_CLIENT_SECRET" \
 	DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable \
 	REDIS_URL=redis://localhost:56379/0 \
 	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
@@ -24,7 +26,7 @@ seed:
 	DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable \
 	REDIS_URL=redis://localhost:56379/0 \
 	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
-	go run ./cmd/tixo seed
+	go run ./cmd/tixo seed $(foreach o,$(OWNERS),--owner $(o))
 
 import-mb:
 	@test -n "$(FILE)" || { echo "usage: make import-mb FILE=path/to/mbdump.tar.bz2"; exit 2; }

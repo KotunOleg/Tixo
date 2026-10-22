@@ -48,3 +48,8 @@ RETURNING id;
 INSERT INTO ticket_tiers (event_id, name, price, quantity, available)
 VALUES (@event_id, @name, @price, @quantity, @quantity)
 ON CONFLICT (event_id, name) DO NOTHING;
+
+-- name: SeedOwner :exec
+INSERT INTO memberships (user_id, organizer_id, role)
+VALUES (@user_id, @organizer_id, 'owner')
+ON CONFLICT (user_id, organizer_id) DO UPDATE SET role = 'owner';

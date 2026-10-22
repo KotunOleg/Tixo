@@ -179,3 +179,20 @@ func TestSuggestEnglish(t *testing.T) {
 		})
 	}
 }
+
+func TestLanguageOfStoredPath(t *testing.T) {
+	cases := map[string]Lang{
+		"/":            UK,
+		"/events":      UK,
+		"/en":          EN,
+		"/en/events":   EN,
+		"/en?x=1":      EN,
+		"/english-fan": UK,
+		"/events/en":   UK,
+	}
+	for p, want := range cases {
+		if got := FromPath(p); got != want {
+			t.Errorf("FromPath(%q) = %s, want %s", p, got, want)
+		}
+	}
+}
