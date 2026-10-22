@@ -7,6 +7,7 @@ meta_description = "Tixo — шукай концерти, лекції та мі
 skip = "Перейти до вмісту"
 
 [nav]
+main = "Основна навігація"
 events = "Події"
 map = "Мапа"
 organizers = "Організаторам"
@@ -18,7 +19,6 @@ account = "Акаунт"
 
 [lang]
 switch = "English"
-switch_short = "EN"
 suggest = "Looks like you prefer English. Switch to the English version?"
 suggest_accept = "Switch to English"
 suggest_dismiss = "Залишитися"
@@ -64,7 +64,6 @@ text = "Створюйте афішу, продавайте квитки й ди
 cta = "Почати як організатор"
 
 [footer]
-explore = "Огляд"
 language = "Мова"
 rights = "© {{.Year}} Tixo. Курсовий проєкт «Web-технології»."
 
