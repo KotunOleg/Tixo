@@ -64,7 +64,7 @@ func Paginate(r *http.Request) (skip, limit int32, err error) {
 
 func Envelope(items any, count int64, skip, limit int32, r *http.Request) Page {
 	page := Page{Items: nonNilSlice(items), Count: count, Skip: skip, Limit: limit}
-	if int64(skip)+int64(limit) < count {
+	if limit > 0 && int64(skip)+int64(limit) < count {
 		q := r.URL.Query()
 		q.Set("skip", strconv.FormatInt(int64(skip)+int64(limit), 10))
 		q.Set("limit", strconv.FormatInt(int64(limit), 10))

@@ -56,6 +56,7 @@ func TestEnvelopeNextLink(t *testing.T) {
 		{"last page", 40, 20, 45, ""},
 		{"exact last item", 25, 20, 45, ""},
 		{"empty result", 0, 20, 0, ""},
+		{"zero limit never loops back to itself", 0, 0, 45, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

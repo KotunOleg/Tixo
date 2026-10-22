@@ -4,8 +4,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 )
+
+func TestGetVenueAllowsSharedVenueListedInTheSameOrganizer(t *testing.T) {
+	s := newTestSite(t)
+	ownerID := s.createUser(t, "owner60@example.com")
+	s.createOrganizer(t, ownerID, "Kyiv Live", "kyiv-live-60")
+	token := s.tokenFor(t, ownerID)
+
+	var sharedID int64
+	if err := s.pool.QueryRow(t.Context(),
+		"insert into venues (organizer_id, name, address, city, lat, lng, capacity) values (null, 'Shared Hall', 'addr', 'Kyiv', 50.45, 30.52, 100) returning id",
+	).Scan(&sharedID); err != nil {
+		t.Fatal(err)
+	}
+
+	list := s.request(t, http.MethodGet, "/api/v1/organizers/kyiv-live-60/venues", token, "")
+	if !strings.Contains(list.Body.String(), `"shared":true`) {
+		t.Fatalf("list does not show the shared venue: %s", list.Body.String())
+	}
+
+	get := s.request(t, http.MethodGet, fmt.Sprintf("/api/v1/organizers/kyiv-live-60/venues/%d", sharedID), token, "")
+	if get.Code != http.StatusOK {
+		t.Fatalf("GET shared venue by id = %d, want 200 (it is listed above): %s", get.Code, get.Body.String())
+	}
+}
 
 func TestListVenuesReturnsPaginatedEnvelope(t *testing.T) {
 	s := newTestSite(t)
