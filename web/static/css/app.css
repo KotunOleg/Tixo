@@ -314,19 +314,41 @@ h6, .h6 { font-size: var(--tixo-text-sm); }
   border-bottom: 1px solid var(--tixo-border);
 }
 
+.tixo-hero-body {
+  max-width: 48rem;
+}
+
 .tixo-kicker {
-  background: var(--tixo-accent-soft);
-  color: var(--tixo-link-hover);
+  color: var(--tixo-link);
+  font-size: var(--tixo-text-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .tixo-search {
-  max-width: 44rem;
+  max-width: 40rem;
+}
+
+.tixo-steps {
+  counter-reset: tixo-step;
+}
+
+.tixo-steps > li {
+  counter-increment: tixo-step;
+}
+
+.tixo-steps > li::before {
+  content: counter(tixo-step, decimal-leading-zero);
+  display: block;
+  margin-bottom: 0.5rem;
+  font-family: var(--tixo-font-display);
+  font-size: var(--tixo-text-xl);
+  font-weight: 700;
+  color: var(--tixo-accent);
 }
 
 .tixo-card,
-.tixo-feature,
 .tixo-empty,
 .tixo-cta {
   background: var(--tixo-surface);
