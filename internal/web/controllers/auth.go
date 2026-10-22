@@ -117,7 +117,7 @@ func (a Auth) serverError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 func redirectLocal(w http.ResponseWriter, target string, status int) {
-	redirect(w, auth.SafeNext(target), status)
+	redirect(w, auth.LocalPath(target), status)
 }
 
 func redirect(w http.ResponseWriter, location string, status int) {

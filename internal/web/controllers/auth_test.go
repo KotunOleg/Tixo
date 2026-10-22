@@ -3,9 +3,11 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -408,5 +410,28 @@ func TestFailedSignInRetryReturnsToStartPage(t *testing.T) {
 		if !strings.Contains(body, tc.wantRetry) {
 			t.Errorf("%s: retry link must be %s, so the user lands back where sign-in started", tc.start, tc.wantRetry)
 		}
+	}
+}
+
+func TestSignInFromFailedSignInPageDoesNotReplayCallback(t *testing.T) {
+	s := newAuthSite(t)
+	s.fake.tokenStatus = http.StatusServiceUnavailable
+	start := s.startLogin(t, "/auth/google/login?next=/org")
+	s.fake.issueCode("code-used", start.challenge)
+	page := s.request(t, http.MethodGet, callbackURL("code-used", start.state), start.cookie).Body.String()
+	if strings.Contains(page, "code-used") {
+		t.Error("failed sign-in page puts the spent google code into its links")
+	}
+
+	m := regexp.MustCompile(`<a class="btn btn-sm btn-tixo" href="([^"]+)"`).FindStringSubmatch(page)
+	if m == nil {
+		t.Fatal("navbar sign-in link not found on the failed sign-in page")
+	}
+	s.fake.tokenStatus = 0
+	retry := s.startLogin(t, html.UnescapeString(m[1]))
+	s.fake.issueCode("code-new", retry.challenge)
+	rec := s.request(t, http.MethodGet, callbackURL("code-new", retry.state), retry.cookie)
+	if loc := rec.Header().Get("Location"); rec.Code != http.StatusFound || strings.HasPrefix(loc, "/auth/") {
+		t.Errorf("signing in from the error page navbar ends at %d → %q; want a redirect away from /auth/", rec.Code, loc)
 	}
 }
