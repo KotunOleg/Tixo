@@ -44,6 +44,9 @@ func TestNoSignInLinkWhenGoogleIsNotConfigured(t *testing.T) {
 	if strings.Contains(body, `href="/org"`) {
 		t.Error("page links to the organizer workspace, which needs a sign-in that is switched off")
 	}
+	if strings.Contains(body, "navbar-toggler") || !strings.Contains(body, `hreflang="en" lang="en"`) {
+		t.Error("with nothing but the language link, the navbar must show it directly instead of behind a menu button")
+	}
 }
 
 func TestSessionOfDeletedUserBecomesAnonymous(t *testing.T) {

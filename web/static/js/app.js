@@ -6,3 +6,5 @@ document.addEventListener("click", (event) => {
   document.cookie = "tixo_lang_hint_dismissed=1; path=/; max-age=31536000; SameSite=Lax";
   document.getElementById("lang-suggest")?.remove();
 });
+
+document.querySelector("[data-focus-on-load]")?.focus();
