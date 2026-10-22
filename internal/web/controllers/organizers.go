@@ -8,6 +8,7 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
@@ -55,20 +56,31 @@ type orgEventRow struct {
 	StatusLabel string
 }
 
-type orgShowData struct {
+type orgMemberRow struct {
 	Name      string
-	Slug      string
-	PlanLabel string
+	Email     string
 	RoleLabel string
-	Events    []orgEventRow
+}
+
+type orgShowData struct {
+	Name        string
+	Slug        string
+	PlanLabel   string
+	RoleLabel   string
+	Events      []orgEventRow
+	Members     []orgMemberRow
+	CanManage   bool
+	MemberEmail string
+	MemberError string
 }
 
 type membershipKey struct{}
 
 type Organizers struct {
-	View *view.Renderer
-	Svc  *organizers.Service
-	Log  *slog.Logger
+	View     *view.Renderer
+	Sessions *scs.SessionManager
+	Svc      *organizers.Service
+	Log      *slog.Logger
 }
 
 func (o Organizers) List(w http.ResponseWriter, r *http.Request) {
@@ -116,8 +128,47 @@ func (o Organizers) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o Organizers) Show(w http.ResponseWriter, r *http.Request) {
-	m := r.Context().Value(membershipKey{}).(organizers.Membership)
+	o.renderShow(w, r, http.StatusOK, "", "")
+}
+
+func (o Organizers) AddMember(w http.ResponseWriter, r *http.Request) {
+	m := membershipFrom(r)
+	if m.Role != organizers.RoleOwner {
+		o.View.Forbidden(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
+	if err := r.ParseForm(); err != nil {
+		o.renderShow(w, r, http.StatusBadRequest, "", "")
+		return
+	}
+	email := r.PostForm.Get("email")
+	added, err := o.Svc.AddMember(r.Context(), m, email)
+	var verr *organizers.ValidationError
+	switch {
+	case errors.Is(err, organizers.ErrForbidden):
+		o.View.Forbidden(w, r)
+		return
+	case errors.As(err, &verr):
+		o.renderShow(w, r, http.StatusUnprocessableEntity, email, "org.form.error.email_"+verr.Fields[organizers.FieldEmail])
+		return
+	case err != nil:
+		o.serverError(w, r, err)
+		return
+	}
+	o.Log.InfoContext(r.Context(), "organizer member added", "organizer_id", m.Organizer.ID, "user_id", added.UserID, "request_id", middleware.GetReqID(r.Context()))
+	auth.SetFlash(r.Context(), o.Sessions, "org.members.added")
+	redirectLocal(w, i18n.Path(i18n.FromContext(r.Context()), "/org/"+m.Organizer.Slug), http.StatusSeeOther)
+}
+
+func (o Organizers) renderShow(w http.ResponseWriter, r *http.Request, status int, memberEmail, memberError string) {
+	m := membershipFrom(r)
 	events, err := o.Svc.Events(r.Context(), m)
+	if err != nil {
+		o.serverError(w, r, err)
+		return
+	}
+	members, err := o.Svc.Members(r.Context(), m)
 	if err != nil {
 		o.serverError(w, r, err)
 		return
@@ -126,11 +177,21 @@ func (o Organizers) Show(w http.ResponseWriter, r *http.Request) {
 	for i, e := range events {
 		rows[i] = orgEventRow{Title: e.Title, StartsAt: e.StartsAt.In(kyiv).Format(dateLayout), StatusLabel: "org.event_status." + e.Status}
 	}
-	o.View.Render(w, r, http.StatusOK, "pages/org_show", orgShowData{
+	people := make([]orgMemberRow, len(members))
+	for i, p := range members {
+		people[i] = orgMemberRow{Name: p.Name, Email: p.Email, RoleLabel: "org.role." + p.Role}
+	}
+	o.View.Render(w, r, status, "pages/org_show", orgShowData{
 		Name: m.Organizer.Name, Slug: m.Organizer.Slug,
 		PlanLabel: "org.plan." + m.Organizer.Plan, RoleLabel: "org.role." + m.Role,
-		Events: rows,
+		Events: rows, Members: people, CanManage: m.Role == organizers.RoleOwner,
+		MemberEmail: memberEmail, MemberError: memberError,
 	})
+}
+
+func membershipFrom(r *http.Request) organizers.Membership {
+	m, _ := r.Context().Value(membershipKey{}).(organizers.Membership)
+	return m
 }
 
 func (o Organizers) RequireMember(next http.Handler) http.Handler {

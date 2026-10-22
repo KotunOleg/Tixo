@@ -141,3 +141,58 @@ func TestEnglishWorkspaceFlowKeepsLanguage(t *testing.T) {
 		t.Error("english workspace page is not translated")
 	}
 }
+
+func TestOwnerBuildsAGroupAndOutsidersStayOut(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	bob := s.signInAs(t, "sub-bob", "bob@example.com", "Bob")
+	carol := s.signInAs(t, "sub-carol", "carol@example.com", "Carol")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	s.addEvent(t, "kyiv-live", "Alice Secret Show")
+
+	if rec := s.request(t, http.MethodGet, "/org/kyiv-live", bob); rec.Code != http.StatusNotFound {
+		t.Fatalf("bob before being added = %d, want 404", rec.Code)
+	}
+	rec := s.postForm(t, "/org/kyiv-live/members", url.Values{"email": {"Bob@Example.com"}}, alice)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/org/kyiv-live" {
+		t.Fatalf("add bob = %d → %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if body := s.request(t, http.MethodGet, "/org/kyiv-live", alice).Body.String(); !strings.Contains(body, "Учасника додано.") || !strings.Contains(body, "bob@example.com") {
+		t.Error("owner page must confirm the addition and list bob")
+	}
+
+	asBob := s.request(t, http.MethodGet, "/org/kyiv-live", bob)
+	if asBob.Code != http.StatusOK || !strings.Contains(asBob.Body.String(), "Alice Secret Show") {
+		t.Errorf("bob as editor = %d, want 200 with the organizer's events", asBob.Code)
+	}
+	if strings.Contains(asBob.Body.String(), `name="email"`) {
+		t.Error("editor sees the add-member form")
+	}
+	if rec := s.postForm(t, "/org/kyiv-live/members", url.Values{"email": {"carol@example.com"}}, bob); rec.Code != http.StatusForbidden {
+		t.Errorf("editor adding a member = %d, want 403", rec.Code)
+	}
+	if rec := s.postForm(t, "/org/kyiv-live/members", url.Values{"email": {"carol@example.com"}}, carol); rec.Code != http.StatusNotFound {
+		t.Errorf("outsider adding a member = %d, want 404", rec.Code)
+	}
+	if rec := s.request(t, http.MethodGet, "/org/kyiv-live", carol); rec.Code != http.StatusNotFound {
+		t.Errorf("carol = %d, want 404: only alice and bob are in the group", rec.Code)
+	}
+}
+
+func TestAddMemberFormErrors(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	cases := map[string]string{
+		"nobody@example.com": "Користувача з таким email ще немає",
+		"alice@example.com":  "Ця людина вже є учасником.",
+		"oops":               "Це не схоже на email.",
+	}
+	for email, want := range cases {
+		rec := s.postForm(t, "/org/kyiv-live/members", url.Values{"email": {email}}, alice)
+		body := rec.Body.String()
+		if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(body, want) || !strings.Contains(body, `aria-invalid="true"`) {
+			t.Errorf("email=%q: %d, want 422 with %q marked invalid", email, rec.Code, want)
+		}
+	}
+}

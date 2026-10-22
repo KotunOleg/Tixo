@@ -116,6 +116,10 @@ slug_length = "The address must be 3 to 50 characters long."
 slug_format = "Only lowercase Latin letters, digits and hyphens between them."
 slug_reserved = "This address is reserved, choose another one."
 slug_taken = "This address is already taken."
+email_required = "Enter an email."
+email_format = "This does not look like an email."
+email_not_found = "No Tixo user has this email yet. Ask them to sign in with Google first."
+email_member = "This person is already a member."
 
 [org.show]
 events = "Events"
@@ -136,3 +140,14 @@ premium = "Premium"
 draft = "Draft"
 published = "Published"
 cancelled = "Cancelled"
+
+[org.members]
+title = "Members"
+email = "Add a member by email"
+email_help = "The person must have signed in to Tixo with Google at least once. They get the editor role."
+submit = "Add"
+added = "Member added."
+
+[errors.403]
+title = "Access denied"
+text = "Only the organizer's owner can do this."

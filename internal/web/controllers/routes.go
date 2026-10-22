@@ -36,13 +36,14 @@ func Mount(r chi.Router, d Deps) {
 		r.Get(auth.CallbackPath, a.Callback)
 		r.Post("/auth/logout", a.Logout)
 
-		o := Organizers{View: d.View, Svc: d.Organizers, Log: d.Logger}
+		o := Organizers{View: d.View, Sessions: d.Sessions, Svc: d.Organizers, Log: d.Logger}
 		r.Group(func(r chi.Router) {
 			r.Use(requireUser)
 			r.Get("/org", o.List)
 			r.Get("/org/new", o.New)
 			r.Post("/org/new", o.Create)
 			r.With(o.RequireMember).Get("/org/{slug}", o.Show)
+			r.With(o.RequireMember).Post("/org/{slug}/members", o.AddMember)
 		})
 	})
 }

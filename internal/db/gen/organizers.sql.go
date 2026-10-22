@@ -149,6 +149,46 @@ func (q *Queries) GetOrganizerForMember(ctx context.Context, arg GetOrganizerFor
 	return i, err
 }
 
+const listMembers = `-- name: ListMembers :many
+SELECT u.id, u.name, u.email, m.role
+FROM memberships m
+JOIN users u ON u.id = m.user_id
+WHERE m.organizer_id = $1
+ORDER BY m.role = 'owner' DESC, u.name, u.id
+`
+
+type ListMembersRow struct {
+	ID    int64
+	Name  string
+	Email string
+	Role  string
+}
+
+func (q *Queries) ListMembers(ctx context.Context, organizerID int64) ([]ListMembersRow, error) {
+	rows, err := q.db.Query(ctx, listMembers, organizerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMembersRow
+	for rows.Next() {
+		var i ListMembersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrganizersForUser = `-- name: ListOrganizersForUser :many
 SELECT o.id, o.slug, o.name, o.contacts, o.plan, o.created_at, m.role
 FROM organizers o

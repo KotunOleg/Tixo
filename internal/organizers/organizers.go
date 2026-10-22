@@ -21,14 +21,17 @@ const (
 	RoleOwner  = "owner"
 	RoleEditor = "editor"
 
-	FieldName = "name"
-	FieldSlug = "slug"
+	FieldName  = "name"
+	FieldSlug  = "slug"
+	FieldEmail = "email"
 
 	CodeRequired = "required"
 	CodeLength   = "length"
 	CodeFormat   = "format"
 	CodeReserved = "reserved"
 	CodeTaken    = "taken"
+	CodeNotFound = "not_found"
+	CodeMember   = "member"
 
 	nameMinLen = 2
 	nameMaxLen = 100
@@ -38,10 +41,12 @@ const (
 	eventsPageSize  = 50
 	uniqueViolation = "23505"
 	slugConstraint  = "organizers_slug_key"
+	memberPKey      = "memberships_pkey"
 )
 
 var (
-	ErrNotFound = errors.New("organizer not found")
+	ErrNotFound  = errors.New("organizer not found")
+	ErrForbidden = errors.New("only the owner can manage members")
 
 	slugPattern   = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	reservedSlugs = []string{"new"}
@@ -68,6 +73,13 @@ type CreateInput struct {
 type Membership struct {
 	Organizer dbgen.Organizer
 	Role      string
+}
+
+type Member struct {
+	UserID int64
+	Name   string
+	Email  string
+	Role   string
 }
 
 type Service struct {
@@ -156,4 +168,49 @@ func (s *Service) ForMember(ctx context.Context, userID int64, slug string) (Mem
 
 func (s *Service) Events(ctx context.Context, m Membership) ([]dbgen.Event, error) {
 	return s.q.ListEventsForOrganizer(ctx, dbgen.ListEventsForOrganizerParams{OrganizerID: m.Organizer.ID, Lim: eventsPageSize})
+}
+
+func (s *Service) Members(ctx context.Context, m Membership) ([]Member, error) {
+	rows, err := s.q.ListMembers(ctx, m.Organizer.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Member, len(rows))
+	for i, r := range rows {
+		out[i] = Member{UserID: r.ID, Name: r.Name, Email: r.Email, Role: r.Role}
+	}
+	return out, nil
+}
+
+func (s *Service) AddMember(ctx context.Context, actor Membership, email string) (Member, error) {
+	if actor.Role != RoleOwner {
+		return Member{}, ErrForbidden
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	switch {
+	case email == "":
+		return Member{}, emailError(CodeRequired)
+	case !strings.Contains(email, "@"):
+		return Member{}, emailError(CodeFormat)
+	}
+	u, err := s.q.GetUserByEmail(ctx, email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Member{}, emailError(CodeNotFound)
+	}
+	if err != nil {
+		return Member{}, err
+	}
+	_, err = s.q.AddMembership(ctx, dbgen.AddMembershipParams{UserID: u.ID, OrganizerID: actor.Organizer.ID, Role: RoleEditor})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == memberPKey {
+		return Member{}, emailError(CodeMember)
+	}
+	if err != nil {
+		return Member{}, fmt.Errorf("add member: %w", err)
+	}
+	return Member{UserID: u.ID, Name: u.Name, Email: u.Email, Role: RoleEditor}, nil
+}
+
+func emailError(code string) error {
+	return &ValidationError{Fields: map[string]string{FieldEmail: code}}
 }
