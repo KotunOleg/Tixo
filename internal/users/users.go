@@ -24,6 +24,7 @@ var (
 	ErrInvalidProfile   = errors.New("google profile has no subject or email")
 	ErrEmailNotVerified = errors.New("google account email is not verified")
 	ErrEmailTaken       = errors.New("email belongs to another account")
+	ErrNotFound         = errors.New("user not found")
 )
 
 type GoogleProfile struct {
@@ -42,7 +43,11 @@ func New(pool *pgxpool.Pool) *Service {
 }
 
 func (s *Service) Get(ctx context.Context, id int64) (dbgen.User, error) {
-	return s.q.GetUser(ctx, id)
+	u, err := s.q.GetUser(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbgen.User{}, ErrNotFound
+	}
+	return u, err
 }
 
 func (s *Service) SignInWithGoogle(ctx context.Context, p GoogleProfile) (dbgen.User, error) {

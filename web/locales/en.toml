@@ -12,6 +12,9 @@ map = "Map"
 organizers = "For organizers"
 sign_in = "Sign in"
 toggle = "Open menu"
+my_organizers = "My organizers"
+sign_out = "Sign out"
+account = "Account"
 
 [lang]
 switch = "Українська"
@@ -87,3 +90,6 @@ retry = "Sign in again"
 
 [auth.flash]
 cancelled = "Sign-in cancelled."
+
+[flash]
+close = "Close"

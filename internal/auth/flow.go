@@ -10,6 +10,8 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"golang.org/x/oauth2"
+
+	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 )
 
 const (
@@ -56,6 +58,21 @@ func SignOut(ctx context.Context, sm *scs.SessionManager) error {
 func UserID(ctx context.Context, sm *scs.SessionManager) (int64, bool) {
 	id := sm.GetInt64(ctx, keyUserID)
 	return id, id != 0
+}
+
+func ForgetUser(ctx context.Context, sm *scs.SessionManager) {
+	sm.Remove(ctx, keyUserID)
+}
+
+type userKey struct{}
+
+func WithUser(ctx context.Context, u dbgen.User) context.Context {
+	return context.WithValue(ctx, userKey{}, u)
+}
+
+func CurrentUser(ctx context.Context) (dbgen.User, bool) {
+	u, ok := ctx.Value(userKey{}).(dbgen.User)
+	return u, ok
 }
 
 func SetFlash(ctx context.Context, sm *scs.SessionManager, messageID string) {

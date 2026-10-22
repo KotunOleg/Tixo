@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 
 	"github.com/KotunOleg/Tixo/internal/auth"
@@ -86,12 +87,14 @@ type authSite struct {
 	deps Deps
 	fake *fakeGoogle
 	svc  *users.Service
+	pool *pgxpool.Pool
 }
 
 func newAuthSite(t *testing.T) *authSite {
 	t.Helper()
 	fake := newFakeGoogle(t)
-	svc := users.New(dbtest.Pool(t))
+	pool := dbtest.Pool(t)
+	svc := users.New(pool)
 	h, d := buildSite(t, func(d *Deps) {
 		d.Users = svc
 		d.Google = auth.NewGoogleWith("client-id", "client-secret", testBaseURL, auth.GoogleEndpoints{
@@ -99,7 +102,20 @@ func newAuthSite(t *testing.T) *authSite {
 			Userinfo: fake.srv.URL + "/userinfo",
 		}, fake.srv.Client())
 	}, nil)
-	return &authSite{h: h, deps: d, fake: fake, svc: svc}
+	return &authSite{h: h, deps: d, fake: fake, svc: svc, pool: pool}
+}
+
+func (s *authSite) signIn(t *testing.T) *http.Cookie {
+	t.Helper()
+	start := s.startLogin(t, "/auth/google/login")
+	code := "code-" + start.state
+	s.fake.issueCode(code, start.challenge)
+	rec := s.request(t, http.MethodGet, callbackURL(code, start.state), start.cookie)
+	cookie := responseCookie(rec)
+	if rec.Code != http.StatusFound || cookie == nil || s.sessionUserID(t, cookie) == 0 {
+		t.Fatalf("sign-in failed: %d", rec.Code)
+	}
+	return cookie
 }
 
 func (s *authSite) request(t *testing.T, method, target string, cookie *http.Cookie) *httptest.ResponseRecorder {

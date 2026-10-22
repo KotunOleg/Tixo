@@ -35,17 +35,16 @@ func buildSite(t *testing.T, configure func(d *Deps), extra func(r chi.Router)) 
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	v, err := view.New(web.FS, tr, view.Config{BaseURL: testBaseURL, Logger: log})
-	if err != nil {
-		t.Fatalf("templates failed to parse: %v", err)
-	}
-	d := Deps{
-		View: v, FS: web.FS, Logger: log,
-		Sessions: auth.NewSessionsWithStore(memstore.NewWithCleanupInterval(0), testBaseURL, log, v.ServerError),
-	}
+	d := Deps{FS: web.FS, Logger: log}
 	if configure != nil {
 		configure(&d)
 	}
+	v, err := view.New(web.FS, tr, view.Config{BaseURL: testBaseURL, Logger: log, SignIn: d.Google != nil})
+	if err != nil {
+		t.Fatalf("templates failed to parse: %v", err)
+	}
+	d.View = v
+	d.Sessions = auth.NewSessionsWithStore(memstore.NewWithCleanupInterval(0), testBaseURL, log, v.ServerError)
 	return server.New(server.Deps{
 		Logger: log,
 		Health: http.NotFoundHandler(),
@@ -55,7 +54,7 @@ func buildSite(t *testing.T, configure func(d *Deps), extra func(r chi.Router)) 
 				extra(r)
 			}
 		},
-		NotFound:    v.NotFound,
+		NotFound:    d.NotFound(),
 		ServerError: v.ServerError,
 	}), d
 }
