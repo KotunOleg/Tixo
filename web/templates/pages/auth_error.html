@@ -1,0 +1,11 @@
+{{define "title"}}{{.T "auth.error.title"}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5 text-center tixo-error">
+  <h1 class="h2">{{.T "auth.error.title"}}</h1>
+  <p class="text-body-secondary mb-4">{{.T .Data.MessageID}}</p>
+  <div class="d-flex justify-content-center gap-2">
+    <a class="btn btn-tixo" href="{{.URL "/auth/google/login"}}"><i class="bi bi-google me-1"></i>{{.T "auth.error.retry"}}</a>
+    <a class="btn btn-outline-light" href="{{.URL "/"}}">{{.T "errors.back_home"}}</a>
+  </div>
+</section>
+{{end}}

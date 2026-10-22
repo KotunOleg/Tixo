@@ -141,6 +141,17 @@ func Middleware(next http.Handler) http.Handler {
 	})
 }
 
+func WithLang(ctx context.Context, lang Lang) context.Context {
+	return context.WithValue(ctx, ctxKey{}, lang)
+}
+
+func FromPath(path string) Lang {
+	if path == enPrefix || strings.HasPrefix(path, enPrefix+"/") || strings.HasPrefix(path, enPrefix+"?") {
+		return EN
+	}
+	return Default
+}
+
 func FromContext(ctx context.Context) Lang {
 	if lang, ok := ctx.Value(ctxKey{}).(Lang); ok {
 		return lang

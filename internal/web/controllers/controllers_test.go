@@ -20,30 +20,44 @@ import (
 	"github.com/KotunOleg/Tixo/web"
 )
 
+var testBaseURL = url.URL{Scheme: "https", Host: "tixo.example"}
+
 func newSite(t *testing.T, extra func(r chi.Router)) http.Handler {
+	t.Helper()
+	h, _ := buildSite(t, nil, extra)
+	return h
+}
+
+func buildSite(t *testing.T, configure func(d *Deps), extra func(r chi.Router)) (http.Handler, Deps) {
 	t.Helper()
 	tr, err := i18n.New(web.FS)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	base := url.URL{Scheme: "https", Host: "tixo.example"}
-	v, err := view.New(web.FS, tr, view.Config{BaseURL: base, Logger: log})
+	v, err := view.New(web.FS, tr, view.Config{BaseURL: testBaseURL, Logger: log})
 	if err != nil {
 		t.Fatalf("templates failed to parse: %v", err)
+	}
+	d := Deps{
+		View: v, FS: web.FS, Logger: log,
+		Sessions: auth.NewSessionsWithStore(memstore.NewWithCleanupInterval(0), testBaseURL, log, v.ServerError),
+	}
+	if configure != nil {
+		configure(&d)
 	}
 	return server.New(server.Deps{
 		Logger: log,
 		Health: http.NotFoundHandler(),
 		Routes: func(r chi.Router) {
-			Mount(r, Deps{View: v, FS: web.FS, Sessions: auth.NewSessionsWithStore(memstore.NewWithCleanupInterval(0), base, log, v.ServerError)})
+			Mount(r, d)
 			if extra != nil {
 				extra(r)
 			}
 		},
 		NotFound:    v.NotFound,
 		ServerError: v.ServerError,
-	})
+	}), d
 }
 
 func do(t *testing.T, h http.Handler, path string, headers ...string) *httptest.ResponseRecorder {

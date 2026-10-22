@@ -1,0 +1,325 @@
+package controllers
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"sync"
+	"testing"
+
+	"golang.org/x/oauth2"
+
+	"github.com/KotunOleg/Tixo/internal/auth"
+	"github.com/KotunOleg/Tixo/internal/db/dbtest"
+	"github.com/KotunOleg/Tixo/internal/users"
+)
+
+type fakeGoogle struct {
+	srv         *httptest.Server
+	mu          sync.Mutex
+	challenges  map[string]string
+	profile     map[string]any
+	tokenStatus int
+}
+
+func newFakeGoogle(t *testing.T) *fakeGoogle {
+	t.Helper()
+	f := &fakeGoogle{
+		challenges: map[string]string{},
+		profile:    map[string]any{"sub": "sub-olena", "email": "olena@example.com", "email_verified": true, "name": "Олена"},
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /token", f.token)
+	mux.HandleFunc("GET /userinfo", f.userinfo)
+	f.srv = httptest.NewServer(mux)
+	t.Cleanup(f.srv.Close)
+	return f
+}
+
+func (f *fakeGoogle) issueCode(code, challenge string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.challenges[code] = challenge
+}
+
+func (f *fakeGoogle) token(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	f.mu.Lock()
+	status := f.tokenStatus
+	code := r.PostForm.Get("code")
+	challenge, ok := f.challenges[code]
+	delete(f.challenges, code)
+	f.mu.Unlock()
+	if status != 0 {
+		w.WriteHeader(status)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if !ok || oauth2.S256ChallengeFromVerifier(r.PostForm.Get("code_verifier")) != challenge ||
+		r.PostForm.Get("redirect_uri") != "https://tixo.example"+auth.CallbackPath {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
+		return
+	}
+	_, _ = w.Write([]byte(`{"access_token":"at-` + code + `","token_type":"Bearer","expires_in":3600}`))
+}
+
+func (f *fakeGoogle) userinfo(w http.ResponseWriter, r *http.Request) {
+	if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer at-") {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(f.profile)
+}
+
+type authSite struct {
+	h    http.Handler
+	deps Deps
+	fake *fakeGoogle
+	svc  *users.Service
+}
+
+func newAuthSite(t *testing.T) *authSite {
+	t.Helper()
+	fake := newFakeGoogle(t)
+	svc := users.New(dbtest.Pool(t))
+	h, d := buildSite(t, func(d *Deps) {
+		d.Users = svc
+		d.Google = auth.NewGoogleWith("client-id", "client-secret", testBaseURL, auth.GoogleEndpoints{
+			Auth:     oauth2.Endpoint{AuthURL: fake.srv.URL + "/authorize", TokenURL: fake.srv.URL + "/token"},
+			Userinfo: fake.srv.URL + "/userinfo",
+		}, fake.srv.Client())
+	}, nil)
+	return &authSite{h: h, deps: d, fake: fake, svc: svc}
+}
+
+func (s *authSite) request(t *testing.T, method, target string, cookie *http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequestWithContext(t.Context(), method, target, nil)
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+	rec := httptest.NewRecorder()
+	s.h.ServeHTTP(rec, req)
+	return rec
+}
+
+func responseCookie(rec *httptest.ResponseRecorder) *http.Cookie {
+	for _, c := range (&http.Response{Header: rec.Header()}).Cookies() {
+		if c.Name == auth.SessionCookieName {
+			return c
+		}
+	}
+	return nil
+}
+
+type loginStart struct {
+	cookie    *http.Cookie
+	state     string
+	challenge string
+	redirect  *url.URL
+}
+
+func (s *authSite) startLogin(t *testing.T, target string) loginStart {
+	t.Helper()
+	resp := s.request(t, http.MethodGet, target, nil)
+	if resp.Code != http.StatusFound {
+		t.Fatalf("GET %s = %d, want 302 to google", target, resp.Code)
+	}
+	loc, err := url.Parse(resp.Header().Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie := responseCookie(resp)
+	if cookie == nil {
+		t.Fatal("login start set no session cookie: state cannot be checked on callback")
+	}
+	return loginStart{cookie: cookie, state: loc.Query().Get("state"), challenge: loc.Query().Get("code_challenge"), redirect: loc}
+}
+
+func (s *authSite) sessionUserID(t *testing.T, cookie *http.Cookie) int64 {
+	t.Helper()
+	ctx, err := s.deps.Sessions.Load(context.Background(), cookie.Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := auth.UserID(ctx, s.deps.Sessions)
+	return id
+}
+
+func callbackURL(code, state string) string {
+	return auth.CallbackPath + "?" + url.Values{"code": {code}, "state": {state}}.Encode()
+}
+
+func TestLoginRedirectsToGoogleWithStateAndPKCE(t *testing.T) {
+	s := newAuthSite(t)
+	start := s.startLogin(t, "/auth/google/login")
+	q := start.redirect.Query()
+	checks := map[string]string{
+		"client_id":             "client-id",
+		"redirect_uri":          "https://tixo.example" + auth.CallbackPath,
+		"response_type":         "code",
+		"code_challenge_method": "S256",
+		"prompt":                "select_account",
+	}
+	for k, want := range checks {
+		if got := q.Get(k); got != want {
+			t.Errorf("%s = %q, want %q", k, got, want)
+		}
+	}
+	if len(start.state) < 20 || len(start.challenge) < 40 {
+		t.Errorf("state %q / code_challenge %q look too weak", start.state, start.challenge)
+	}
+	if !strings.Contains(q.Get("scope"), "email") {
+		t.Errorf("scope %q does not ask for email", q.Get("scope"))
+	}
+}
+
+func TestGoogleSignInRegistersUserAndRenewsSession(t *testing.T) {
+	s := newAuthSite(t)
+	start := s.startLogin(t, "/en/auth/google/login?next=/events")
+	s.fake.issueCode("code-1", start.challenge)
+
+	resp := s.request(t, http.MethodGet, callbackURL("code-1", start.state), start.cookie)
+	if resp.Code != http.StatusFound || resp.Header().Get("Location") != "/en/events" {
+		t.Fatalf("callback = %d → %q, want 302 → /en/events", resp.Code, resp.Header().Get("Location"))
+	}
+	signedIn := responseCookie(resp)
+	if signedIn == nil || signedIn.Value == start.cookie.Value {
+		t.Fatal("session token not renewed on sign-in: session fixation")
+	}
+	id := s.sessionUserID(t, signedIn)
+	if id == 0 {
+		t.Fatal("session has no user_id after sign-in")
+	}
+	u, err := s.svc.Get(context.Background(), id)
+	if err != nil || u.Email != "olena@example.com" || u.GoogleSub.String != "sub-olena" {
+		t.Errorf("signed-in user = %+v, %v", u, err)
+	}
+	if s.sessionUserID(t, start.cookie) != 0 {
+		t.Error("pre-login session token also carries the user")
+	}
+}
+
+func TestCallbackRejectsForgedMissingAndReplayedState(t *testing.T) {
+	s := newAuthSite(t)
+
+	start := s.startLogin(t, "/auth/google/login")
+	s.fake.issueCode("code-forged", start.challenge)
+	if resp := s.request(t, http.MethodGet, callbackURL("code-forged", "attacker-state"), start.cookie); resp.Code != http.StatusBadRequest {
+		t.Errorf("forged state = %d, want 400", resp.Code)
+	}
+
+	start = s.startLogin(t, "/auth/google/login")
+	s.fake.issueCode("code-nocookie", start.challenge)
+	if resp := s.request(t, http.MethodGet, callbackURL("code-nocookie", start.state), nil); resp.Code != http.StatusBadRequest {
+		t.Errorf("callback without the login session = %d, want 400 (login CSRF)", resp.Code)
+	}
+
+	start = s.startLogin(t, "/auth/google/login")
+	s.fake.issueCode("code-ok", start.challenge)
+	first := s.request(t, http.MethodGet, callbackURL("code-ok", start.state), start.cookie)
+	if first.Code != http.StatusFound {
+		t.Fatalf("valid callback = %d, want 302", first.Code)
+	}
+	s.fake.issueCode("code-replay", start.challenge)
+	if resp := s.request(t, http.MethodGet, callbackURL("code-replay", start.state), responseCookie(first)); resp.Code != http.StatusBadRequest {
+		t.Errorf("replayed state = %d, want 400: state must be single-use", resp.Code)
+	}
+}
+
+func TestCallbackFailures(t *testing.T) {
+	cases := []struct {
+		name       string
+		setup      func(f *fakeGoogle)
+		query      func(start loginStart) string
+		wantStatus int
+	}{
+		{
+			name: "user cancelled on google",
+			query: func(st loginStart) string {
+				return auth.CallbackPath + "?error=access_denied&state=" + url.QueryEscape(st.state)
+			},
+			wantStatus: http.StatusFound,
+		},
+		{
+			name:       "google token endpoint down",
+			setup:      func(f *fakeGoogle) { f.tokenStatus = http.StatusServiceUnavailable },
+			wantStatus: http.StatusBadGateway,
+		},
+		{
+			name:       "email not verified by google",
+			setup:      func(f *fakeGoogle) { f.profile["email_verified"] = false },
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:       "code issued for another verifier",
+			query:      func(st loginStart) string { return callbackURL("code-other", st.state) },
+			wantStatus: http.StatusBadGateway,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newAuthSite(t)
+			if tc.setup != nil {
+				tc.setup(s.fake)
+			}
+			start := s.startLogin(t, "/auth/google/login")
+			s.fake.issueCode("code-1", start.challenge)
+			s.fake.issueCode("code-other", oauth2.S256ChallengeFromVerifier(oauth2.GenerateVerifier()))
+			target := callbackURL("code-1", start.state)
+			if tc.query != nil {
+				target = tc.query(start)
+			}
+			resp := s.request(t, http.MethodGet, target, start.cookie)
+			if resp.Code != tc.wantStatus {
+				t.Errorf("status = %d, want %d", resp.Code, tc.wantStatus)
+			}
+			if c := responseCookie(resp); c != nil && s.sessionUserID(t, c) != 0 {
+				t.Error("failed sign-in left a user in the session")
+			}
+			if s.sessionUserID(t, start.cookie) != 0 {
+				t.Error("failed sign-in left a user in the session")
+			}
+		})
+	}
+}
+
+func TestLogoutDestroysSessionAndOnlyAcceptsPost(t *testing.T) {
+	s := newAuthSite(t)
+	start := s.startLogin(t, "/auth/google/login")
+	s.fake.issueCode("code-1", start.challenge)
+	signedIn := responseCookie(s.request(t, http.MethodGet, callbackURL("code-1", start.state), start.cookie))
+	if s.sessionUserID(t, signedIn) == 0 {
+		t.Fatal("sign-in failed")
+	}
+
+	if resp := s.request(t, http.MethodGet, "/auth/logout", signedIn); resp.Code != http.StatusMethodNotAllowed {
+		t.Errorf("GET /auth/logout = %d, want 405: a link or <img> must not sign the user out", resp.Code)
+	}
+	resp := s.request(t, http.MethodPost, "/auth/logout", signedIn)
+	if resp.Code != http.StatusSeeOther {
+		t.Errorf("POST /auth/logout = %d, want 303", resp.Code)
+	}
+	if s.sessionUserID(t, signedIn) != 0 {
+		t.Error("session still signed in after logout")
+	}
+}
+
+func TestSignInRoutesAre404WhenGoogleIsNotConfigured(t *testing.T) {
+	site := newSite(t, nil)
+	for _, p := range []string{"/auth/google/login", auth.CallbackPath + "?code=x&state=y"} {
+		if rec := do(t, site, p); rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s = %d, want 404", p, rec.Code)
+		}
+	}
+}
