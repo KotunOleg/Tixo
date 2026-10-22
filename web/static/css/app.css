@@ -396,6 +396,10 @@ h6, .h6 { font-size: var(--tixo-text-sm); }
   text-decoration: underline;
 }
 
+.tixo-error > p {
+  max-width: 40rem;
+}
+
 .tixo-error-code {
   font-family: var(--tixo-font-display);
   font-size: clamp(4rem, 12vw, 7rem);

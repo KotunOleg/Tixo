@@ -196,3 +196,20 @@ func TestLanguageOfStoredPath(t *testing.T) {
 		}
 	}
 }
+
+func TestStripIsInverseOfPath(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"/", "/"},
+		{"/org/new", "/org/new"},
+		{"/en", "/"},
+		{"/en/", "/"},
+		{"/en/org?tab=1", "/org?tab=1"},
+		{"/en?q=jazz", "/?q=jazz"},
+		{"/english", "/english"},
+	}
+	for _, tc := range cases {
+		if got := Strip(tc.in); got != tc.want {
+			t.Errorf("Strip(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}

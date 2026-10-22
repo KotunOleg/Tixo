@@ -390,3 +390,23 @@ func TestSlowGoogleTimesOutWith502(t *testing.T) {
 		t.Errorf("callback waited %s for google: the http client timeout is not used for the token exchange", took)
 	}
 }
+
+func TestFailedSignInRetryReturnsToStartPage(t *testing.T) {
+	cases := []struct {
+		start, wantRetry string
+	}{
+		{"/en/auth/google/login?next=/org/new?tab=1", `href="/en/auth/google/login?next=%2forg%2fnew%3ftab%3d1"`},
+		{"/auth/google/login?next=/org", `href="/auth/google/login?next=%2forg"`},
+		{"/auth/google/login", `href="/auth/google/login"`},
+	}
+	for _, tc := range cases {
+		s := newAuthSite(t)
+		s.fake.tokenStatus = http.StatusServiceUnavailable
+		start := s.startLogin(t, tc.start)
+		s.fake.issueCode("code-1", start.challenge)
+		body := s.request(t, http.MethodGet, callbackURL("code-1", start.state), start.cookie).Body.String()
+		if !strings.Contains(body, tc.wantRetry) {
+			t.Errorf("%s: retry link must be %s, so the user lands back where sign-in started", tc.start, tc.wantRetry)
+		}
+	}
+}
