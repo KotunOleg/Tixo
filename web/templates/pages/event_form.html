@@ -75,8 +75,11 @@
       </div>
       <div class="mb-4">
         <label class="form-label" for="event-poster">{{.T "event.form.poster"}}</label>
+        <div class="tixo-dropzone mb-2" id="poster-dropzone">
+          <img id="event-poster-preview" alt="" width="160" class="rounded border mb-2{{if not .Data.HasPoster}} d-none{{end}}" style="border-color: var(--tixo-border-strong)!important"{{if .Data.HasPoster}} src="{{.Data.PosterURL}}"{{end}}>
+          <p class="mb-0 text-muted small">{{.T "event.form.poster_dropzone"}}</p>
+        </div>
         {{if .Data.HasPoster}}
-        <p class="mb-2"><img src="{{.Data.PosterURL}}" alt="" width="160" class="rounded border" style="border-color: var(--tixo-border-strong)!important"></p>
         <div class="form-check mb-2">
           <input class="form-check-input" type="checkbox" id="event-remove-poster" name="remove_poster" value="1">
           <label class="form-check-label" for="event-remove-poster">{{.T "event.form.remove_poster"}}</label>
@@ -84,6 +87,7 @@
         {{end}}
         <input class="form-control{{if index .Data.Errors "poster"}} is-invalid{{end}}" id="event-poster" name="poster" type="file" accept="image/jpeg,image/png,image/webp"{{if index .Data.Errors "poster"}} aria-invalid="true" aria-describedby="event-poster-error"{{else}} aria-describedby="event-poster-help"{{end}}>
         {{with index .Data.Errors "poster"}}<div class="invalid-feedback" id="event-poster-error">{{$.T .}}</div>{{else}}<div class="form-text" id="event-poster-help">{{.T "event.form.poster_help"}}</div>{{end}}
+        <p class="form-text" id="event-poster-compress-status" aria-live="polite" data-msg-compressing="{{.T "event.form.poster_compressing"}}" data-msg-compressed="{{.T "event.form.poster_compressed"}}"></p>
       </div>
       <div class="d-flex flex-wrap gap-2">
         <button class="btn btn-tixo" type="submit">{{.T "event.form.submit"}}</button>
