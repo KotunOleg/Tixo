@@ -19,6 +19,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/platform/postgres"
 	"github.com/KotunOleg/Tixo/internal/platform/rabbitmq"
 	"github.com/KotunOleg/Tixo/internal/platform/redisclient"
+	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/server"
 	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/web/controllers"
@@ -59,6 +60,11 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 	defer pool.Close()
 
+	posters, err := storage.New(cfg.StorageDir)
+	if err != nil {
+		return err
+	}
+
 	rdb, err := redisclient.New(cfg.RedisURL)
 	if err != nil {
 		return err
@@ -74,7 +80,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 
 	site := controllers.Deps{
-		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Logger: log,
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Storage: posters, Logger: log,
 	}
 	handler := server.New(server.Deps{
 		Logger:      log,

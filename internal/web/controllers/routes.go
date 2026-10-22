@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"errors"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/organizers"
+	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
@@ -22,11 +24,13 @@ type Deps struct {
 	Google     *auth.Google
 	Users      *users.Service
 	Organizers *organizers.Service
+	Storage    *storage.Store
 	Logger     *slog.Logger
 }
 
 func Mount(r chi.Router, d Deps) {
 	r.Get("/static/*", staticFiles(d.View, d.FS))
+	r.Get("/media/{key}", mediaFiles(d.View, d.Storage))
 	r.Group(func(r chi.Router) {
 		r.Use(d.Sessions.LoadAndSave, d.loadUser())
 		r.Get("/", Home{View: d.View}.ServeHTTP)
@@ -75,5 +79,27 @@ func staticFiles(v *view.Renderer, fsys fs.FS) http.HandlerFunc {
 		}
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		files.ServeHTTP(w, r)
+	}
+}
+
+func mediaFiles(v *view.Renderer, store *storage.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		f, err := store.Open(chi.URLParam(r, "key"))
+		if errors.Is(err, storage.ErrNotFound) {
+			v.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			v.ServerError(w, r)
+			return
+		}
+		defer func() { _ = f.Close() }()
+		info, err := f.Stat()
+		if err != nil {
+			v.ServerError(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 	}
 }

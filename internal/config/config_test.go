@@ -32,6 +32,9 @@ func TestLoadDefaults(t *testing.T) {
 	if len(cfg.SessionSecret) < minSecretLen {
 		t.Errorf("dev session secret not generated: len=%d", len(cfg.SessionSecret))
 	}
+	if cfg.StorageDir != "./data/uploads" {
+		t.Errorf("StorageDir = %q, want ./data/uploads", cfg.StorageDir)
+	}
 }
 
 func TestLoadRejects(t *testing.T) {
@@ -50,6 +53,7 @@ func TestLoadRejects(t *testing.T) {
 		{name: "db pool of zero connections", set: map[string]string{"DB_MAX_CONNS": "0"}, wantVar: "DB_MAX_CONNS"},
 		{name: "db pool larger than postgres allows", set: map[string]string{"DB_MAX_CONNS": "500"}, wantVar: "DB_MAX_CONNS"},
 		{name: "db pool not a number", set: map[string]string{"DB_MAX_CONNS": "ten"}, wantVar: "DB_MAX_CONNS"},
+		{name: "empty storage dir", set: map[string]string{"STORAGE_DIR": "  "}, wantVar: "STORAGE_DIR"},
 		{name: "prod without session secret", set: map[string]string{"APP_ENV": "prod", "BASE_URL": "https://tixo.me"}, wantVar: "SESSION_SECRET"},
 		{name: "prod with short session secret", set: map[string]string{"APP_ENV": "prod", "BASE_URL": "https://tixo.me", "SESSION_SECRET": "short"}, wantVar: "SESSION_SECRET"},
 		{name: "prod over plain http", set: map[string]string{"APP_ENV": "prod", "SESSION_SECRET": strings.Repeat("x", 32), "BASE_URL": "http://tixo.me"}, wantVar: "BASE_URL"},

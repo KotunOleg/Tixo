@@ -71,6 +71,7 @@ make check             # lint + перевірка згенерованого к
 | `SESSION_SECRET` | генерується в dev | ключ сесій, у prod обов'язковий, ≥ 32 байти |
 | `GOOGLE_CLIENT_ID` | — | OAuth client для входу через Google; без нього в dev вхід вимкнено, у prod обов'язковий |
 | `GOOGLE_CLIENT_SECRET` | — | секрет того ж OAuth client, задається разом з `GOOGLE_CLIENT_ID` |
+| `STORAGE_DIR` | `./data/uploads` | тека для завантажених файлів (постери подій); у compose — том `uploads` на `/data/uploads` |
 
 ## Вхід через Google
 
