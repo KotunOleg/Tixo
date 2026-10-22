@@ -63,6 +63,13 @@ func TestUISnapshotServer(t *testing.T) {
 		t.Fatalf("add member = %d", rec.Code)
 	}
 
+	memberID := site.sessionUserID(t, member)
+	for _, name := range []string{"ноутбук", "скрипт резервного копіювання квитків і статистики продажів на дроплеті"} {
+		if _, _, err := site.deps.APITokens.Issue(context.Background(), memberID, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	srv := httptest.NewServer(site.h)
 	t.Cleanup(srv.Close)
 	noAuth := httptest.NewServer(newSite(t, nil))

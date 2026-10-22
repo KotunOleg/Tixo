@@ -14,6 +14,7 @@ organizers = "For organizers"
 sign_in = "Sign in"
 toggle = "Open menu"
 my_organizers = "My organizers"
+profile = "Profile and API tokens"
 sign_out = "Sign out"
 account = "Account"
 
@@ -330,6 +331,33 @@ folk = "Folk"
 jazz = "Jazz"
 classical = "Classical"
 metal = "Metal"
+
+[profile]
+title = "Profile"
+
+[profile.tokens]
+title = "API tokens"
+help = "Tokens for the REST API (Postman, curl, MCP). Send them in the Authorization: Bearer <token> header."
+issued_title = "Token issued"
+issued_text = "Save this value now — we won't show it again."
+created_at = "Created"
+last_used_at = "Last used"
+never_used = "Never used yet"
+revoke = "Revoke"
+empty_title = "No tokens yet"
+empty_text = "Issue your first token below to call the API outside the browser."
+create_title = "Issue a new token"
+revoked = "Token revoked."
+
+[profile.tokens.form]
+name = "Token name"
+name_help = "For example: \"laptop\", \"CI\", \"Postman\"."
+submit = "Issue token"
+errors_title = "Fix the fields below"
+
+[profile.tokens.form.error]
+name_required = "Enter a name for the token."
+name_length = "The name must be 100 characters or fewer."
 
 [errors.403]
 title = "Access denied"

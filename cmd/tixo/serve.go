@@ -11,6 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/api"
+	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/config"
@@ -84,13 +86,18 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		log.Warn("google sign-in disabled: GOOGLE_CLIENT_ID is not set")
 	}
 
+	orgs, ven, evs, trs, lup, arts, tokens := organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), lineup.New(pool), artists.New(pool), apitokens.New(pool)
 	site := controllers.Deps{
-		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Venues: venues.New(pool), Events: events.New(pool), Tiers: tiers.New(pool), Lineup: lineup.New(pool), Artists: artists.New(pool), Storage: posters, Logger: log,
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, APITokens: tokens, Storage: posters, Logger: log,
 	}
+	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, APITokens: tokens, Logger: log}
 	handler := server.New(server.Deps{
-		Logger:      log,
-		Health:      health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
-		Routes:      func(r chi.Router) { controllers.Mount(r, site) },
+		Logger: log,
+		Health: health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
+		Routes: func(r chi.Router) {
+			controllers.Mount(r, site)
+			api.Mount(r, apiDeps)
+		},
 		NotFound:    site.NotFound(),
 		ServerError: pages.ServerError,
 	})
