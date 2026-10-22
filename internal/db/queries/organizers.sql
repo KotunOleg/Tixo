@@ -35,3 +35,9 @@ FROM organizers o
 JOIN memberships m ON m.organizer_id = o.id
 WHERE m.user_id = @user_id
 ORDER BY o.name, o.id;
+
+-- name: GetOrganizerForMember :one
+SELECT sqlc.embed(o), m.role
+FROM organizers o
+JOIN memberships m ON m.organizer_id = o.id
+WHERE o.slug = @slug AND m.user_id = @user_id;

@@ -117,6 +117,38 @@ func (q *Queries) GetOrganizerBySlug(ctx context.Context, slug string) (Organize
 	return i, err
 }
 
+const getOrganizerForMember = `-- name: GetOrganizerForMember :one
+SELECT o.id, o.slug, o.name, o.contacts, o.plan, o.created_at, m.role
+FROM organizers o
+JOIN memberships m ON m.organizer_id = o.id
+WHERE o.slug = $1 AND m.user_id = $2
+`
+
+type GetOrganizerForMemberParams struct {
+	Slug   string
+	UserID int64
+}
+
+type GetOrganizerForMemberRow struct {
+	Organizer Organizer
+	Role      string
+}
+
+func (q *Queries) GetOrganizerForMember(ctx context.Context, arg GetOrganizerForMemberParams) (GetOrganizerForMemberRow, error) {
+	row := q.db.QueryRow(ctx, getOrganizerForMember, arg.Slug, arg.UserID)
+	var i GetOrganizerForMemberRow
+	err := row.Scan(
+		&i.Organizer.ID,
+		&i.Organizer.Slug,
+		&i.Organizer.Name,
+		&i.Organizer.Contacts,
+		&i.Organizer.Plan,
+		&i.Organizer.CreatedAt,
+		&i.Role,
+	)
+	return i, err
+}
+
 const listOrganizersForUser = `-- name: ListOrganizersForUser :many
 SELECT o.id, o.slug, o.name, o.contacts, o.plan, o.created_at, m.role
 FROM organizers o

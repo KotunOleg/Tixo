@@ -14,6 +14,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/config"
 	"github.com/KotunOleg/Tixo/internal/health"
+	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
 	"github.com/KotunOleg/Tixo/internal/platform/postgres"
 	"github.com/KotunOleg/Tixo/internal/platform/rabbitmq"
@@ -73,7 +74,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 
 	site := controllers.Deps{
-		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Logger: log,
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Logger: log,
 	}
 	handler := server.New(server.Deps{
 		Logger:      log,

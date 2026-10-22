@@ -1,0 +1,28 @@
+{{define "title"}}{{.Data.Name}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL "/org"}}">{{.T "org.list.title"}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{.Data.Name}}</li>
+  </ol></nav>
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+    <h1 class="h2 mb-0 me-2">{{.Data.Name}}</h1>
+    <span class="badge text-bg-info">{{.T .Data.PlanLabel}}</span>
+    <span class="badge text-bg-secondary">{{.T .Data.RoleLabel}}</span>
+  </div>
+  <h2 class="h4 mb-3">{{.T "org.show.events"}}</h2>
+  {{with .Data.Events}}
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead><tr><th scope="col">{{$.T "org.show.col_title"}}</th><th scope="col">{{$.T "org.show.col_starts"}}</th><th scope="col">{{$.T "org.show.col_status"}}</th></tr></thead>
+      <tbody>
+        {{range .}}<tr><td>{{.Title}}</td><td>{{.StartsAt}}</td><td>{{$.T .StatusLabel}}</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="text-body-secondary">{{.T "org.show.events_empty"}}</p>
+  {{end}}
+</section>
+{{end}}
