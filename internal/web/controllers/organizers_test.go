@@ -245,6 +245,72 @@ func TestEventsTableIsKeyboardScrollable(t *testing.T) {
 	}
 }
 
+func TestOrganizerEditRequiresOwner(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	bob := s.signInAs(t, "sub-bob", "bob@example.com", "Bob")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	if _, err := dbgen.New(s.pool).GetOrganizerBySlug(context.Background(), "kyiv-live"); err != nil {
+		t.Fatal(err)
+	}
+	s.postForm(t, "/org/kyiv-live/members", url.Values{"email": {"bob@example.com"}}, alice)
+
+	if rec := s.request(t, http.MethodGet, "/org/kyiv-live/edit", bob); rec.Code != http.StatusForbidden {
+		t.Errorf("editor GET /edit = %d, want 403", rec.Code)
+	}
+	if rec := s.postForm(t, "/org/kyiv-live/edit", url.Values{"name": {"Hacked"}}, bob); rec.Code != http.StatusForbidden {
+		t.Errorf("editor POST /edit = %d, want 403", rec.Code)
+	}
+	if org, err := dbgen.New(s.pool).GetOrganizerBySlug(context.Background(), "kyiv-live"); err != nil || org.Name != "Kyiv Live" {
+		t.Errorf("editor's forbidden submit must not change data: name=%q, err=%v", org.Name, err)
+	}
+}
+
+func TestOrganizerEditSavesContactsAndRedirects(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+
+	form := url.Values{"name": {"Kyiv Live Events"}, "contact_email": {"hello@kyiv-live.example.com"}, "contact_phone": {"+380441234567"}, "contact_telegram": {"@kyivlive"}}
+	rec := s.postForm(t, "/org/kyiv-live/edit", form, alice)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/org/kyiv-live" {
+		t.Fatalf("save = %d → %q, want 303 to /org/kyiv-live", rec.Code, rec.Header().Get("Location"))
+	}
+
+	body := s.request(t, http.MethodGet, "/org/kyiv-live/edit", alice).Body.String()
+	for _, want := range []string{"Kyiv Live Events", "hello@kyiv-live.example.com", "380441234567", "kyivlive"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("edit form does not prefill saved value %q", want)
+		}
+	}
+}
+
+func TestOrganizerEditFormErrors(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+
+	cases := []struct {
+		name, email, wantText string
+	}{
+		{"", "", "Вкажіть назву."},
+		{"Kyiv Live", "not-an-email", "Це не схоже на email."},
+	}
+	for _, tc := range cases {
+		rec := s.postForm(t, "/org/kyiv-live/edit", url.Values{"name": {tc.name}, "contact_email": {tc.email}}, alice)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Errorf("name=%q email=%q: status %d, want 422", tc.name, tc.email, rec.Code)
+			continue
+		}
+		if !strings.Contains(rec.Body.String(), tc.wantText) {
+			t.Errorf("name=%q email=%q: body does not contain %q", tc.name, tc.email, tc.wantText)
+		}
+	}
+	if org, err := dbgen.New(s.pool).GetOrganizerBySlug(context.Background(), "kyiv-live"); err != nil || org.Name != "Kyiv Live" {
+		t.Errorf("invalid submit must not change the stored name: name=%q, err=%v", org.Name, err)
+	}
+}
+
 func openingTag(body, id string) string {
 	return regexp.MustCompile(`<[a-z]+\b[^>]*\bid="` + regexp.QuoteMeta(id) + `"[^>]*>`).FindString(body)
 }

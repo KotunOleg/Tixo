@@ -17,6 +17,7 @@ x-app: &app
     SESSION_SECRET: ${SESSION_SECRET:-}
     GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    STORAGE_DIR: /data/uploads
 
 services:
   postgres:
@@ -77,6 +78,8 @@ services:
     command: ["serve"]
     ports:
       - "${HTTP_PORT:-8080}:8080"
+    volumes:
+      - uploads:/data/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,3 +101,4 @@ volumes:
   pgdata:
   redisdata:
   rabbitdata:
+  uploads:

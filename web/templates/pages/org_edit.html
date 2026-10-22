@@ -1,0 +1,49 @@
+{{define "title"}}{{.T "org.edit.title"}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.OrgName}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{.T "org.edit.title"}}</li>
+  </ol></nav>
+  <div class="tixo-form">
+    <h1 class="mb-4">{{.T "org.edit.title"}}</h1>
+    {{with .Data.Errors}}
+    <div class="tixo-error-summary mb-4" id="org-edit-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="org-edit-errors-title">
+      <h2 class="h6 mb-2" id="org-edit-errors-title">{{$.T "org.form.errors_title"}}</h2>
+      <ul class="mb-0">
+        {{with index . "name"}}<li><a href="#org-edit-name">{{$.T .}}</a></li>{{end}}
+        {{with index . "contact_email"}}<li><a href="#org-edit-contact-email">{{$.T .}}</a></li>{{end}}
+      </ul>
+    </div>
+    {{end}}
+    <form method="post" action="{{.URL (printf "/org/%s/edit" .Data.Slug)}}" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="org-edit-name">{{.T "org.form.name"}}</label>
+        <input class="form-control{{if index .Data.Errors "name"}} is-invalid{{end}}" id="org-edit-name" name="name" value="{{.Data.Name}}"{{if index .Data.Errors "name"}} aria-invalid="true" aria-describedby="org-edit-name-error"{{end}} required minlength="2" maxlength="100" autocomplete="organization">
+        {{with index .Data.Errors "name"}}<div class="invalid-feedback" id="org-edit-name-error">{{$.T .}}</div>{{end}}
+      </div>
+      <fieldset class="mb-4">
+        <legend class="form-label h6">{{.T "org.edit.contacts_title"}}</legend>
+        <p class="form-text mt-0 mb-3">{{.T "org.edit.contacts_help"}}</p>
+        <div class="mb-3">
+          <label class="form-label" for="org-edit-contact-email">{{.T "org.edit.contact_email"}}</label>
+          <input class="form-control{{if index .Data.Errors "contact_email"}} is-invalid{{end}}" id="org-edit-contact-email" name="contact_email" type="email" value="{{.Data.ContactEmail}}"{{if index .Data.Errors "contact_email"}} aria-invalid="true" aria-describedby="org-edit-contact-email-error"{{end}} autocomplete="email">
+          {{with index .Data.Errors "contact_email"}}<div class="invalid-feedback" id="org-edit-contact-email-error">{{$.T .}}</div>{{end}}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="org-edit-contact-phone">{{.T "org.edit.contact_phone"}}</label>
+          <input class="form-control" id="org-edit-contact-phone" name="contact_phone" type="tel" value="{{.Data.ContactPhone}}" autocomplete="tel">
+        </div>
+        <div class="mb-0">
+          <label class="form-label" for="org-edit-contact-telegram">{{.T "org.edit.contact_telegram"}}</label>
+          <input class="form-control" id="org-edit-contact-telegram" name="contact_telegram" value="{{.Data.ContactTelegram}}" autocomplete="off">
+        </div>
+      </fieldset>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-tixo" type="submit">{{.T "org.edit.submit"}}</button>
+        <a class="btn btn-quiet" href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.T "org.form.cancel"}}</a>
+      </div>
+    </form>
+  </div>
+</section>
+{{end}}

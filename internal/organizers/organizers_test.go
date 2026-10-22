@@ -247,3 +247,67 @@ func TestAddMemberRejections(t *testing.T) {
 		t.Errorf("memberships = %d, %v; want 2 (owner + bob)", n, err)
 	}
 }
+
+func TestUpdateChangesNameAndContacts(t *testing.T) {
+	pool := dbtest.Pool(t)
+	svc := New(pool)
+	alice := mustUser(t, pool, "alice@example.com")
+	org, err := svc.Create(context.Background(), alice, CreateInput{Name: "Kyiv Live", Slug: "kyiv-live"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := svc.Update(context.Background(), org, UpdateInput{
+		Name: " Kyiv Live Events ", ContactEmail: " hello@kyiv-live.example.com ", ContactPhone: "+380441234567", ContactTelegram: "@kyivlive",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Name != "Kyiv Live Events" {
+		t.Errorf("Name = %q, want trimmed", updated.Name)
+	}
+	contacts := Contacts(updated)
+	want := map[string]string{"email": "hello@kyiv-live.example.com", "phone": "+380441234567", "telegram": "@kyivlive"}
+	if len(contacts) != len(want) {
+		t.Fatalf("Contacts = %+v, want %+v", contacts, want)
+	}
+	for k, v := range want {
+		if contacts[k] != v {
+			t.Errorf("Contacts[%q] = %q, want %q", k, contacts[k], v)
+		}
+	}
+
+	cleared, err := svc.Update(context.Background(), updated, UpdateInput{Name: "Kyiv Live Events"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contacts := Contacts(cleared); len(contacts) != 0 {
+		t.Errorf("Contacts after clearing = %+v, want empty", contacts)
+	}
+}
+
+func TestUpdateValidatesInput(t *testing.T) {
+	pool := dbtest.Pool(t)
+	svc := New(pool)
+	alice := mustUser(t, pool, "alice@example.com")
+	org, err := svc.Create(context.Background(), alice, CreateInput{Name: "Kyiv Live", Slug: "kyiv-live"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		in       UpdateInput
+		field    string
+		wantCode string
+	}{
+		{UpdateInput{Name: ""}, FieldName, CodeRequired},
+		{UpdateInput{Name: "K"}, FieldName, CodeLength},
+		{UpdateInput{Name: "Kyiv Live", ContactEmail: "not-an-email"}, FieldContactEmail, CodeFormat},
+	}
+	for _, tc := range cases {
+		_, err := svc.Update(context.Background(), org, tc.in)
+		var verr *ValidationError
+		if !errors.As(err, &verr) || verr.Fields[tc.field] != tc.wantCode {
+			t.Errorf("Update(%+v) err = %v, want %s=%s", tc.in, err, tc.field, tc.wantCode)
+		}
+	}
+}

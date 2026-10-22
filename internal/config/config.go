@@ -31,6 +31,7 @@ type Config struct {
 	RedisURL      string  `env:"REDIS_URL,required,notEmpty"`
 	AMQPURL       string  `env:"AMQP_URL,required,notEmpty"`
 	SessionSecret string  `env:"SESSION_SECRET"`
+	StorageDir    string  `env:"STORAGE_DIR" envDefault:"./data/uploads"`
 
 	GoogleClientID     string `env:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
@@ -64,6 +65,10 @@ func (c *Config) validate() error {
 
 	if c.DBMaxConns < 1 || c.DBMaxConns > maxDBConns {
 		return fmt.Errorf("DB_MAX_CONNS must be between 1 and %d, got %d", maxDBConns, c.DBMaxConns)
+	}
+
+	if strings.TrimSpace(c.StorageDir) == "" {
+		return errors.New("STORAGE_DIR must not be empty")
 	}
 
 	if c.BaseURL.Scheme != "http" && c.BaseURL.Scheme != "https" || c.BaseURL.Host == "" {

@@ -126,6 +126,23 @@ events_empty = "No events yet."
 col_title = "Title"
 col_starts = "Starts (Kyiv)"
 col_status = "Status"
+edit = "Edit"
+venues = "Venues"
+
+[org.edit]
+title = "Organizer settings"
+submit = "Save"
+contacts_title = "Contacts"
+contacts_help = "Shown on the event page for attendees."
+contact_email = "Email"
+contact_phone = "Phone"
+contact_telegram = "Telegram"
+saved = "Changes saved."
+
+[org.edit.error]
+name_required = "Enter a name."
+name_length = "The name must be 2 to 100 characters long."
+contact_email_format = "This does not look like an email."
 
 [org.role]
 owner = "Owner"
@@ -146,6 +163,173 @@ email = "Add a member by email"
 email_help = "The person must have signed in to Tixo with Google at least once. They get the editor role."
 submit = "Add"
 added = "Member added."
+
+[venue.list]
+title = "Venues"
+create = "Add venue"
+empty = "No venues yet."
+shared = "Shared"
+edit = "Edit"
+
+[venue.form]
+title_new = "New venue"
+title_edit = "Edit venue"
+name = "Name"
+address = "Address"
+city = "City"
+lat = "Latitude"
+lng = "Longitude"
+capacity = "Capacity"
+submit = "Save"
+delete = "Delete venue"
+delete_confirm = "Delete this venue? This cannot be undone."
+
+[venue.form.error]
+name_required = "Enter a name."
+name_length = "The name must be 2 to 150 characters long."
+name_taken = "You already have a venue with this name."
+address_required = "Enter an address."
+address_length = "The address is too long."
+city_required = "Enter a city."
+city_length = "The city must be 2 to 100 characters long."
+lat_range = "Latitude must be between -90 and 90."
+lat_format = "Enter a number, e.g. 50.45."
+lng_range = "Longitude must be between -180 and 180."
+lng_format = "Enter a number, e.g. 30.52."
+capacity_range = "Capacity must be greater than zero."
+capacity_format = "Enter a whole number."
+
+[venue.delete]
+has_events = "Delete or move this venue's events first."
+
+[event.list]
+title = "Events"
+create = "Add event"
+empty = "No events yet."
+
+[event.form]
+title_new = "New event"
+title_edit = "Edit event"
+event_title = "Title"
+slug = "Page address"
+slug_help = "Lowercase Latin letters, digits and hyphens, 3–80 characters."
+event_description = "Description"
+venue = "Venue"
+venue_placeholder = "Choose a venue"
+starts_at = "Starts"
+ends_at = "Ends"
+genre = "Genre"
+genre_placeholder = "Choose a genre"
+price_from = "Price from"
+price_help = "In hryvnias, e.g. 350.00. Leave empty if the price is not set yet."
+poster = "Poster"
+poster_help = "JPEG, PNG or WebP, up to 5 MB."
+poster_dropzone = "Drag an image here or choose a file below."
+poster_compressing = "Compressing image…"
+poster_compressed = "Compressed: {before} → {after}."
+remove_poster = "Remove poster"
+submit = "Save"
+delete = "Delete event"
+delete_confirm = "Delete this event? This cannot be undone."
+
+[event.form.error]
+venue_id_required = "Choose a venue."
+venue_id_not_found = "This venue is not available to your organization."
+slug_required = "Enter a page address."
+slug_format = "Only lowercase Latin letters, digits and hyphens between them."
+slug_length = "The address must be 3 to 80 characters long."
+slug_taken = "This address is already used by another event."
+title_required = "Enter a title."
+title_length = "The title is too long."
+starts_at_required = "Enter the start date and time."
+starts_at_format = "Enter a valid date and time."
+ends_at_required = "Enter the end date and time."
+ends_at_format = "Enter a valid date and time."
+ends_at_range = "The event must end after it starts."
+genre_invalid = "Choose a genre from the list."
+price_from_range = "Price cannot be negative."
+price_from_format = "Enter the price as a number, e.g. 350.00."
+poster_type = "Only JPEG, PNG or WebP are supported."
+poster_size = "The file is too large (5 MB max)."
+poster_io = "Could not save the file, please try again."
+
+[event.show]
+edit = "Edit"
+publish = "Publish"
+unpublish = "Unpublish"
+cancel = "Cancel event"
+cancel_confirm = "Cancel this event? Attendees will see the \"Cancelled\" status."
+
+[event.delete]
+has_tickets = "Delete this event's ticket tiers first."
+
+[event.tiers]
+title = "Ticket tiers"
+name = "Name"
+price = "Price"
+quantity = "Quantity"
+available = "Available"
+actions = "Actions"
+save = "Save"
+delete = "Delete"
+delete_confirm = "Delete this ticket tier? This cannot be undone."
+empty = "No ticket tiers yet."
+add_title = "Add a tier"
+add = "Add"
+
+[event.lineup]
+title = "Lineup"
+headliner = "Headliner"
+remove = "Remove"
+empty = "No artists added yet."
+search = "Search for an artist"
+search_placeholder = "Type at least 2 characters"
+search_submit = "Search"
+add = "Add"
+no_hits = "No matches. You can add a new artist below."
+add_new_title = "Add a new artist"
+new_artist_name = "Name"
+
+[lineup.add]
+saved = "Artist added to the lineup."
+
+[lineup.remove]
+saved = "Artist removed from the lineup."
+
+[lineup.form.error]
+required = "Pick an artist from the list or enter a name for a new one."
+name = "Could not add the artist. Check the name."
+artist_not_found = "This artist was not found."
+
+[tier.create]
+saved = "Ticket tier added."
+
+[tier.update]
+saved = "Ticket tier updated."
+
+[tier.delete]
+saved = "Ticket tier deleted."
+sold = "This tier already has sold tickets and cannot be deleted."
+
+[tier.form.error]
+format = "Check the price and quantity."
+name_required = "Enter a tier name."
+name_length = "Name must be 2 to 100 characters."
+name_taken = "This event already has a tier with that name."
+price_range = "Price cannot be negative."
+quantity_range = "Quantity must be 1 to 1,000,000 and not less than tickets already sold."
+
+[genre]
+rock = "Rock"
+pop = "Pop"
+indie = "Indie"
+alternative = "Alternative"
+electronic = "Electronic"
+hip-hop = "Hip-hop"
+folk = "Folk"
+jazz = "Jazz"
+classical = "Classical"
+metal = "Metal"
 
 [errors.403]
 title = "Access denied"

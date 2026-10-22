@@ -418,6 +418,19 @@ h6, .h6 { font-size: var(--tixo-text-sm); }
   color: var(--tixo-danger);
 }
 
+.tixo-dropzone {
+  padding: 1.25rem;
+  text-align: center;
+  border: 1px dashed var(--tixo-border-strong);
+  border-radius: var(--tixo-radius);
+  transition: border-color var(--tixo-duration) var(--tixo-ease), background var(--tixo-duration) var(--tixo-ease);
+}
+
+.tixo-dropzone.is-dragover {
+  border-color: var(--tixo-accent);
+  background: var(--tixo-surface-2);
+}
+
 .tixo-badge {
   display: inline-block;
   padding: 0.125rem 0.625rem;

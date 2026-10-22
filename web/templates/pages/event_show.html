@@ -1,0 +1,127 @@
+{{define "title"}}{{.Data.Title}} · {{.Data.OrgName}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.OrgName}}</a></li>
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s/events" .Data.Slug)}}">{{.T "event.list.title"}}</a></li>
+    <li class="breadcrumb-item active text-break" aria-current="page">{{.Data.Title}}</li>
+  </ol></nav>
+  {{if .Data.PosterURL}}<img src="{{.Data.PosterURL}}" alt="" class="rounded mb-3 border" style="max-width: 320px; border-color: var(--tixo-border-strong)!important">{{end}}
+  <h1 class="mb-2">{{.Data.Title}}</h1>
+  <p class="mb-4"><span class="tixo-status tixo-status-{{.Data.Status}}">{{.T .Data.StatusLabel}}</span></p>
+  <div class="d-flex flex-wrap gap-2 mb-5">
+    <a class="btn btn-quiet btn-sm" href="{{.URL (printf "/org/%s/events/%d/edit" .Data.Slug .Data.ID)}}">{{.T "event.show.edit"}}</a>
+    {{if eq .Data.Status "draft"}}
+    <form method="post" action="{{.URL (printf "/org/%s/events/%d/publish" .Data.Slug .Data.ID)}}"><button class="btn btn-tixo btn-sm" type="submit">{{.T "event.show.publish"}}</button></form>
+    {{else if eq .Data.Status "published"}}
+    <form method="post" action="{{.URL (printf "/org/%s/events/%d/unpublish" .Data.Slug .Data.ID)}}"><button class="btn btn-quiet btn-sm" type="submit">{{.T "event.show.unpublish"}}</button></form>
+    <form method="post" action="{{.URL (printf "/org/%s/events/%d/cancel" .Data.Slug .Data.ID)}}" data-confirm="{{.T "event.show.cancel_confirm"}}"><button class="btn btn-quiet btn-sm" type="submit">{{.T "event.show.cancel"}}</button></form>
+    {{end}}
+  </div>
+  <h2 class="h4 mb-3">{{.T "event.tiers.title"}}</h2>
+  {{if .Data.Tiers}}
+  <div class="table-responsive mb-4">
+    <table class="table tixo-table align-middle">
+      <thead><tr>
+        <th scope="col">{{.T "event.tiers.name"}}</th>
+        <th scope="col">{{.T "event.tiers.price"}}</th>
+        <th scope="col">{{.T "event.tiers.quantity"}}</th>
+        <th scope="col">{{.T "event.tiers.available"}}</th>
+        <th scope="col"><span class="visually-hidden">{{.T "event.tiers.actions"}}</span></th>
+      </tr></thead>
+      <tbody>
+        {{range .Data.Tiers}}
+        <tr>
+          <td><label class="visually-hidden" for="tier-name-{{.ID}}">{{$.T "event.tiers.name"}}</label><input class="form-control form-control-sm" form="tier-{{.ID}}" id="tier-name-{{.ID}}" name="name" value="{{.Name}}" required maxlength="100"></td>
+          <td><label class="visually-hidden" for="tier-price-{{.ID}}">{{$.T "event.tiers.price"}}</label><input class="form-control form-control-sm" form="tier-{{.ID}}" id="tier-price-{{.ID}}" name="price" inputmode="decimal" value="{{.Price}}" required></td>
+          <td><label class="visually-hidden" for="tier-quantity-{{.ID}}">{{$.T "event.tiers.quantity"}}</label><input class="form-control form-control-sm" form="tier-{{.ID}}" id="tier-quantity-{{.ID}}" name="quantity" inputmode="numeric" value="{{.Quantity}}" required></td>
+          <td>{{.Available}}</td>
+          <td class="text-end text-nowrap">
+            <button class="btn btn-quiet btn-sm" form="tier-{{.ID}}" type="submit">{{$.T "event.tiers.save"}}</button>
+            <button class="btn btn-quiet btn-sm" form="tier-delete-{{.ID}}" type="submit">{{$.T "event.tiers.delete"}}</button>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{range .Data.Tiers}}
+  <form id="tier-{{.ID}}" method="post" action="{{$.URL (printf "/org/%s/events/%d/tiers/%d" $.Data.Slug $.Data.ID .ID)}}"></form>
+  <form id="tier-delete-{{.ID}}" method="post" action="{{$.URL (printf "/org/%s/events/%d/tiers/%d/delete" $.Data.Slug $.Data.ID .ID)}}" data-confirm="{{$.T "event.tiers.delete_confirm"}}"></form>
+  {{end}}
+  {{else}}
+  <p class="text-muted mb-4">{{.T "event.tiers.empty"}}</p>
+  {{end}}
+  <form method="post" action="{{.URL (printf "/org/%s/events/%d/tiers" .Data.Slug .Data.ID)}}" class="tixo-form mb-5" style="max-width: 32rem">
+    <h3 class="h6 mb-3">{{.T "event.tiers.add_title"}}</h3>
+    <div class="mb-3">
+      <label class="form-label" for="new-tier-name">{{.T "event.tiers.name"}}</label>
+      <input class="form-control" id="new-tier-name" name="name" required maxlength="100">
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-sm-6">
+        <label class="form-label" for="new-tier-price">{{.T "event.tiers.price"}}</label>
+        <input class="form-control" id="new-tier-price" name="price" inputmode="decimal" placeholder="0.00" required>
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label" for="new-tier-quantity">{{.T "event.tiers.quantity"}}</label>
+        <input class="form-control" id="new-tier-quantity" name="quantity" inputmode="numeric" required>
+      </div>
+    </div>
+    <button class="btn btn-tixo" type="submit">{{.T "event.tiers.add"}}</button>
+  </form>
+
+  <h2 class="h4 mb-3">{{.T "event.lineup.title"}}</h2>
+  {{if .Data.Lineup}}
+  <ul class="list-group mb-4" style="max-width: 32rem">
+    {{range .Data.Lineup}}
+    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+      <span>{{.Name}}{{if .IsHeadliner}} <span class="badge text-bg-secondary">{{$.T "event.lineup.headliner"}}</span>{{end}}</span>
+      <form method="post" action="{{$.URL (printf "/org/%s/events/%d/lineup/%d/remove" $.Data.Slug $.Data.ID .ArtistID)}}">
+        <button class="btn btn-quiet btn-sm" type="submit">{{$.T "event.lineup.remove"}}</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="text-muted mb-4">{{.T "event.lineup.empty"}}</p>
+  {{end}}
+
+  <form method="get" action="{{.URL (printf "/org/%s/events/%d" .Data.Slug .Data.ID)}}" class="tixo-form mb-4" style="max-width: 32rem">
+    <div class="mb-3">
+      <label class="form-label" for="lineup-search">{{.T "event.lineup.search"}}</label>
+      <input class="form-control" id="lineup-search" name="q" value="{{.Data.LineupQuery}}" minlength="2" placeholder="{{.T "event.lineup.search_placeholder"}}">
+    </div>
+    <button class="btn btn-quiet" type="submit">{{.T "event.lineup.search_submit"}}</button>
+  </form>
+
+  {{if .Data.ArtistHits}}
+  <ul class="list-group mb-4" style="max-width: 32rem">
+    {{range .Data.ArtistHits}}
+    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+      <span>{{.Label}}</span>
+      <form method="post" action="{{$.URL (printf "/org/%s/events/%d/lineup" $.Data.Slug $.Data.ID)}}">
+        <input type="hidden" name="artist_id" value="{{.ID}}">
+        <button class="btn btn-quiet btn-sm" type="submit">{{$.T "event.lineup.add"}}</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{else if .Data.LineupQuery}}
+  <p class="text-muted mb-4">{{.T "event.lineup.no_hits"}}</p>
+  {{end}}
+
+  <form method="post" action="{{.URL (printf "/org/%s/events/%d/lineup" .Data.Slug .Data.ID)}}" class="tixo-form mb-5" style="max-width: 32rem">
+    <h3 class="h6 mb-3">{{.T "event.lineup.add_new_title"}}</h3>
+    <div class="mb-3">
+      <label class="form-label" for="new-artist-name">{{.T "event.lineup.new_artist_name"}}</label>
+      <input class="form-control" id="new-artist-name" name="new_artist_name" required maxlength="200">
+    </div>
+    <div class="form-check mb-3">
+      <input class="form-check-input" type="checkbox" id="new-artist-headliner" name="is_headliner" value="1">
+      <label class="form-check-label" for="new-artist-headliner">{{.T "event.lineup.headliner"}}</label>
+    </div>
+    <button class="btn btn-tixo" type="submit">{{.T "event.lineup.add"}}</button>
+  </form>
+</section>
+{{end}}

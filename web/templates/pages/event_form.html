@@ -1,0 +1,104 @@
+{{define "title"}}{{if .Data.Editing}}{{.Data.Title}}{{else}}{{.T "event.form.title_new"}}{{end}} · {{.Data.OrgName}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.OrgName}}</a></li>
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s/events" .Data.Slug)}}">{{.T "event.list.title"}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{if .Data.Editing}}{{.Data.Title}}{{else}}{{.T "event.form.title_new"}}{{end}}</li>
+  </ol></nav>
+  <div class="tixo-form">
+    <h1 class="mb-4">{{if .Data.Editing}}{{.T "event.form.title_edit"}}{{else}}{{.T "event.form.title_new"}}{{end}}</h1>
+    {{with .Data.Errors}}
+    <div class="tixo-error-summary mb-4" id="event-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="event-errors-title">
+      <h2 class="h6 mb-2" id="event-errors-title">{{$.T "org.form.errors_title"}}</h2>
+      <ul class="mb-0">
+        {{with index . "venue_id"}}<li><a href="#event-venue">{{$.T .}}</a></li>{{end}}
+        {{with index . "slug"}}<li><a href="#event-slug">{{$.T .}}</a></li>{{end}}
+        {{with index . "title"}}<li><a href="#event-title">{{$.T .}}</a></li>{{end}}
+        {{with index . "starts_at"}}<li><a href="#event-starts-at">{{$.T .}}</a></li>{{end}}
+        {{with index . "ends_at"}}<li><a href="#event-ends-at">{{$.T .}}</a></li>{{end}}
+        {{with index . "genre"}}<li><a href="#event-genre">{{$.T .}}</a></li>{{end}}
+        {{with index . "price_from"}}<li><a href="#event-price">{{$.T .}}</a></li>{{end}}
+        {{with index . "poster"}}<li><a href="#event-poster">{{$.T .}}</a></li>{{end}}
+      </ul>
+    </div>
+    {{end}}
+    <form method="post" action="{{if .Data.Editing}}{{.URL (printf "/org/%s/events/%d/edit" .Data.Slug .Data.ID)}}{{else}}{{.URL (printf "/org/%s/events/new" .Data.Slug)}}{{end}}" enctype="multipart/form-data" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="event-title">{{.T "event.form.event_title"}}</label>
+        <input class="form-control{{if index .Data.Errors "title"}} is-invalid{{end}}" id="event-title" name="title" value="{{.Data.Title}}"{{if index .Data.Errors "title"}} aria-invalid="true" aria-describedby="event-title-error"{{end}} required maxlength="200">
+        {{with index .Data.Errors "title"}}<div class="invalid-feedback" id="event-title-error">{{$.T .}}</div>{{end}}
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="event-slug">{{.T "event.form.slug"}}</label>
+        <input class="form-control{{if index .Data.Errors "slug"}} is-invalid{{end}}" id="event-slug" name="slug" value="{{.Data.EventSlug}}"{{if index .Data.Errors "slug"}} aria-invalid="true" aria-describedby="event-slug-error"{{else}} aria-describedby="event-slug-help"{{end}} required minlength="3" maxlength="80" pattern="[a-z0-9]+(-[a-z0-9]+)*" autocapitalize="none" spellcheck="false">
+        {{with index .Data.Errors "slug"}}<div class="invalid-feedback" id="event-slug-error">{{$.T .}}</div>{{else}}<div class="form-text" id="event-slug-help">{{.T "event.form.slug_help"}}</div>{{end}}
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="event-description">{{.T "event.form.event_description"}}</label>
+        <textarea class="form-control" id="event-description" name="description" rows="4">{{.Data.Description}}</textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="event-venue">{{.T "event.form.venue"}}</label>
+        <select class="form-select{{if index .Data.Errors "venue_id"}} is-invalid{{end}}" id="event-venue" name="venue_id"{{if index .Data.Errors "venue_id"}} aria-invalid="true" aria-describedby="event-venue-error"{{end}} required>
+          <option value="">{{.T "event.form.venue_placeholder"}}</option>
+          {{range .Data.Venues}}<option value="{{.ID}}"{{if .Selected}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+        {{with index .Data.Errors "venue_id"}}<div class="invalid-feedback" id="event-venue-error">{{$.T .}}</div>{{end}}
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+          <label class="form-label" for="event-starts-at">{{.T "event.form.starts_at"}}</label>
+          <input class="form-control{{if index .Data.Errors "starts_at"}} is-invalid{{end}}" id="event-starts-at" name="starts_at" type="datetime-local" value="{{.Data.StartsAt}}"{{if index .Data.Errors "starts_at"}} aria-invalid="true" aria-describedby="event-starts-at-error"{{end}} required>
+          {{with index .Data.Errors "starts_at"}}<div class="invalid-feedback" id="event-starts-at-error">{{$.T .}}</div>{{end}}
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label" for="event-ends-at">{{.T "event.form.ends_at"}}</label>
+          <input class="form-control{{if index .Data.Errors "ends_at"}} is-invalid{{end}}" id="event-ends-at" name="ends_at" type="datetime-local" value="{{.Data.EndsAt}}"{{if index .Data.Errors "ends_at"}} aria-invalid="true" aria-describedby="event-ends-at-error"{{end}} required>
+          {{with index .Data.Errors "ends_at"}}<div class="invalid-feedback" id="event-ends-at-error">{{$.T .}}</div>{{end}}
+        </div>
+      </div>
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6">
+          <label class="form-label" for="event-genre">{{.T "event.form.genre"}}</label>
+          <select class="form-select{{if index .Data.Errors "genre"}} is-invalid{{end}}" id="event-genre" name="genre"{{if index .Data.Errors "genre"}} aria-invalid="true" aria-describedby="event-genre-error"{{end}} required>
+            <option value="">{{.T "event.form.genre_placeholder"}}</option>
+            {{range .Data.Genres}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{$.T .Label}}</option>{{end}}
+          </select>
+          {{with index .Data.Errors "genre"}}<div class="invalid-feedback" id="event-genre-error">{{$.T .}}</div>{{end}}
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label" for="event-price">{{.T "event.form.price_from"}}</label>
+          <input class="form-control{{if index .Data.Errors "price_from"}} is-invalid{{end}}" id="event-price" name="price_from" inputmode="decimal" value="{{.Data.PriceFrom}}"{{if index .Data.Errors "price_from"}} aria-invalid="true" aria-describedby="event-price-error"{{else}} aria-describedby="event-price-help"{{end}} placeholder="0.00">
+          {{with index .Data.Errors "price_from"}}<div class="invalid-feedback" id="event-price-error">{{$.T .}}</div>{{else}}<div class="form-text" id="event-price-help">{{.T "event.form.price_help"}}</div>{{end}}
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label" for="event-poster">{{.T "event.form.poster"}}</label>
+        <div class="tixo-dropzone mb-2" id="poster-dropzone">
+          <img id="event-poster-preview" alt="" width="160" class="rounded border mb-2{{if not .Data.HasPoster}} d-none{{end}}" style="border-color: var(--tixo-border-strong)!important"{{if .Data.HasPoster}} src="{{.Data.PosterURL}}"{{end}}>
+          <p class="mb-0 text-muted small">{{.T "event.form.poster_dropzone"}}</p>
+        </div>
+        {{if .Data.HasPoster}}
+        <div class="form-check mb-2">
+          <input class="form-check-input" type="checkbox" id="event-remove-poster" name="remove_poster" value="1">
+          <label class="form-check-label" for="event-remove-poster">{{.T "event.form.remove_poster"}}</label>
+        </div>
+        {{end}}
+        <input class="form-control{{if index .Data.Errors "poster"}} is-invalid{{end}}" id="event-poster" name="poster" type="file" accept="image/jpeg,image/png,image/webp"{{if index .Data.Errors "poster"}} aria-invalid="true" aria-describedby="event-poster-error"{{else}} aria-describedby="event-poster-help"{{end}}>
+        {{with index .Data.Errors "poster"}}<div class="invalid-feedback" id="event-poster-error">{{$.T .}}</div>{{else}}<div class="form-text" id="event-poster-help">{{.T "event.form.poster_help"}}</div>{{end}}
+        <p class="form-text" id="event-poster-compress-status" aria-live="polite" data-msg-compressing="{{.T "event.form.poster_compressing"}}" data-msg-compressed="{{.T "event.form.poster_compressed"}}"></p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-tixo" type="submit">{{.T "event.form.submit"}}</button>
+        <a class="btn btn-quiet" href="{{.URL (printf "/org/%s/events" .Data.Slug)}}">{{.T "org.form.cancel"}}</a>
+      </div>
+    </form>
+    {{if .Data.Editing}}
+    <form method="post" action="{{.URL (printf "/org/%s/events/%d/delete" .Data.Slug .Data.ID)}}" class="mt-4" data-confirm="{{.T "event.form.delete_confirm"}}">
+      <button class="btn btn-quiet" type="submit">{{.T "event.form.delete"}}</button>
+    </form>
+    {{end}}
+  </div>
+</section>
+{{end}}

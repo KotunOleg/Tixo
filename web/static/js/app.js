@@ -8,3 +8,95 @@ document.addEventListener("click", (event) => {
 });
 
 document.querySelector("[data-focus-on-load]")?.focus();
+
+document.addEventListener("submit", (event) => {
+  const message = event.target.getAttribute?.("data-confirm");
+  if (message && !confirm(message)) {
+    event.preventDefault();
+  }
+});
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) {
+    return bytes + " B";
+  }
+  if (bytes < 1024 * 1024) {
+    return Math.round(bytes / 1024) + " KB";
+  }
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+async function compressImageFile(file, maxDimension, quality) {
+  if (!file.type.startsWith("image/") || typeof createImageBitmap !== "function") {
+    return file;
+  }
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) {
+    return file;
+  }
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return file;
+  }
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+  if (!blob || blob.size >= file.size) {
+    return file;
+  }
+  const name = file.name.replace(/\.[^.]+$/, "") + ".webp";
+  return new File([blob], name, { type: "image/webp" });
+}
+
+function setupPosterCompression() {
+  const input = document.getElementById("event-poster");
+  const dropzone = document.getElementById("poster-dropzone");
+  const preview = document.getElementById("event-poster-preview");
+  const status = document.getElementById("event-poster-compress-status");
+  if (!input || !dropzone || !preview) {
+    return;
+  }
+
+  async function handleFile(file) {
+    if (!file) {
+      return;
+    }
+    preview.src = URL.createObjectURL(file);
+    preview.classList.remove("d-none");
+    const before = file.size;
+    if (status) {
+      status.textContent = status.getAttribute("data-msg-compressing") || "";
+    }
+    const compressed = await compressImageFile(file, 1600, 0.82);
+    const dt = new DataTransfer();
+    dt.items.add(compressed);
+    input.files = dt.files;
+    if (status) {
+      const template = status.getAttribute("data-msg-compressed") || "";
+      status.textContent = compressed === file
+        ? ""
+        : template.replace("{before}", formatFileSize(before)).replace("{after}", formatFileSize(compressed.size));
+    }
+  }
+
+  input.addEventListener("change", () => handleFile(input.files[0]));
+
+  dropzone.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    dropzone.classList.add("is-dragover");
+  });
+  dropzone.addEventListener("dragleave", () => dropzone.classList.remove("is-dragover"));
+  dropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    dropzone.classList.remove("is-dragover");
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      handleFile(file);
+    }
+  });
+}
+
+setupPosterCompression();

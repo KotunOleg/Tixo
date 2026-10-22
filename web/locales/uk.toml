@@ -126,6 +126,23 @@ events_empty = "Подій поки немає."
 col_title = "Назва"
 col_starts = "Початок (Київ)"
 col_status = "Статус"
+edit = "Редагувати"
+venues = "Майданчики"
+
+[org.edit]
+title = "Налаштування організатора"
+submit = "Зберегти"
+contacts_title = "Контакти"
+contacts_help = "Показуються на сторінці події для відвідувачів."
+contact_email = "Email"
+contact_phone = "Телефон"
+contact_telegram = "Telegram"
+saved = "Зміни збережено."
+
+[org.edit.error]
+name_required = "Вкажіть назву."
+name_length = "Назва має містити від 2 до 100 символів."
+contact_email_format = "Це не схоже на email."
 
 [org.role]
 owner = "Власник"
@@ -146,6 +163,173 @@ email = "Додати учасника за email"
 email_help = "Людина має хоча б раз увійти в Tixo через Google. Вона отримає роль редактора."
 submit = "Додати"
 added = "Учасника додано."
+
+[venue.list]
+title = "Майданчики"
+create = "Додати майданчик"
+empty = "Майданчиків поки немає."
+shared = "Спільний"
+edit = "Редагувати"
+
+[venue.form]
+title_new = "Новий майданчик"
+title_edit = "Редагувати майданчик"
+name = "Назва"
+address = "Адреса"
+city = "Місто"
+lat = "Широта"
+lng = "Довгота"
+capacity = "Місткість"
+submit = "Зберегти"
+delete = "Видалити майданчик"
+delete_confirm = "Видалити цей майданчик? Дію не можна скасувати."
+
+[venue.form.error]
+name_required = "Вкажіть назву."
+name_length = "Назва має містити від 2 до 150 символів."
+name_taken = "У вас уже є майданчик з такою назвою."
+address_required = "Вкажіть адресу."
+address_length = "Адреса занадто довга."
+city_required = "Вкажіть місто."
+city_length = "Місто має містити від 2 до 100 символів."
+lat_range = "Широта має бути від -90 до 90."
+lat_format = "Введіть число, напр. 50.45."
+lng_range = "Довгота має бути від -180 до 180."
+lng_format = "Введіть число, напр. 30.52."
+capacity_range = "Місткість має бути більшою за нуль."
+capacity_format = "Введіть ціле число."
+
+[venue.delete]
+has_events = "Спершу видаліть або перенесіть події цього майданчика."
+
+[event.list]
+title = "Події"
+create = "Додати подію"
+empty = "Подій поки немає."
+
+[event.form]
+title_new = "Нова подія"
+title_edit = "Редагувати подію"
+event_title = "Назва"
+slug = "Адреса сторінки"
+slug_help = "Латинські літери в нижньому регістрі, цифри й дефіс, 3–80 символів."
+event_description = "Опис"
+venue = "Майданчик"
+venue_placeholder = "Оберіть майданчик"
+starts_at = "Початок"
+ends_at = "Кінець"
+genre = "Жанр"
+genre_placeholder = "Оберіть жанр"
+price_from = "Ціна від"
+price_help = "У гривнях, напр. 350.00. Лишіть порожнім, якщо ціна ще невідома."
+poster = "Постер"
+poster_help = "JPEG, PNG або WebP, до 5 МБ."
+poster_dropzone = "Перетягніть зображення сюди або оберіть файл нижче."
+poster_compressing = "Стискаємо зображення…"
+poster_compressed = "Стиснено: {before} → {after}."
+remove_poster = "Прибрати постер"
+submit = "Зберегти"
+delete = "Видалити подію"
+delete_confirm = "Видалити цю подію? Дію не можна скасувати."
+
+[event.form.error]
+venue_id_required = "Оберіть майданчик."
+venue_id_not_found = "Цей майданчик недоступний для вашої організації."
+slug_required = "Вкажіть адресу сторінки."
+slug_format = "Лише латинські літери в нижньому регістрі, цифри й дефіс між ними."
+slug_length = "Адреса має містити від 3 до 80 символів."
+slug_taken = "Ця адреса вже зайнята іншою подією."
+title_required = "Вкажіть назву."
+title_length = "Назва занадто довга."
+starts_at_required = "Вкажіть дату й час початку."
+starts_at_format = "Вкажіть коректні дату й час."
+ends_at_required = "Вкажіть дату й час завершення."
+ends_at_format = "Вкажіть коректні дату й час."
+ends_at_range = "Подія має закінчуватися пізніше, ніж починається."
+genre_invalid = "Оберіть жанр зі списку."
+price_from_range = "Ціна не може бути від'ємною."
+price_from_format = "Введіть ціну числом, напр. 350.00."
+poster_type = "Підтримуються лише JPEG, PNG або WebP."
+poster_size = "Файл завеликий (максимум 5 МБ)."
+poster_io = "Не вдалося зберегти файл, спробуйте ще раз."
+
+[event.show]
+edit = "Редагувати"
+publish = "Опублікувати"
+unpublish = "Зняти з публікації"
+cancel = "Скасувати подію"
+cancel_confirm = "Скасувати цю подію? Відвідувачі побачать статус «Скасована»."
+
+[event.delete]
+has_tickets = "Спершу видаліть категорії квитків цієї події."
+
+[event.tiers]
+title = "Категорії квитків"
+name = "Назва"
+price = "Ціна"
+quantity = "Кількість"
+available = "Вільно"
+actions = "Дії"
+save = "Зберегти"
+delete = "Видалити"
+delete_confirm = "Видалити цю категорію квитків? Дію не можна скасувати."
+empty = "Категорій квитків поки немає."
+add_title = "Додати категорію"
+add = "Додати"
+
+[event.lineup]
+title = "Лінійка виконавців"
+headliner = "Хедлайнер"
+remove = "Прибрати"
+empty = "Виконавців поки не додано."
+search = "Пошук виконавця"
+search_placeholder = "Введіть щонайменше 2 символи"
+search_submit = "Шукати"
+add = "Додати"
+no_hits = "Нічого не знайдено. Можете додати нового виконавця нижче."
+add_new_title = "Додати нового виконавця"
+new_artist_name = "Назва"
+
+[lineup.add]
+saved = "Виконавця додано до лінійки."
+
+[lineup.remove]
+saved = "Виконавця прибрано з лінійки."
+
+[lineup.form.error]
+required = "Оберіть виконавця зі списку або вкажіть назву нового."
+name = "Не вдалося додати виконавця. Перевірте назву."
+artist_not_found = "Цього виконавця не знайдено."
+
+[tier.create]
+saved = "Категорію квитків додано."
+
+[tier.update]
+saved = "Категорію квитків оновлено."
+
+[tier.delete]
+saved = "Категорію квитків видалено."
+sold = "Цю категорію вже куплено частково, видалити не можна."
+
+[tier.form.error]
+format = "Перевірте ціну та кількість."
+name_required = "Вкажіть назву категорії."
+name_length = "Назва має містити від 2 до 100 символів."
+name_taken = "У цієї події вже є категорія з такою назвою."
+price_range = "Ціна не може бути від'ємною."
+quantity_range = "Кількість має бути від 1 до 1 000 000 і не меншою за вже продані квитки."
+
+[genre]
+rock = "Рок"
+pop = "Поп"
+indie = "Інді"
+alternative = "Альтернатива"
+electronic = "Електронна"
+hip-hop = "Хіп-хоп"
+folk = "Фолк"
+jazz = "Джаз"
+classical = "Класична"
+metal = "Метал"
 
 [errors.403]
 title = "Немає доступу"
