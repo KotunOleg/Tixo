@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -195,4 +196,67 @@ func TestAddMemberFormErrors(t *testing.T) {
 			t.Errorf("email=%q: %d, want 422 with %q marked invalid", email, rec.Code, want)
 		}
 	}
+}
+
+func TestCreateOrganizerErrorsAreAnnouncedOnTheField(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	body := s.postForm(t, "/org/new", url.Values{"name": {""}, "slug": {"Kyiv Live"}}, alice).Body.String()
+	want := map[string][]string{
+		"org-name":       {`aria-invalid="true"`, `aria-describedby="org-name-error"`},
+		"org-slug":       {`aria-invalid="true"`, `aria-describedby="org-slug-help org-slug-error"`},
+		"org-name-error": nil,
+		"org-slug-error": nil,
+		"org-errors":     {`tabindex="-1"`, `data-focus-on-load`},
+	}
+	for id, attrs := range want {
+		tag := openingTag(body, id)
+		if tag == "" {
+			t.Errorf("422 form has no element #%s", id)
+			continue
+		}
+		for _, a := range attrs {
+			if !strings.Contains(tag, a) {
+				t.Errorf("#%s lacks %s: screen readers do not learn which field is wrong", id, a)
+			}
+		}
+	}
+	for _, href := range []string{`href="#org-name"`, `href="#org-slug"`} {
+		if !strings.Contains(openingTagsInside(body, "org-errors"), href) {
+			t.Errorf("error summary does not link to the field: %s", href)
+		}
+	}
+	if clean := s.request(t, http.MethodGet, "/org/new", alice).Body.String(); strings.Contains(clean, `aria-invalid`) || openingTag(clean, "org-errors") != "" {
+		t.Error("empty form already marks fields invalid")
+	}
+}
+
+func TestEventsTableIsKeyboardScrollable(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	s.addEvent(t, "kyiv-live", "Alice Show")
+	body := s.request(t, http.MethodGet, "/org/kyiv-live", alice).Body.String()
+	m := regexp.MustCompile(`<div[^>]*\btable-responsive\b[^>]*>`).FindString(body)
+	for _, a := range []string{`tabindex="0"`, `role="region"`, `aria-labelledby="events-title"`} {
+		if !strings.Contains(m, a) {
+			t.Errorf("events table container lacks %s: it scrolls sideways on phones but cannot be reached from the keyboard", a)
+		}
+	}
+}
+
+func openingTag(body, id string) string {
+	return regexp.MustCompile(`<[a-z]+\b[^>]*\bid="` + regexp.QuoteMeta(id) + `"[^>]*>`).FindString(body)
+}
+
+func openingTagsInside(body, id string) string {
+	tag := openingTag(body, id)
+	if tag == "" {
+		return ""
+	}
+	rest := body[strings.Index(body, tag):]
+	if end := strings.Index(rest, "</div>"); end >= 0 {
+		return rest[:end]
+	}
+	return rest
 }

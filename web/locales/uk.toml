@@ -7,6 +7,7 @@ meta_description = "Tixo — шукай концерти, лекції та мі
 skip = "Перейти до вмісту"
 
 [nav]
+main = "Основна навігація"
 events = "Події"
 map = "Мапа"
 organizers = "Організаторам"
@@ -18,7 +19,6 @@ account = "Акаунт"
 
 [lang]
 switch = "English"
-switch_short = "EN"
 suggest = "Looks like you prefer English. Switch to the English version?"
 suggest_accept = "Switch to English"
 suggest_dismiss = "Залишитися"
@@ -38,7 +38,6 @@ submit = "Знайти"
 
 [home.upcoming]
 title = "Найближчі події"
-all = "Усі події"
 empty_title = "Подій поки немає"
 empty_text = "Організатори вже готують афішу. Загляньте трохи згодом."
 organizer_cta = "Ви організатор? Створіть подію"
@@ -64,7 +63,6 @@ text = "Створюйте афішу, продавайте квитки й ди
 cta = "Почати як організатор"
 
 [footer]
-explore = "Огляд"
 language = "Мова"
 rights = "© {{.Year}} Tixo. Курсовий проєкт «Web-технології»."
 
@@ -106,6 +104,7 @@ name = "Назва"
 slug = "Адреса кабінету"
 slug_help = "Латинські літери в нижньому регістрі, цифри й дефіс, 3–50 символів. Наприклад, kyiv-live."
 submit = "Створити"
+errors_title = "Перевірте поля форми"
 cancel = "Скасувати"
 
 [org.form.error]

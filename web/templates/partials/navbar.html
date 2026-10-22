@@ -1,40 +1,45 @@
-{{define "navbar"}}<nav class="navbar navbar-expand-lg sticky-top tixo-navbar">
+{{define "navbar"}}<nav class="navbar navbar-expand-lg sticky-top tixo-navbar" aria-label="{{.T "nav.main"}}">
   <div class="container">
     <a class="navbar-brand d-flex align-items-center gap-2" href="{{.URL "/"}}">
       <img src="/static/img/logo.svg" alt="" width="32" height="32">
       <span class="tixo-wordmark">{{.T "site.name"}}</span>
     </a>
+    {{if or .Viewer .SignIn}}
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav-main" aria-controls="nav-main" aria-expanded="false" aria-label="{{.T "nav.toggle"}}">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="nav-main">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="{{.URL "/events"}}"><i class="bi bi-calendar-event me-1"></i>{{.T "nav.events"}}</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{.URL "/map"}}"><i class="bi bi-geo-alt me-1"></i>{{.T "nav.map"}}</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{.URL "/organizers"}}"><i class="bi bi-megaphone me-1"></i>{{.T "nav.organizers"}}</a></li>
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link"{{if .Current "/org"}} aria-current="page"{{end}} href="{{.URL "/org"}}">{{.T "nav.organizers"}}</a></li>
       </ul>
-      <div class="d-flex align-items-center gap-2">
-        <a class="btn btn-sm btn-outline-light" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}" title="{{.T "lang.switch"}}">{{.T "lang.switch_short"}}</a>
+      <div class="tixo-nav-actions d-flex flex-wrap align-items-center gap-2">
+        <a class="btn btn-sm btn-quiet" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}">{{.T "lang.switch"}}</a>
         {{if .Viewer}}
         <div class="dropdown">
-          <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{.T "nav.account"}}">
-            <i class="bi bi-person-circle me-1"></i><span class="tixo-viewer-name">{{.Viewer.Name}}</span>
+          <button class="btn btn-sm btn-quiet dropdown-toggle tixo-account-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="visually-hidden">{{.T "nav.account"}} </span><span class="tixo-viewer-name">{{.Viewer.Name}}</span>
           </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li><span class="dropdown-item-text small text-body-secondary">{{.Viewer.Email}}</span></li>
-            <li><a class="dropdown-item" href="{{.URL "/org"}}"><i class="bi bi-building me-2"></i>{{.T "nav.my_organizers"}}</a></li>
+          <ul class="dropdown-menu dropdown-menu-end tixo-account-menu">
+            <li class="dropdown-item-text">
+              <span class="d-block fw-semibold text-break">{{.Viewer.Name}}</span>
+              <span class="d-block small text-body-secondary text-break">{{.Viewer.Email}}</span>
+            </li>
             <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{.URL "/org"}}">{{.T "nav.my_organizers"}}</a></li>
             <li>
               <form method="post" action="{{.URL "/auth/logout"}}">
-                <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right me-2"></i>{{.T "nav.sign_out"}}</button>
+                <button class="dropdown-item" type="submit">{{.T "nav.sign_out"}}</button>
               </form>
             </li>
           </ul>
         </div>
-        {{else if .SignIn}}
-        <a class="btn btn-sm btn-tixo" href="{{.URL "/auth/google/login"}}?next={{.Path}}"><i class="bi bi-google me-1"></i>{{.T "nav.sign_in"}}</a>
+        {{else}}
+        <a class="btn btn-sm btn-tixo" href="{{.URL "/auth/google/login"}}?next={{.Here}}"><i class="bi bi-google me-1" aria-hidden="true"></i>{{.T "nav.sign_in"}}</a>
         {{end}}
       </div>
     </div>
+    {{else}}
+    <a class="btn btn-sm btn-quiet ms-auto" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}">{{.T "lang.switch"}}</a>
+    {{end}}
   </div>
 </nav>{{end}}

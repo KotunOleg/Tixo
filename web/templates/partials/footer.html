@@ -1,23 +1,15 @@
 {{define "footer"}}<footer class="tixo-footer mt-auto py-5">
   <div class="container">
-    <div class="row g-4">
-      <div class="col-md-5">
+    <div class="d-flex flex-wrap justify-content-between gap-4">
+      <div>
         <a class="d-inline-flex align-items-center gap-2 text-decoration-none mb-2" href="{{.URL "/"}}">
           <img src="/static/img/logo.svg" alt="" width="28" height="28">
           <span class="tixo-wordmark fs-5">{{.T "site.name"}}</span>
         </a>
         <p class="text-body-secondary small mb-0">{{.T "site.tagline"}}</p>
       </div>
-      <div class="col-6 col-md-3">
-        <h2 class="h6 text-uppercase text-body-secondary">{{.T "footer.explore"}}</h2>
-        <ul class="list-unstyled small">
-          <li><a href="{{.URL "/events"}}">{{.T "nav.events"}}</a></li>
-          <li><a href="{{.URL "/map"}}">{{.T "nav.map"}}</a></li>
-          <li><a href="{{.URL "/organizers"}}">{{.T "nav.organizers"}}</a></li>
-        </ul>
-      </div>
-      <div class="col-6 col-md-4">
-        <h2 class="h6 text-uppercase text-body-secondary">{{.T "footer.language"}}</h2>
+      <div>
+        <h2 class="h6 text-body-secondary mb-2">{{.T "footer.language"}}</h2>
         <a class="small" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}">{{.T "lang.switch"}}</a>
       </div>
     </div>

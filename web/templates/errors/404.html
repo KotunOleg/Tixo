@@ -1,8 +1,8 @@
 {{define "title"}}{{.T "errors.404.title"}} · {{.T "site.name"}}{{end}}
 {{define "content"}}
-<section class="container py-5 text-center tixo-error">
-  <p class="tixo-error-code">404</p>
-  <h1 class="h2">{{.T "errors.404.title"}}</h1>
+<section class="container py-5 tixo-error">
+  <p class="tixo-error-code mb-3" aria-hidden="true">404</p>
+  <h1 class="mb-3">{{.T "errors.404.title"}}</h1>
   <p class="text-body-secondary mb-4">{{.T "errors.404.text"}}</p>
   <a class="btn btn-tixo" href="{{.URL "/"}}">{{.T "errors.back_home"}}</a>
 </section>

@@ -41,6 +41,12 @@ func TestNoSignInLinkWhenGoogleIsNotConfigured(t *testing.T) {
 	if strings.Contains(body, "/auth/google/login") {
 		t.Error("navbar links to a sign-in that answers 404")
 	}
+	if strings.Contains(body, `href="/org"`) {
+		t.Error("page links to the organizer workspace, which needs a sign-in that is switched off")
+	}
+	if strings.Contains(body, "navbar-toggler") || !strings.Contains(body, `hreflang="en" lang="en"`) {
+		t.Error("with nothing but the language link, the navbar must show it directly instead of behind a menu button")
+	}
 }
 
 func TestSessionOfDeletedUserBecomesAnonymous(t *testing.T) {
@@ -107,5 +113,50 @@ func TestCancelledSignInFlashIsShownOnce(t *testing.T) {
 	}
 	if body := s.request(t, http.MethodGet, "/", cookie).Body.String(); strings.Contains(body, "Вхід скасовано.") {
 		t.Error("cancel message shown again on the next page")
+	}
+}
+
+func TestSignInLinkReturnsToPageWithQuery(t *testing.T) {
+	s := newAuthSite(t)
+	body := s.request(t, http.MethodGet, "/en/?q=jazz&page=2", nil).Body.String()
+	if !strings.Contains(body, `href="/en/auth/google/login?next=%2f%3fq%3djazz%26page%3d2"`) {
+		t.Error("sign-in link drops the query string: the user comes back to a different page")
+	}
+}
+
+func TestNavbarMarksCurrentSection(t *testing.T) {
+	s := newAuthSite(t)
+	cookie := s.signIn(t)
+	current := `<a class="nav-link" aria-current="page" href="/en/org">`
+	cases := []struct {
+		path        string
+		wantCurrent bool
+	}{
+		{"/en/org", true},
+		{"/en/org/new", true},
+		{"/en/", false},
+		{"/en/organizers-x", false},
+	}
+	for _, tc := range cases {
+		body := s.request(t, http.MethodGet, tc.path, cookie).Body.String()
+		if got := strings.Contains(body, current); got != tc.wantCurrent {
+			t.Errorf("%s: organizers nav item marked current = %v, want %v", tc.path, got, tc.wantCurrent)
+		}
+	}
+}
+
+func TestPagesLinkOnlyToBuiltPages(t *testing.T) {
+	s := newAuthSite(t)
+	cookie := s.signIn(t)
+	unbuilt := []string{`href="/events"`, `href="/map"`, `href="/organizers"`, `href="/en/events"`, `href="/en/map"`, `href="/en/organizers"`}
+	for _, path := range []string{"/", "/en/"} {
+		for _, c := range []*http.Cookie{nil, cookie} {
+			body := s.request(t, http.MethodGet, path, c).Body.String()
+			for _, href := range unbuilt {
+				if strings.Contains(body, href) {
+					t.Errorf("%s (signed in: %v): page links to unbuilt page %s", path, c != nil, href)
+				}
+			}
+		}
 	}
 }

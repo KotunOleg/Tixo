@@ -24,6 +24,7 @@ const (
 
 type authErrorData struct {
 	MessageID string
+	Next      string
 }
 
 type Auth struct {
@@ -55,7 +56,7 @@ func (a Auth) Callback(w http.ResponseWriter, r *http.Request) {
 	r = r.WithContext(i18n.WithLang(r.Context(), i18n.FromPath(next)))
 	ctx := r.Context()
 	if err != nil {
-		a.fail(w, r, http.StatusBadRequest, msgAuthState, err)
+		a.fail(w, r, next, http.StatusBadRequest, msgAuthState, err)
 		return
 	}
 	if reason := q.Get("error"); reason != "" {
@@ -67,19 +68,19 @@ func (a Auth) Callback(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := a.Google.Profile(ctx, q.Get("code"), verifier)
 	if err != nil {
-		a.fail(w, r, http.StatusBadGateway, msgAuthProvider, err)
+		a.fail(w, r, next, http.StatusBadGateway, msgAuthProvider, err)
 		return
 	}
 	u, err := a.Users.SignInWithGoogle(ctx, profile)
 	switch {
 	case errors.Is(err, users.ErrEmailNotVerified):
-		a.fail(w, r, http.StatusForbidden, msgAuthUnverified, err)
+		a.fail(w, r, next, http.StatusForbidden, msgAuthUnverified, err)
 		return
 	case errors.Is(err, users.ErrEmailTaken):
-		a.fail(w, r, http.StatusConflict, msgAuthTaken, err)
+		a.fail(w, r, next, http.StatusConflict, msgAuthTaken, err)
 		return
 	case errors.Is(err, users.ErrInvalidProfile):
-		a.fail(w, r, http.StatusBadGateway, msgAuthProvider, err)
+		a.fail(w, r, next, http.StatusBadGateway, msgAuthProvider, err)
 		return
 	case err != nil:
 		a.serverError(w, r, err)
@@ -101,9 +102,13 @@ func (a Auth) Logout(w http.ResponseWriter, r *http.Request) {
 	redirectLocal(w, i18n.Path(i18n.FromContext(r.Context()), "/"), http.StatusSeeOther)
 }
 
-func (a Auth) fail(w http.ResponseWriter, r *http.Request, status int, messageID string, err error) {
+func (a Auth) fail(w http.ResponseWriter, r *http.Request, next string, status int, messageID string, err error) {
 	a.Log.WarnContext(r.Context(), "google sign-in failed", "status", status, "error", err, "request_id", middleware.GetReqID(r.Context()))
-	a.View.Render(w, r, status, "pages/auth_error", authErrorData{MessageID: messageID})
+	retry := i18n.Strip(next)
+	if retry == "/" {
+		retry = ""
+	}
+	a.View.Render(w, r, status, "pages/auth_error", authErrorData{MessageID: messageID, Next: retry})
 }
 
 func (a Auth) serverError(w http.ResponseWriter, r *http.Request, err error) {
@@ -112,7 +117,7 @@ func (a Auth) serverError(w http.ResponseWriter, r *http.Request, err error) {
 }
 
 func redirectLocal(w http.ResponseWriter, target string, status int) {
-	redirect(w, auth.SafeNext(target), status)
+	redirect(w, auth.LocalPath(target), status)
 }
 
 func redirect(w http.ResponseWriter, location string, status int) {
