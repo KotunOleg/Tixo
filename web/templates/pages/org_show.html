@@ -3,20 +3,21 @@
 <section class="container py-5">
   <nav aria-label="breadcrumb"><ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="{{.URL "/org"}}">{{.T "org.list.title"}}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">{{.Data.Name}}</li>
+    <li class="breadcrumb-item active text-break" aria-current="page">{{.Data.Name}}</li>
   </ol></nav>
-  <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-    <h1 class="h2 mb-0 me-2">{{.Data.Name}}</h1>
-    <span class="badge text-bg-info">{{.T .Data.PlanLabel}}</span>
-    <span class="badge text-bg-secondary">{{.T .Data.RoleLabel}}</span>
-  </div>
-  <h2 class="h4 mb-3">{{.T "org.show.events"}}</h2>
+  <h1 class="mb-2">{{.Data.Name}}</h1>
+  <p class="d-flex flex-wrap gap-2 mb-5">
+    <span class="tixo-badge">{{.T .Data.PlanLabel}}</span>
+    <span class="tixo-badge">{{.T .Data.RoleLabel}}</span>
+  </p>
+
+  <h2 class="h3 mb-3" id="events-title">{{.T "org.show.events"}}</h2>
   {{with .Data.Events}}
-  <div class="table-responsive">
-    <table class="table align-middle">
+  <div class="table-responsive" tabindex="0" role="region" aria-labelledby="events-title">
+    <table class="table align-middle tixo-table mb-0">
       <thead><tr><th scope="col">{{$.T "org.show.col_title"}}</th><th scope="col">{{$.T "org.show.col_starts"}}</th><th scope="col">{{$.T "org.show.col_status"}}</th></tr></thead>
       <tbody>
-        {{range .}}<tr><td>{{.Title}}</td><td>{{.StartsAt}}</td><td>{{$.T .StatusLabel}}</td></tr>
+        {{range .}}<tr><td class="tixo-col-title">{{.Title}}</td><td class="text-nowrap">{{.StartsAt}}</td><td><span class="tixo-status tixo-status-{{.Status}}">{{$.T .StatusLabel}}</span></td></tr>
         {{end}}
       </tbody>
     </table>
@@ -25,22 +26,22 @@
   <p class="text-body-secondary">{{.T "org.show.events_empty"}}</p>
   {{end}}
 
-  <h2 class="h4 mt-5 mb-3" id="members">{{.T "org.members.title"}}</h2>
+  <h2 class="h3 mt-5 mb-3" id="members">{{.T "org.members.title"}}</h2>
   <ul class="list-group mb-4">
     {{range .Data.Members}}<li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
-      <span class="text-break"><strong>{{.Name}}</strong> <span class="text-body-secondary small">{{.Email}}</span></span>
-      <span class="badge text-bg-secondary">{{$.T .RoleLabel}}</span>
+      <span class="text-break"><span class="d-block fw-semibold">{{.Name}}</span><span class="d-block text-body-secondary small">{{.Email}}</span></span>
+      <span class="tixo-badge">{{$.T .RoleLabel}}</span>
     </li>
     {{end}}
   </ul>
   {{if .Data.CanManage}}
-  <form method="post" action="{{.URL (printf "/org/%s/members" .Data.Slug)}}" class="tixo-member-form" novalidate>
+  <form method="post" action="{{.URL (printf "/org/%s/members" .Data.Slug)}}" class="tixo-member-form tixo-form" novalidate>
     <label class="form-label" for="member-email">{{.T "org.members.email"}}</label>
-    <div class="input-group has-validation">
+    <div class="d-flex flex-column flex-sm-row gap-2">
       <input class="form-control{{if .Data.MemberError}} is-invalid{{end}}" id="member-email" name="email" type="email" value="{{.Data.MemberEmail}}" required autocomplete="off" aria-describedby="member-email-help{{if .Data.MemberError}} member-email-error{{end}}"{{if .Data.MemberError}} aria-invalid="true"{{end}}>
-      <button class="btn btn-tixo" type="submit">{{.T "org.members.submit"}}</button>
-      {{with .Data.MemberError}}<div class="invalid-feedback" id="member-email-error">{{$.T .}}</div>{{end}}
+      <button class="btn btn-quiet flex-shrink-0" type="submit">{{.T "org.members.submit"}}</button>
     </div>
+    {{with .Data.MemberError}}<div class="invalid-feedback d-block" id="member-email-error">{{$.T .}}</div>{{end}}
     <div class="form-text" id="member-email-help">{{.T "org.members.email_help"}}</div>
   </form>
   {{end}}

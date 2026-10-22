@@ -104,6 +104,7 @@ name = "Name"
 slug = "Workspace address"
 slug_help = "Lowercase Latin letters, digits and hyphens, 3–50 characters. For example, kyiv-live."
 submit = "Create"
+errors_title = "Please check the form"
 cancel = "Cancel"
 
 [org.form.error]

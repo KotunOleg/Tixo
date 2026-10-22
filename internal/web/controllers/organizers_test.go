@@ -196,3 +196,35 @@ func TestAddMemberFormErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateOrganizerErrorsAreAnnouncedOnTheField(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	body := s.postForm(t, "/org/new", url.Values{"name": {""}, "slug": {"Kyiv Live"}}, alice).Body.String()
+	for _, want := range []string{
+		`id="org-name" name="name" value="" aria-invalid="true" aria-describedby="org-name-error"`,
+		`id="org-name-error"`,
+		`aria-invalid="true" aria-describedby="org-slug-help org-slug-error"`,
+		`id="org-slug-error"`,
+		`href="#org-name"`,
+		`href="#org-slug"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("422 form lacks %s: screen readers do not hear which field is wrong", want)
+		}
+	}
+	if clean := s.request(t, http.MethodGet, "/org/new", alice).Body.String(); strings.Contains(clean, `aria-invalid`) {
+		t.Error("empty form already marks fields invalid")
+	}
+}
+
+func TestEventsTableIsKeyboardScrollable(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	s.addEvent(t, "kyiv-live", "Alice Show")
+	body := s.request(t, http.MethodGet, "/org/kyiv-live", alice).Body.String()
+	if !strings.Contains(body, `class="table-responsive" tabindex="0" role="region" aria-labelledby="events-title"`) {
+		t.Error("events table scrolls sideways on phones but its container cannot be focused from the keyboard")
+	}
+}
