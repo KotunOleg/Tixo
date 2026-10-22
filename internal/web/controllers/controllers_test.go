@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -115,6 +116,28 @@ func TestLanguageSwitchKeepsCurrentPage(t *testing.T) {
 	}
 	if body := do(t, site, "/en/").Body.String(); !strings.Contains(body, `href="/" hreflang="uk"`) {
 		t.Error("english home has no switch link back to /")
+	}
+}
+
+func TestLinksNeverLeaveSiteForCraftedPaths(t *testing.T) {
+	site := newSite(t, nil)
+	hrefs := regexp.MustCompile(`href="([^"]*)"`)
+	for _, path := range []string{
+		"//evil.example/x",
+		"/en//evil.example/x",
+		"/en/%2F%2Fevil.example",
+		"/en/%5Cevil.example",
+		"/en/%5C%5Cevil.example",
+		"/en///evil.example",
+	} {
+		t.Run(path, func(t *testing.T) {
+			for _, m := range hrefs.FindAllStringSubmatch(do(t, site, path).Body.String(), -1) {
+				href := m[1]
+				if strings.HasPrefix(href, "//") || strings.HasPrefix(href, "/\\") {
+					t.Errorf("link points off-site: %s", href)
+				}
+			}
+		})
 	}
 }
 
