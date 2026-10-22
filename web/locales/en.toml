@@ -274,6 +274,30 @@ empty = "No ticket tiers yet."
 add_title = "Add a tier"
 add = "Add"
 
+[event.lineup]
+title = "Lineup"
+headliner = "Headliner"
+remove = "Remove"
+empty = "No artists added yet."
+search = "Search for an artist"
+search_placeholder = "Type at least 2 characters"
+search_submit = "Search"
+add = "Add"
+no_hits = "No matches. You can add a new artist below."
+add_new_title = "Add a new artist"
+new_artist_name = "Name"
+
+[lineup.add]
+saved = "Artist added to the lineup."
+
+[lineup.remove]
+saved = "Artist removed from the lineup."
+
+[lineup.form.error]
+required = "Pick an artist from the list or enter a name for a new one."
+name = "Could not add the artist. Check the name."
+artist_not_found = "This artist was not found."
+
 [tier.create]
 saved = "Ticket tier added."
 

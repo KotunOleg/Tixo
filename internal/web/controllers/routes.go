@@ -10,8 +10,10 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/tiers"
@@ -30,6 +32,8 @@ type Deps struct {
 	Venues     *venues.Service
 	Events     *events.Service
 	Tiers      *tiers.Service
+	Lineup     *lineup.Service
+	Artists    *artists.Service
 	Storage    *storage.Store
 	Logger     *slog.Logger
 }
@@ -65,7 +69,7 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/edit", v.Update)
 			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/delete", v.Delete)
 
-			ev := Events{View: d.View, Svc: d.Events, Venues: d.Venues, Tiers: d.Tiers, Storage: d.Storage, Log: d.Logger}
+			ev := Events{View: d.View, Svc: d.Events, Venues: d.Venues, Tiers: d.Tiers, Lineup: d.Lineup, Artists: d.Artists, Storage: d.Storage, Log: d.Logger}
 			r.With(o.RequireMember).Get("/org/{slug}/events", ev.List)
 			r.With(o.RequireMember).Get("/org/{slug}/events/new", ev.New)
 			r.With(o.RequireMember).Post("/org/{slug}/events/new", ev.Create)
@@ -81,6 +85,10 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers", ti.Create)
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers/{tierID}", ti.Update)
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers/{tierID}/delete", ti.Delete)
+
+			lu := Lineup{View: d.View, Sessions: d.Sessions, Svc: d.Lineup, Artists: d.Artists, Log: d.Logger}
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/lineup", lu.Add)
+			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/lineup/{artistID}/remove", lu.Remove)
 		})
 	})
 }
