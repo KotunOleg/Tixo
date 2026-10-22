@@ -8,6 +8,7 @@ import (
 
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
+	"github.com/KotunOleg/Tixo/internal/events"
 )
 
 var seedNow = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
@@ -22,9 +23,9 @@ func TestSeedTwiceGivesTheSameCounts(t *testing.T) {
 	}
 	want := Report{
 		Organizers: int64(len(organizers)), Users: int64(len(organizers)), Venues: int64(len(venues)),
-		Events: int64(len(events)), Artists: int64(len(artists)),
+		Events: int64(len(demoEvents)), Artists: int64(len(artists)),
 	}
-	for _, e := range events {
+	for _, e := range demoEvents {
 		want.Tiers += int64(len(e.tiers))
 		want.Lineup += int64(len(e.lineup))
 	}
@@ -55,7 +56,7 @@ func TestSeedLeavesUserDataAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	taken, err := q.CreateEvent(ctx, dbgen.CreateEventParams{
-		OrganizerID: mine.ID, VenueID: hall.ID, Slug: events[0].slug, Title: "My own show",
+		OrganizerID: mine.ID, VenueID: hall.ID, Slug: demoEvents[0].slug, Title: "My own show",
 		StartsAt: seedNow, EndsAt: seedNow.Add(time.Hour), Genre: "jazz",
 	})
 	if err != nil {
@@ -66,8 +67,8 @@ func TestSeedLeavesUserDataAlone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rep.Events != int64(len(events)) {
-		t.Errorf("events = %d, want %d: the seed event with a taken slug is skipped, the user's stays", rep.Events, len(events))
+	if rep.Events != int64(len(demoEvents)) {
+		t.Errorf("events = %d, want %d: the seed event with a taken slug is skipped, the user's stays", rep.Events, len(demoEvents))
 	}
 
 	got, err := q.GetEventForOrganizer(ctx, dbgen.GetEventForOrganizerParams{ID: taken.ID, OrganizerID: mine.ID})
@@ -77,6 +78,14 @@ func TestSeedLeavesUserDataAlone(t *testing.T) {
 	lineup, err := q.ListEventArtists(ctx, taken.ID)
 	if err != nil || len(lineup) != 0 {
 		t.Errorf("seed added %d artists to the user's event (%v)", len(lineup), err)
+	}
+}
+
+func TestSeedEventsUseKnownGenres(t *testing.T) {
+	for _, e := range demoEvents {
+		if !events.IsGenre(e.genre) {
+			t.Errorf("seed event %s has genre %q outside events.Genres()", e.slug, e.genre)
+		}
 	}
 }
 
