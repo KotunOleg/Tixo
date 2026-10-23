@@ -87,7 +87,7 @@ func TestCreateOrderStatuses(t *testing.T) {
 		{"malformed json", token, uuid.NewString(), `{"tierId":`, http.StatusBadRequest, ""},
 		{"unknown tier", token, uuid.NewString(), body(999999, 1), http.StatusNotFound, ""},
 		{"quantity above limit", token, uuid.NewString(), body(tier, 11), http.StatusUnprocessableEntity, "validation failed"},
-		{"event not published", token, uuid.NewString(), body(draftTier, 1), http.StatusConflict, "not_on_sale"},
+		{"draft event is hidden", token, uuid.NewString(), body(draftTier, 1), http.StatusNotFound, ""},
 		{"more than seats left", token, uuid.NewString(), body(tier, 4), http.StatusConflict, "sold_out"},
 	}
 	for _, tc := range cases {
