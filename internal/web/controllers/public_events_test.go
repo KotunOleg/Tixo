@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -193,5 +194,40 @@ func TestLandingLoadsMapOnlyThereWithTextFallback(t *testing.T) {
 	}
 	if home := s.request(t, http.MethodGet, "/", nil).Body.String(); strings.Contains(home, "leaflet") {
 		t.Error("home page loads leaflet")
+	}
+}
+
+func TestMobileBarKeepsOrganizerContactsOnScreen(t *testing.T) {
+	s := newAuthSite(t)
+	standard := []tiers.Input{{Name: "Standard", Price: 50000, Quantity: 10}}
+	s.publicEvent(t, publicEvent{slug: "bar-open", status: events.StatusPublished, tiers: standard})
+	s.publicEvent(t, publicEvent{slug: "bar-cancelled", status: events.StatusCancelled, tiers: standard})
+	bar := regexp.MustCompile(`(?s)<div class="tixo-buybar[^>]*>(.*?)</div>\s*</div>`)
+
+	for path, wantBuy := range map[string]bool{"/events/bar-open": true, "/events/bar-cancelled": false} {
+		m := bar.FindStringSubmatch(s.request(t, http.MethodGet, path, nil).Body.String())
+		if m == nil {
+			t.Fatalf("%s: no bottom bar", path)
+		}
+		for _, w := range []string{`href="mailto:hello@kyiv.live"`, `href="https://t.me/kyivlive"`, "Написати організатору: hello@kyiv.live"} {
+			if !strings.Contains(m[1], w) {
+				t.Errorf("%s: bar misses %q", path, w)
+			}
+		}
+		if got := strings.Contains(m[1], "Купити від 500 ₴"); got != wantBuy {
+			t.Errorf("%s: buy in bar = %v, want %v", path, got, wantBuy)
+		}
+	}
+}
+
+func TestNoBottomBarWithoutContactsOrSale(t *testing.T) {
+	s := newAuthSite(t)
+	ctx := context.Background()
+	s.publicEvent(t, publicEvent{slug: "bar-none", status: events.StatusCancelled})
+	if _, err := s.pool.Exec(ctx, `UPDATE organizers SET contacts = '{}' WHERE slug = 'org-bar-none'`); err != nil {
+		t.Fatal(err)
+	}
+	if body := s.request(t, http.MethodGet, "/events/bar-none", nil).Body.String(); strings.Contains(body, "tixo-buybar") {
+		t.Error("bottom bar rendered with nothing to show")
 	}
 }

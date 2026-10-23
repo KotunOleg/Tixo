@@ -505,7 +505,7 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: "error is sold_out (not enough seats left) or not_on_sale (event not published, cancelled or already started)"
+          description: "error is sold_out (not enough seats left) or not_on_sale (event cancelled or already started); tiers of unpublished events are 404"
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }

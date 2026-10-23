@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -49,24 +50,54 @@ func buyValues(tierID int64, qty, key string) url.Values {
 	return url.Values{"tier_id": {strconv.FormatInt(tierID, 10)}, "quantity": {qty}, "idempotency_key": {key}}
 }
 
-func TestBuyWithoutSessionSendsToSignInAndBack(t *testing.T) {
-	s := newAuthSite(t)
-	id := s.publicEvent(t, publicEvent{slug: "anon-buy", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 5}}})
-
-	page := s.request(t, http.MethodGet, "/events/anon-buy", nil).Body.String()
-	if !strings.Contains(page, "Увійти, щоб купити") || !strings.Contains(page, "next=%2fevents%2fanon-buy") || strings.Contains(page, `name="idempotency_key"`) {
-		t.Error("anonymous landing must offer sign-in with return to the event instead of the buy form")
+func (s *authSite) finishLoginFrom(t *testing.T, loginURL string) string {
+	t.Helper()
+	s.fake.mu.Lock()
+	s.fake.profile = map[string]any{"sub": "sub-guest", "email": "guest@example.com", "email_verified": true, "name": "Guest"}
+	s.fake.mu.Unlock()
+	start := s.startLogin(t, loginURL)
+	code := "code-" + start.state
+	s.fake.issueCode(code, start.challenge)
+	rec := s.request(t, http.MethodGet, callbackURL(code, start.state), start.cookie)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("callback = %d", rec.Code)
 	}
+	return rec.Header().Get("Location")
+}
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/en/events/anon-buy/buy", strings.NewReader(buyValues(s.tierIDs(t, id)[0], "1", uuid.NewString()).Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	rec := httptest.NewRecorder()
-	s.h.ServeHTTP(rec, req)
-	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/en/auth/google/login?next=%2Fen%2Fevents%2Fanon-buy" {
-		t.Errorf("anonymous POST = %d → %q", rec.Code, rec.Header().Get("Location"))
-	}
-	if n := s.available(t, s.tierIDs(t, id)[0]); n != 5 {
-		t.Errorf("available = %d after anonymous POST, want 5", n)
+func TestGuestReturnsToEventAfterSignIn(t *testing.T) {
+	signInLink := regexp.MustCompile(`href="([^"]*/auth/google/login\?next=[^"]*)">(Увійти, щоб купити|Sign in to buy)<`)
+	for _, tc := range []struct{ prefix, want string }{{"", "/events/guest-show"}, {"/en", "/en/events/guest-show"}} {
+		t.Run("lang"+tc.prefix, func(t *testing.T) {
+			s := newAuthSite(t)
+			id := s.publicEvent(t, publicEvent{slug: "guest-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 5}}})
+
+			page := s.request(t, http.MethodGet, tc.prefix+"/events/guest-show", nil).Body.String()
+			if strings.Contains(page, `name="idempotency_key"`) {
+				t.Error("anonymous landing shows the buy form")
+			}
+			link := signInLink.FindStringSubmatch(page)
+			if link == nil {
+				t.Fatal("anonymous landing has no sign-in-to-buy link")
+			}
+			if got := s.finishLoginFrom(t, html.UnescapeString(link[1])); got != tc.want {
+				t.Errorf("sign-in link returns to %q, want %q", got, tc.want)
+			}
+
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, tc.prefix+"/events/guest-show/buy", strings.NewReader(buyValues(s.tierIDs(t, id)[0], "1", uuid.NewString()).Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec := httptest.NewRecorder()
+			s.h.ServeHTTP(rec, req)
+			if rec.Code != http.StatusSeeOther {
+				t.Fatalf("anonymous POST = %d", rec.Code)
+			}
+			if got := s.finishLoginFrom(t, rec.Header().Get("Location")); got != tc.want {
+				t.Errorf("anonymous POST returns to %q after sign-in, want %q", got, tc.want)
+			}
+			if n := s.available(t, s.tierIDs(t, id)[0]); n != 5 {
+				t.Errorf("available = %d after anonymous POST, want 5", n)
+			}
+		})
 	}
 }
 
@@ -166,5 +197,52 @@ func TestOrdersAreOnlyVisibleToBuyer(t *testing.T) {
 		if rec := s.request(t, http.MethodGet, path, nil); rec.Code != http.StatusFound || !strings.Contains(rec.Header().Get("Location"), "/auth/google/login") {
 			t.Errorf("anonymous GET %s = %d → %q, want sign-in", path, rec.Code, rec.Header().Get("Location"))
 		}
+	}
+}
+
+func TestLosingTheLastTicketExplainsWhy(t *testing.T) {
+	s := newAuthSite(t)
+	id := s.publicEvent(t, publicEvent{slug: "last-seat", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 1}}})
+	tier := s.tierIDs(t, id)[0]
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	bob := s.signInAs(t, "sub-bob", "bob@example.com", "Bob")
+	if rec := s.postForm(t, "/events/last-seat/buy", buyValues(tier, "1", uuid.NewString()), bob); rec.Code != http.StatusSeeOther {
+		t.Fatalf("bob buys the last seat = %d", rec.Code)
+	}
+
+	rec := s.postForm(t, "/events/last-seat/buy", buyValues(tier, "1", uuid.NewString()), alice)
+	body := rec.Body.String()
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("alice = %d, want 409", rec.Code)
+	}
+	for _, want := range []string{`class="tixo-error-summary`, "Стільки квитків цієї категорії вже немає.", "Усе розпродано"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	if strings.Contains(body, `href="#buy-tiers"`) {
+		t.Error("error summary links to a form that is not on the page")
+	}
+}
+
+func TestTicketsPagePastTheEndGoesToLastPage(t *testing.T) {
+	s := newAuthSite(t)
+	id := s.publicEvent(t, publicEvent{slug: "paged-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 5}}})
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	if rec := s.postForm(t, "/events/paged-show/buy", buyValues(s.tierIDs(t, id)[0], "1", uuid.NewString()), alice); rec.Code != http.StatusSeeOther {
+		t.Fatalf("buy = %d", rec.Code)
+	}
+	for _, tc := range []struct{ path, want string }{
+		{"/tickets?page=9", "/tickets"},
+		{"/tickets?page=200000000", "/tickets"},
+		{"/en/tickets?page=50", "/en/tickets"},
+	} {
+		rec := s.request(t, http.MethodGet, tc.path, alice)
+		if rec.Code != http.StatusFound || rec.Header().Get("Location") != tc.want {
+			t.Errorf("GET %s = %d → %q, want 302 → %q", tc.path, rec.Code, rec.Header().Get("Location"), tc.want)
+		}
+	}
+	if rec := s.request(t, http.MethodGet, "/tickets?page=9", s.signInAs(t, "sub-bob", "bob@example.com", "Bob")); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Квитків поки немає") {
+		t.Errorf("user without orders on page 9 = %d, want the empty state", rec.Code)
 	}
 }

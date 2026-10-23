@@ -49,9 +49,11 @@ type landingArtist struct {
 }
 
 type landingContact struct {
-	Label string
-	Text  string
-	Href  string
+	Label  string
+	Action string
+	Icon   string
+	Text   string
+	Href   string
 }
 
 type landingData struct {
@@ -94,6 +96,16 @@ type buyForm struct {
 
 func (d landingData) OnSale() bool { return d.Sale == saleOpen }
 
+func (d landingData) BarContacts() []landingContact {
+	var out []landingContact
+	for _, c := range d.Contacts {
+		if c.Href != "" {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 func (d landingData) Quantities() []int {
 	out := make([]int, orders.MaxQuantity)
 	for i := range out {
@@ -129,7 +141,7 @@ func (c PublicEvents) Buy(w http.ResponseWriter, r *http.Request) {
 	lang := i18n.FromContext(r.Context())
 	u, ok := auth.CurrentUser(r.Context())
 	if !ok {
-		redirectLocal(w, i18n.Path(lang, "/auth/google/login")+"?next="+url.QueryEscape(i18n.Path(lang, "/events/"+slug)), http.StatusSeeOther)
+		redirectLocal(w, i18n.Path(lang, "/auth/google/login")+"?next="+url.QueryEscape("/events/"+slug), http.StatusSeeOther)
 		return
 	}
 	pub, err := c.Svc.PublicBySlug(r.Context(), slug)
@@ -287,17 +299,17 @@ func saleState(e dbgen.Event, tiers []landingTier, now time.Time) string {
 func contactsFrom(c map[string]string) []landingContact {
 	var out []landingContact
 	if email := c[organizers.ContactKeyEmail]; email != "" {
-		out = append(out, landingContact{Label: "landing.contact.email", Text: email, Href: "mailto:" + email})
+		out = append(out, landingContact{Label: "landing.contact.email", Action: "landing.bar.email", Icon: "bi-envelope", Text: email, Href: "mailto:" + email})
 	}
 	if phone := c[organizers.ContactKeyPhone]; phone != "" {
-		contact := landingContact{Label: "landing.contact.phone", Text: phone}
+		contact := landingContact{Label: "landing.contact.phone", Action: "landing.bar.phone", Icon: "bi-telephone", Text: phone}
 		if digits := phoneDigits(phone); len(digits) >= 5 {
 			contact.Href = "tel:" + digits
 		}
 		out = append(out, contact)
 	}
 	if tg := c[organizers.ContactKeyTelegram]; tg != "" {
-		contact := landingContact{Label: "landing.contact.telegram", Text: tg}
+		contact := landingContact{Label: "landing.contact.telegram", Action: "landing.bar.telegram", Icon: "bi-telegram", Text: tg}
 		handle := strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(tg, "https://t.me/"), "t.me/"), "@")
 		if telegramHandle.MatchString(handle) {
 			contact.Text, contact.Href = "@"+handle, "https://t.me/"+handle

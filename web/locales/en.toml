@@ -468,3 +468,10 @@ empty_cta = "Browse events"
 [tickets.count]
 one = "{{.Count}} ticket"
 other = "{{.Count}} tickets"
+
+[landing.bar]
+label = "Buy and organizer contacts"
+buy = "Buy from {{.Price}}"
+email = "Email the organizer: {{.Value}}"
+phone = "Call the organizer: {{.Value}}"
+telegram = "Organizer on Telegram: {{.Value}}"
