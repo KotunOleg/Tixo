@@ -94,7 +94,7 @@ func (q *Queries) GetArtistByMBID(ctx context.Context, mbid pgtype.UUID) (Artist
 const searchArtists = `-- name: SearchArtists :many
 SELECT id, mbid, name, sort_name, type, country, disambiguation, genres, links, enriched_at FROM artists
 WHERE name ILIKE '%' || replace(replace(replace($1::text, '\', '\\'), '%', '\%'), '_', '\_') || '%'
-ORDER BY similarity(name, $1::text) DESC, name, id
+ORDER BY name <-> $1::text, name, id
 LIMIT $2
 `
 
