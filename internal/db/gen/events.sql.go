@@ -7,6 +7,7 @@ package dbgen
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -112,6 +113,54 @@ func (q *Queries) GetEventForOrganizer(ctx context.Context, arg GetEventForOrgan
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getPublicEventBySlug = `-- name: GetPublicEventBySlug :one
+SELECT e.id, e.organizer_id, e.venue_id, e.slug, e.title, e.description, e.starts_at, e.ends_at, e.genre, e.price_from, e.poster_key, e.status, e.created_at, e.updated_at, v.id, v.organizer_id, v.name, v.address, v.city, v.lat, v.lng, v.capacity, v.created_at, o.name AS organizer_name, o.contacts AS organizer_contacts
+FROM events e
+JOIN venues v ON v.id = e.venue_id
+JOIN organizers o ON o.id = e.organizer_id
+WHERE e.slug = $1 AND e.status IN ('published', 'cancelled')
+`
+
+type GetPublicEventBySlugRow struct {
+	Event             Event
+	Venue             Venue
+	OrganizerName     string
+	OrganizerContacts json.RawMessage
+}
+
+func (q *Queries) GetPublicEventBySlug(ctx context.Context, slug string) (GetPublicEventBySlugRow, error) {
+	row := q.db.QueryRow(ctx, getPublicEventBySlug, slug)
+	var i GetPublicEventBySlugRow
+	err := row.Scan(
+		&i.Event.ID,
+		&i.Event.OrganizerID,
+		&i.Event.VenueID,
+		&i.Event.Slug,
+		&i.Event.Title,
+		&i.Event.Description,
+		&i.Event.StartsAt,
+		&i.Event.EndsAt,
+		&i.Event.Genre,
+		&i.Event.PriceFrom,
+		&i.Event.PosterKey,
+		&i.Event.Status,
+		&i.Event.CreatedAt,
+		&i.Event.UpdatedAt,
+		&i.Venue.ID,
+		&i.Venue.OrganizerID,
+		&i.Venue.Name,
+		&i.Venue.Address,
+		&i.Venue.City,
+		&i.Venue.Lat,
+		&i.Venue.Lng,
+		&i.Venue.Capacity,
+		&i.Venue.CreatedAt,
+		&i.OrganizerName,
+		&i.OrganizerContacts,
 	)
 	return i, err
 }

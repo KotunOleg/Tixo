@@ -152,3 +152,49 @@ function setupLineupAutocomplete() {
 
 setupPosterCompression();
 setupLineupAutocomplete();
+
+function setupBuyBar() {
+  const bar = document.querySelector(".js-buybar");
+  const tickets = document.getElementById("tickets");
+  if (!bar || !tickets || typeof IntersectionObserver !== "function") {
+    return;
+  }
+  new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting && bar.contains(document.activeElement)) {
+        tickets.focus();
+      }
+      bar.hidden = entry.isIntersecting;
+    }
+  }).observe(tickets);
+}
+
+function setupVenueMap() {
+  const el = document.querySelector(".js-venue-map");
+  if (!el || typeof L === "undefined") {
+    return;
+  }
+  const lat = Number(el.dataset.lat);
+  const lng = Number(el.dataset.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return;
+  }
+  el.hidden = false;
+  const map = L.map(el, { scrollWheelZoom: false }).setView([lat, lng], 16);
+  map.attributionControl.setPrefix(false);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: el.dataset.attribution,
+  }).addTo(map);
+  const tokens = getComputedStyle(document.documentElement);
+  L.circleMarker([lat, lng], {
+    radius: 10,
+    weight: 3,
+    color: tokens.getPropertyValue("--tixo-bg").trim(),
+    fillColor: tokens.getPropertyValue("--tixo-accent").trim(),
+    fillOpacity: 1,
+  }).addTo(map);
+}
+
+setupBuyBar();
+setupVenueMap();

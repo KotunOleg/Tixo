@@ -10,6 +10,7 @@
     </button>
     <div class="collapse navbar-collapse" id="nav-main">
       <ul class="navbar-nav me-auto">
+        {{if .Viewer}}<li class="nav-item"><a class="nav-link"{{if or (.Current "/tickets") (.Current "/orders")}} aria-current="page"{{end}} href="{{.URL "/tickets"}}">{{.T "nav.tickets"}}</a></li>{{end}}
         <li class="nav-item"><a class="nav-link"{{if .Current "/org"}} aria-current="page"{{end}} href="{{.URL "/org"}}">{{.T "nav.organizers"}}</a></li>
       </ul>
       <div class="tixo-nav-actions d-flex flex-wrap align-items-center gap-2">

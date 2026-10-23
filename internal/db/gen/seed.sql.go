@@ -150,15 +150,16 @@ func (q *Queries) SeedOwner(ctx context.Context, arg SeedOwnerParams) error {
 
 const seedTicketTier = `-- name: SeedTicketTier :exec
 INSERT INTO ticket_tiers (event_id, name, price, quantity, available)
-VALUES ($1, $2, $3, $4, $4)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (event_id, name) DO NOTHING
 `
 
 type SeedTicketTierParams struct {
-	EventID  int64
-	Name     string
-	Price    int64
-	Quantity int32
+	EventID   int64
+	Name      string
+	Price     int64
+	Quantity  int32
+	Available int32
 }
 
 func (q *Queries) SeedTicketTier(ctx context.Context, arg SeedTicketTierParams) error {
@@ -167,6 +168,7 @@ func (q *Queries) SeedTicketTier(ctx context.Context, arg SeedTicketTierParams) 
 		arg.Name,
 		arg.Price,
 		arg.Quantity,
+		arg.Available,
 	)
 	return err
 }

@@ -210,3 +210,38 @@ func TestDeleteMissingEventNotFound(t *testing.T) {
 		t.Errorf("Delete(missing event) = %v, want ErrNotFound", err)
 	}
 }
+
+func TestPublicBySlugShowsOnlyPublishedAndCancelled(t *testing.T) {
+	pool := dbtest.Pool(t)
+	svc := New(pool)
+	ctx := context.Background()
+	org := mustOrganizer(t, pool, "kyiv-live")
+	venueID := mustVenue(t, pool, org, "Hall")
+
+	for _, tc := range []struct {
+		slug    string
+		status  string
+		visible bool
+	}{
+		{"draft-show", StatusDraft, false},
+		{"published-show", StatusPublished, true},
+		{"cancelled-show", StatusCancelled, true},
+	} {
+		in := validEventInput(venueID)
+		in.Slug = tc.slug
+		e, err := svc.Create(ctx, org, in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := svc.SetStatus(ctx, org, e.ID, tc.status); err != nil {
+			t.Fatal(err)
+		}
+		got, err := svc.PublicBySlug(ctx, tc.slug)
+		if tc.visible && (err != nil || got.Event.ID != e.ID || got.OrganizerName != "kyiv-live") {
+			t.Errorf("%s: PublicBySlug = %+v, %v; want the event with its organizer", tc.status, got.Event, err)
+		}
+		if !tc.visible && !errors.Is(err, ErrNotFound) {
+			t.Errorf("%s: PublicBySlug err = %v, want ErrNotFound", tc.status, err)
+		}
+	}
+}
