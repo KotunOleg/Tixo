@@ -115,6 +115,10 @@ function setupLineupAutocomplete() {
     minimumInputLength: 3,
     delay: 300,
     placeholder: select.dataset.placeholder || "",
+    language: {
+      noResults: () => select.dataset.noResults || "",
+      searching: () => select.dataset.searching || "",
+    },
     ajax: {
       url: form.dataset.searchUrl,
       dataType: "json",
@@ -122,6 +126,15 @@ function setupLineupAutocomplete() {
       processResults: (data) => ({ results: data.map((item) => ({ id: item.id, text: item.label })) }),
     },
   });
+
+  const label = document.querySelector(`label[for="${select.id}"]`);
+  const combobox = select.nextElementSibling?.querySelector('[role="combobox"]');
+  if (label && combobox) {
+    const labelId = `${select.id}-label`;
+    label.id = labelId;
+    const existing = combobox.getAttribute("aria-labelledby") || "";
+    combobox.setAttribute("aria-labelledby", `${labelId} ${existing}`.trim());
+  }
 
   window.jQuery(select).on("select2:select", () => form.submit());
 

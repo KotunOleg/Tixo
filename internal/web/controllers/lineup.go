@@ -94,14 +94,27 @@ func (c Lineup) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	inLineup, err := c.Svc.List(r.Context(), m.Organizer.ID, eventID)
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	added := make(map[int64]bool, len(inLineup))
+	for _, row := range inLineup {
+		added[row.Artist.ID] = true
+	}
+
 	found, err := c.Artists.Search(r.Context(), r.URL.Query().Get("q"))
 	if err != nil {
 		c.serverError(w, r, err)
 		return
 	}
-	results := make([]artistSearchResult, len(found))
-	for i, a := range found {
-		results[i] = artistSearchResult{ID: a.ID, Label: a.Name}
+	results := make([]artistSearchResult, 0, len(found))
+	for _, a := range found {
+		if added[a.ID] {
+			continue
+		}
+		results = append(results, artistSearchResult{ID: a.ID, Label: a.Name})
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(results); err != nil {
