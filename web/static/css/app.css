@@ -820,9 +820,8 @@ body:has(.tixo-buybar) {
 
 .tixo-kpi dd {
   margin: 0.25rem 0 0;
-  font-family: var(--tixo-font-display);
   font-size: var(--tixo-text-2xl);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -836,6 +835,16 @@ body:has(.tixo-buybar) {
 
 .tixo-chart-section {
   max-width: 56rem;
+}
+
+.tixo-chart {
+  position: relative;
+  height: 16rem;
+  margin-bottom: 1rem;
+}
+
+.tixo-chart[hidden] {
+  display: none;
 }
 
 .tixo-chart-data > summary {

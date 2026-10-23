@@ -19,6 +19,7 @@
   {{if $r.HasSales}}
   <section class="tixo-chart-section mb-5" aria-labelledby="by-day-title">
     <h2 class="h4 mb-3" id="by-day-title">{{.T "org.analytics.by_day_title"}}</h2>
+    <div class="tixo-chart tixo-chart-by-day" hidden><canvas class="js-analytics-chart" data-chart="by_day" role="img" aria-label="{{.T "org.analytics.chart_by_day"}}"></canvas></div>
     <details class="tixo-chart-data" open>
       <summary>{{.T "org.analytics.table_toggle"}}</summary>
       <div class="table-responsive tixo-chart-table" tabindex="0" role="region" aria-labelledby="by-day-title">
@@ -35,6 +36,7 @@
 
   <section class="tixo-chart-section mb-5" aria-labelledby="by-event-title">
     <h2 class="h4 mb-3" id="by-event-title">{{.T "org.analytics.by_event_title"}}</h2>
+    <div class="tixo-chart tixo-chart-by-event" hidden><canvas class="js-analytics-chart" data-chart="by_event" role="img" aria-label="{{.T "org.analytics.chart_by_event"}}"></canvas></div>
     <details class="tixo-chart-data" open>
       <summary>{{.T "org.analytics.table_toggle"}}</summary>
       <div class="table-responsive tixo-chart-table" tabindex="0" role="region" aria-labelledby="by-event-title">
@@ -62,6 +64,7 @@
   <section class="tixo-chart-section" aria-labelledby="by-genre-title">
     <h2 class="h4 mb-3" id="by-genre-title">{{.T "org.analytics.by_genre_title"}}</h2>
     {{with $r.ByGenre}}
+    <div class="tixo-chart tixo-chart-by-genre" hidden><canvas class="js-analytics-chart" data-chart="by_genre" role="img" aria-label="{{$.T "org.analytics.chart_by_genre"}}"></canvas></div>
     <details class="tixo-chart-data" open>
       <summary>{{$.T "org.analytics.table_toggle"}}</summary>
       <div class="table-responsive tixo-chart-table" tabindex="0" role="region" aria-labelledby="by-genre-title">
@@ -79,4 +82,8 @@
     {{end}}
   </section>
 </section>
+<script type="application/json" id="analytics-data">{{.Data.Chart .}}</script>
+{{end}}
+{{define "scripts_extra"}}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.6.1/dist/chart.umd.min.js" integrity="sha384-Emf5ZVIUiarAdhkgtqK+5/Z5qIvM6QoVrS+qAVtfyZVuD5lIHrac0me485+Antp0" crossorigin="anonymous"></script>
 {{end}}
