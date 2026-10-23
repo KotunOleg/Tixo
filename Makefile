@@ -74,4 +74,4 @@ newman: infra
 		seeded=$$("$$bin" seed-api-token); \
 		token=$$(printf "%s\n" "$$seeded" | sed -n "s/^token: //p"); \
 		[ -n "$$token" ] || { echo "seed-api-token printed no token" >&2; exit 1; }; \
-		npx --yes newman run tests/postman/tixo.postman_collection.json -e tests/postman/local.json --env-var token=$$token'
+		npx --yes newman@6.2.3 run tests/postman/tixo.postman_collection.json -e tests/postman/local.json --env-var token=$$token'
