@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{block "title" .}}{{.T "site.name"}}{{end}}</title>
   <meta name="description" content="{{block "description" .}}{{.T "site.meta_description"}}{{end}}">
+  {{block "head_meta" .}}{{end}}
   <meta name="theme-color" content="#0b0b12">
   <link rel="canonical" href="{{.Canonical}}">
   {{range .Alternates}}<link rel="alternate" hreflang="{{.Hreflang}}" href="{{.Href}}">

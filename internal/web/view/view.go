@@ -103,6 +103,12 @@ func (v *Renderer) Render(w http.ResponseWriter, r *http.Request, status int, pa
 	_, _ = buf.WriteTo(w)
 }
 
+func (v *Renderer) Absolute(localPath string) string {
+	u := v.cfg.BaseURL
+	u.Path = localPath
+	return u.String()
+}
+
 func (v *Renderer) NotFound(w http.ResponseWriter, r *http.Request) {
 	v.Render(w, r, http.StatusNotFound, "errors/404", nil)
 }

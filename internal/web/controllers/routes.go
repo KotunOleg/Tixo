@@ -45,6 +45,9 @@ type Deps struct {
 func Mount(r chi.Router, d Deps) {
 	r.Get("/static/*", staticFiles(d.View, d.FS))
 	r.Get("/media/{key}", mediaFiles(d.View, d.Storage))
+	seo := SEO{View: d.View, Events: d.Events, Log: d.Logger}
+	r.Get("/robots.txt", seo.Robots)
+	r.Get("/sitemap.xml", seo.Sitemap)
 	r.Group(func(r chi.Router) {
 		r.Use(d.Sessions.LoadAndSave, d.loadUser())
 		r.Get("/", Home{View: d.View, Events: d.Events, Log: d.Logger}.ServeHTTP)
