@@ -394,7 +394,7 @@ paths:
   /artists:
     get:
       tags: [artists]
-      summary: Search artists by name (trigram, 2+ characters)
+      summary: Search artists by name (trigram, 3+ characters)
       parameters:
         - name: q
           in: query
