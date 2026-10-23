@@ -46,7 +46,7 @@ RETURNING id;
 
 -- name: SeedTicketTier :exec
 INSERT INTO ticket_tiers (event_id, name, price, quantity, available)
-VALUES (@event_id, @name, @price, @quantity, @quantity)
+VALUES (@event_id, @name, @price, @quantity, @available)
 ON CONFLICT (event_id, name) DO NOTHING;
 
 -- name: SeedOwner :exec
