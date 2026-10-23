@@ -9,7 +9,7 @@
 ## Стек
 
 Go 1.26 · chi · html/template + Bootstrap 5 · PostgreSQL 16 (pgx, sqlc, goose, pg_trgm) · Redis 8 ·
-RabbitMQ 4 · Docker Compose · Caddy · AWS EC2 · GitHub Actions.
+RabbitMQ 4 · Docker Compose · Caddy · AWS Lightsail · GitHub Actions.
 
 ## Швидкий старт
 
@@ -111,7 +111,7 @@ make seed OWNERS="kyiv-live=you@gmail.com lviv-sound=friend@gmail.com"
 
 ## Деплой
 
-Прод працює на AWS EC2 у Docker Compose: [`deploy/compose.prod.yml`](deploy/compose.prod.yml) піднімає `postgres`, `redis`,
+Прод працює на AWS Lightsail у Docker Compose: [`deploy/compose.prod.yml`](deploy/compose.prod.yml) піднімає `postgres`, `redis`,
 `rabbitmq`, `migrate`, `serve` і `caddy`. Caddy приймає 80/443, сам отримує й поновлює сертифікат Let's Encrypt
 і проксує на `serve:8080`. Решта сервісів назовні не відкрита.
 
@@ -127,16 +127,17 @@ make seed OWNERS="kyiv-live=you@gmail.com lviv-sound=friend@gmail.com"
 
 ### Перше налаштування
 
-**AWS** (особистий акаунт, регіон, наприклад, `eu-central-1`):
+**AWS Lightsail** (особистий акаунт, регіон Frankfurt):
 
-1. EC2 → Launch instance: Ubuntu Server 24.04 LTS (x86_64), `t3.medium`, диск gp3 30 GB, свій key pair для адміністрування.
-2. Security Group, inbound: TCP 22, 80, 443 і UDP 443 з `0.0.0.0/0`.
-3. Elastic IPs → Allocate → Associate з інстансом.
-4. Billing → Budgets: бюджет з алертом на пошту (t3.medium ≈ $30/міс).
+1. Create instance: Linux/Unix → OS Only → Ubuntu 24.04 LTS, network type Dual-stack (раннери GitHub Actions
+   ходять лише по IPv4), план $12 (2 GB RAM, 2 vCPU, 60 GB SSD).
+2. Networking → Create static IP → прив'язати до інстансу (поки прив'язаний, безкоштовний).
+3. Інстанс → Networking → IPv4 і IPv6 Firewall: SSH 22, HTTP 80, HTTPS 443 (TCP) і UDP 443 з будь-якої адреси.
+4. Billing → Budgets: місячний бюджет $15 з алертом на пошту. Автоматичні snapshots не вмикати — вони платні.
 
-**Домен:** на [duckdns.org](https://www.duckdns.org) створити піддомен і вписати в нього Elastic IP.
+**Домен:** на [duckdns.org](https://www.duckdns.org) створити піддомен і вписати в нього static IP.
 
-**Сервер** (`ssh ubuntu@<elastic-ip>` своїм ключем):
+**Сервер** (`ssh ubuntu@<static-ip>` своїм ключем):
 
 ```sh
 sudo apt-get update && sudo apt-get -y upgrade
@@ -163,7 +164,7 @@ ssh-keygen -t ed25519 -N "" -C tixo-deploy -f tixo-deploy
 ```
 
 Вміст `tixo-deploy.pub` покласти на сервері в `/home/deploy/.ssh/authorized_keys` (власник `deploy`, права `600`).
-Перевірити: `ssh -i tixo-deploy deploy@<elastic-ip> docker ps`.
+Перевірити: `ssh -i tixo-deploy deploy@<static-ip> docker ps`.
 
 Файл `/opt/tixo/.env` (власник `deploy`, права `600`) — за зразком [`deploy/prod.env.example`](deploy/prod.env.example):
 `DOMAIN` — піддомен DuckDNS, `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD` і `SESSION_SECRET` — кожен з
@@ -177,10 +178,10 @@ redirect URI `https://<домен>/auth/google/callback`. Поки застос�
 
 | Тип | Назва | Значення |
 |---|---|---|
-| Secret | `DEPLOY_HOST` | Elastic IP |
+| Secret | `DEPLOY_HOST` | static IP |
 | Secret | `DEPLOY_USER` | `deploy` |
 | Secret | `DEPLOY_SSH_KEY` | вміст приватного `tixo-deploy` |
-| Secret | `DEPLOY_KNOWN_HOSTS` | вивід `ssh-keyscan -t ed25519 <elastic-ip>`; відбиток звірити з `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` на сервері |
+| Secret | `DEPLOY_KNOWN_HOSTS` | вивід `ssh-keyscan -t ed25519 <static-ip>`; відбиток звірити з `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` на сервері |
 | Variable | `DEPLOY_DOMAIN` | піддомен DuckDNS, без `https://` |
 
 **Перший запуск:** Actions → deploy → Run workflow (`ref` = `main`). Новий пакет у GHCR приватний, тому перший
@@ -191,7 +192,7 @@ redirect URI `https://<домен>/auth/google/callback`. Поки застос�
 
 - Відкат: Actions → deploy → Run workflow, `ref` = SHA попереднього робочого коміту.
 - Що зараз на проді: `curl https://<домен>/healthz` — поле `version`.
-- Логи: `ssh deploy@<elastic-ip>`, далі `cd /opt/tixo && docker compose -f compose.prod.yml logs -f serve`.
+- Логи: `ssh deploy@<static-ip>`, далі `cd /opt/tixo && docker compose -f compose.prod.yml logs -f serve`.
 - Міграції лише вперед: `migrate down` і `reset` при `APP_ENV=prod` заборонені.
 
 ## Структура
