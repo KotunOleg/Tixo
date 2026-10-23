@@ -64,6 +64,19 @@ type Membership struct {
 	CreatedAt   time.Time
 }
 
+type Order struct {
+	ID             int64
+	UserID         int64
+	EventID        int64
+	TierID         int64
+	Quantity       int32
+	UnitPrice      int64
+	Total          int64
+	Status         string
+	IdempotencyKey pgtype.UUID
+	CreatedAt      time.Time
+}
+
 type Organizer struct {
 	ID        int64
 	Slug      string
@@ -71,6 +84,14 @@ type Organizer struct {
 	Contacts  json.RawMessage
 	Plan      string
 	CreatedAt time.Time
+}
+
+type Ticket struct {
+	ID       int64
+	OrderID  int64
+	Code     pgtype.UUID
+	PdfKey   pgtype.Text
+	IssuedAt time.Time
 }
 
 type TicketTier struct {
