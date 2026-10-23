@@ -19,6 +19,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/health"
 	"github.com/KotunOleg/Tixo/internal/lineup"
+	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
 	"github.com/KotunOleg/Tixo/internal/platform/postgres"
@@ -87,10 +88,11 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 
 	orgs, ven, evs, trs, lup, arts, tokens := organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), lineup.New(pool), artists.New(pool), apitokens.New(pool)
+	ords := orders.New(pool)
 	site := controllers.Deps{
 		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, APITokens: tokens, Storage: posters, Logger: log,
 	}
-	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, APITokens: tokens, Logger: log}
+	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, APITokens: tokens, Logger: log}
 	handler := server.New(server.Deps{
 		Logger: log,
 		Health: health.Handler(version, healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),

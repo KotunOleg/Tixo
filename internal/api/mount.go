@@ -9,6 +9,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/lineup"
+	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/tiers"
 	"github.com/KotunOleg/Tixo/internal/venues"
@@ -21,6 +22,7 @@ type Deps struct {
 	Tiers      *tiers.Service
 	Lineup     *lineup.Service
 	Artists    *artists.Service
+	Orders     *orders.Service
 	APITokens  *apitokens.Service
 	Logger     *slog.Logger
 }
@@ -39,6 +41,11 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/artists", a.List)
 		r.Post("/artists", a.Create)
 		r.Get("/artists/{id}", a.Show)
+
+		ord := Orders{Svc: d.Orders, Log: d.Logger}
+		r.Get("/orders", ord.List)
+		r.Post("/orders", ord.Create)
+		r.Get("/orders/{id}", ord.Show)
 
 		v := Venues{Svc: d.Venues, Log: d.Logger}
 		r.Route("/organizers/{slug}", func(r chi.Router) {
