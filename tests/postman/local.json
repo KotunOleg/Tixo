@@ -1,0 +1,9 @@
+{
+  "id": "tixo-local",
+  "name": "Tixo local",
+  "values": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api/v1", "enabled": true },
+    { "key": "token", "value": "", "enabled": true },
+    { "key": "orgSlug", "value": "qa1-ci", "enabled": true }
+  ]
+}

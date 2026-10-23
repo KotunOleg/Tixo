@@ -2,7 +2,7 @@ TEST_ENV = TEST_DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo_test?sslm
 	TEST_REDIS_URL=redis://localhost:56379/1 \
 	TEST_AMQP_URL=amqp://tixo:tixo@localhost:55672/
 
-.PHONY: up down infra run seed import-mb test test-integration lint gen gen-check check
+.PHONY: up down infra run seed import-mb test test-integration lint gen gen-check check newman
 
 up:
 	docker compose up --build -d
@@ -51,3 +51,27 @@ gen-check:
 	go tool sqlc diff
 
 check: lint gen-check test-integration
+
+newman: infra
+	DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable \
+	REDIS_URL=redis://localhost:56379/0 \
+	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
+	bash -c 'set -e; \
+		bin=$$(mktemp); \
+		go build -o "$$bin" ./cmd/tixo; \
+		"$$bin" migrate up; \
+		if "$$bin" probe >/dev/null 2>&1; then echo "another server already answers the probe; stop it (make down?) before make newman" >&2; exit 1; fi; \
+		"$$bin" serve & \
+		server=$$!; \
+		trap "kill $$server 2>/dev/null; rm -f $$bin" EXIT; \
+		ready=; \
+		for i in $$(seq 1 30); do \
+			kill -0 $$server 2>/dev/null || { echo "serve exited before becoming ready" >&2; exit 1; }; \
+			"$$bin" probe >/dev/null 2>&1 && { ready=1; break; }; \
+			sleep 1; \
+		done; \
+		[ -n "$$ready" ] || { echo "serve not ready after 30s" >&2; exit 1; }; \
+		seeded=$$("$$bin" seed-api-token); \
+		token=$$(printf "%s\n" "$$seeded" | sed -n "s/^token: //p"); \
+		[ -n "$$token" ] || { echo "seed-api-token printed no token" >&2; exit 1; }; \
+		npx --yes newman@6.2.3 run tests/postman/tixo.postman_collection.json -e tests/postman/local.json --env-var token=$$token'

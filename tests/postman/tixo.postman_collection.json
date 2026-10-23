@@ -1,0 +1,405 @@
+{
+  "info": {
+    "name": "Tixo REST API (QA1)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.collectionVariables.get('runId')) {",
+          "  pm.collectionVariables.set('runId', Date.now().toString(36) + Math.random().toString(36).slice(2, 8));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "runId", "value": "" },
+    { "key": "venueId", "value": "" },
+    { "key": "eventId", "value": "" },
+    { "key": "tierId", "value": "" },
+    { "key": "artistId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 - happy path",
+      "item": [
+        {
+          "name": "List organizers",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/organizers",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('page has items/count/skip/limit', () => {",
+                  "  pm.expect(body.items).to.be.an('array');",
+                  "  pm.expect(body).to.have.property('count');",
+                  "  pm.expect(body).to.have.property('skip');",
+                  "  pm.expect(body).to.have.property('limit');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create venue",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/venues",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"QA1 Venue {{runId}}\",\"address\":\"1 Test Street\",\"city\":\"Kyiv\",\"lat\":50.45,\"lng\":30.52,\"capacity\":500}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('response has an id', () => pm.expect(body.id).to.be.a('number'));",
+                  "pm.collectionVariables.set('venueId', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get venue",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/venues/{{venueId}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('name matches the created venue', () => {",
+                  "  pm.expect(pm.response.json().name).to.include(pm.collectionVariables.get('runId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create event",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"venueId\":{{venueId}},\"slug\":\"qa1-event-{{runId}}\",\"title\":\"QA1 Show {{runId}}\",\"startsAt\":\"2031-06-01T19:00:00Z\",\"endsAt\":\"2031-06-01T21:00:00Z\",\"genre\":\"rock\"}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('status is draft by default', () => pm.expect(body.status).to.eql('draft'));",
+                  "pm.collectionVariables.set('eventId', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Publish event",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events/{{eventId}}/status",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"status\":\"published\"}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('event is now published', () => pm.expect(pm.response.json().status).to.eql('published'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create ticket tier",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events/{{eventId}}/tiers",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"Standard\",\"price\":35000,\"quantity\":100}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('available equals quantity', () => pm.expect(body.available).to.eql(100));",
+                  "pm.collectionVariables.set('tierId', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create artist",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/artists",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\":\"QA1 Artist {{runId}}\"}" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('artistId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add artist to lineup",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events/{{eventId}}/lineup",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"artistId\":{{artistId}},\"isHeadliner\":true}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 201', () => pm.response.to.have.status(201));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List lineup",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events/{{eventId}}/lineup",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('lineup includes the added artist', () => {",
+                  "  pm.expect(items.some((e) => e.artist.id === pm.collectionVariables.get('artistId'))).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search artists",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/artists?q=QA1%20Artist%20{{runId}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('pagination envelope present', () => {",
+                  "  pm.expect(body).to.have.property('count');",
+                  "  pm.expect(body).to.have.property('limit');",
+                  "});",
+                  "pm.test('results include the created artist', () => {",
+                  "  pm.expect(body.items.some((a) => a.id === pm.collectionVariables.get('artistId'))).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove artist from lineup",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events/{{eventId}}/lineup/{{artistId}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete ticket tier",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events/{{eventId}}/tiers/{{tierId}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete event",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/events/{{eventId}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete venue",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/venues/{{venueId}}",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - negative cases",
+      "item": [
+        {
+          "name": "No token -> 401",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/organizers",
+            "header": [],
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 401', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown organizer -> 404",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/organizers/does-not-exist-zzz",
+            "header": []
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid venue -> 422",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/organizers/{{orgSlug}}/venues",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\":\"\",\"address\":\"1 Test Street\",\"city\":\"Kyiv\",\"lat\":50.45,\"lng\":30.52,\"capacity\":500}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('status is 422', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
