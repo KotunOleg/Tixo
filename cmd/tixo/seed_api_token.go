@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/config"
@@ -64,11 +65,28 @@ func runSeedAPIToken(ctx context.Context, args []string, stdout io.Writer) error
 	if err != nil {
 		return fmt.Errorf("seed-api-token: %w", err)
 	}
-	raw, _, err := apitokens.New(pool).Issue(ctx, userID, a.name)
+	raw, err := reissueAPIToken(ctx, apitokens.New(pool), userID, a.name)
 	if err != nil {
 		return fmt.Errorf("seed-api-token: %w", err)
 	}
 	fmt.Fprintf(stdout, "organizer: %s\n", a.org)
 	fmt.Fprintf(stdout, "token: %s\n", raw)
 	return nil
+}
+
+func reissueAPIToken(ctx context.Context, tokens *apitokens.Service, userID int64, name string) (string, error) {
+	existing, err := tokens.List(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	for _, t := range existing {
+		if t.Name != strings.TrimSpace(name) {
+			continue
+		}
+		if err := tokens.Revoke(ctx, userID, t.ID); err != nil {
+			return "", fmt.Errorf("revoke stale token %d: %w", t.ID, err)
+		}
+	}
+	raw, _, err := tokens.Issue(ctx, userID, name)
+	return raw, err
 }

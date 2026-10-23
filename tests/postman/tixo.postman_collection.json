@@ -247,7 +247,7 @@
           "name": "Search artists",
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/artists?q=QA1%20Artist",
+            "url": "{{baseUrl}}/artists?q=QA1%20Artist%20{{runId}}",
             "header": []
           },
           "event": [
