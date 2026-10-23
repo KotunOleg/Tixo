@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:8-alpine
+    image: redis:8.10-alpine
     command: ["redis-server", "--save", "60", "1"]
     volumes:
       - redisdata:/data
@@ -51,7 +51,7 @@ services:
     restart: unless-stopped
 
   rabbitmq:
-    image: rabbitmq:4-alpine
+    image: rabbitmq:4.4-alpine
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-tixo}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD is required}
@@ -97,7 +97,7 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11-alpine
     environment:
       DOMAIN: ${DOMAIN:?DOMAIN is required}
     ports:
