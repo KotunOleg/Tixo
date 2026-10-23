@@ -23,6 +23,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/lineup"
+	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/tiers"
@@ -139,6 +140,7 @@ func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)
 		d.Lineup = lineup.New(pool)
 		d.Artists = artists.New(pool)
 		d.APITokens = apitokens.New(pool)
+		d.Orders = orders.New(pool)
 		store, err := storage.New(storageDir)
 		if err != nil {
 			t.Fatal(err)
