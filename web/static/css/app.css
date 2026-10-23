@@ -672,6 +672,28 @@ body:has(.tixo-buybar) {
   display: none;
 }
 
+.tixo-map {
+  max-width: 42rem;
+  height: 16rem;
+  border: 1px solid var(--tixo-border-strong);
+  border-radius: var(--tixo-radius-lg);
+  overflow: hidden;
+}
+
+.tixo-map[hidden] {
+  display: none;
+}
+
+.tixo-map .leaflet-control-attribution {
+  font-size: var(--tixo-text-xs);
+  color: var(--tixo-text-muted);
+  background: var(--tixo-surface-2);
+}
+
+.tixo-map .leaflet-control-attribution a {
+  color: var(--tixo-link);
+}
+
 .tixo-contacts dt {
   font-size: var(--tixo-text-sm);
   font-weight: 400;

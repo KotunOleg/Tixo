@@ -65,6 +65,7 @@
           <h2 id="venue-title" class="h3 mb-3">{{.T "landing.venue"}}</h2>
           <p class="mb-1 fw-semibold">{{.Data.VenueName}}</p>
           <p class="mb-2 text-body-secondary">{{with .Data.VenueAddress}}{{.}}, {{end}}{{.Data.VenueCity}}</p>
+          <div class="tixo-map mb-3 js-venue-map" hidden role="region" aria-label="{{.T "landing.map_label" "Venue" .Data.VenueName}}" data-lat="{{.Data.VenueLat}}" data-lng="{{.Data.VenueLng}}" data-attribution="{{.T "landing.map_attribution"}}"></div>
           <a href="{{.Data.MapURL}}" rel="noopener" target="_blank">{{.T "landing.open_map"}}<span class="visually-hidden"> {{.T "landing.new_tab"}}</span></a>
         </section>
 
@@ -94,6 +95,13 @@
   </div>
   {{end}}
 </article>
+{{end}}
+
+{{define "head_extra"}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous">
+{{end}}
+{{define "scripts_extra"}}
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 {{end}}
 
 {{define "landing_buy"}}

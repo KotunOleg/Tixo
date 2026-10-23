@@ -59,6 +59,8 @@ type landingData struct {
 	VenueName     string
 	VenueAddress  string
 	VenueCity     string
+	VenueLat      float64
+	VenueLng      float64
 	MapURL        string
 	OrganizerName string
 	Contacts      []landingContact
@@ -95,7 +97,7 @@ func landingFrom(pub events.Public, now time.Time) landingData {
 	d := landingData{
 		Slug: e.Slug, Title: e.Title, Description: strings.TrimSpace(e.Description), Genre: "genre." + e.Genre,
 		StartsAt: e.StartsAt, EndsAt: e.EndsAt, PosterURL: posterURL(e.PosterKey),
-		VenueName: v.Name, VenueAddress: v.Address, VenueCity: v.City, MapURL: osmURL(v),
+		VenueName: v.Name, VenueAddress: v.Address, VenueCity: v.City, VenueLat: v.Lat, VenueLng: v.Lng, MapURL: osmURL(v),
 		OrganizerName: pub.OrganizerName, Contacts: contactsFrom(pub.Contacts),
 	}
 	for _, a := range pub.Lineup {
