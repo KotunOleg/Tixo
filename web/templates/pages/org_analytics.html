@@ -1,0 +1,82 @@
+{{define "title"}}{{.T "org.analytics.title"}} · {{.Data.Name}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+{{$r := .Data.Report}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL "/org"}}">{{.T "org.list.title"}}</a></li>
+    <li class="breadcrumb-item text-break"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.Name}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{.T "org.analytics.nav"}}</li>
+  </ol></nav>
+  <h1 class="mb-2">{{.T "org.analytics.title"}}</h1>
+  <p class="text-body-secondary mb-4">{{.T "org.analytics.period" "From" (.Date $r.From) "To" (.Date $r.To)}}</p>
+
+  <dl class="tixo-kpis mb-5">
+    <div class="tixo-kpi"><dt>{{.T "org.analytics.kpi_tickets"}}</dt><dd>{{$r.Tickets}}</dd></div>
+    <div class="tixo-kpi"><dt>{{.T "org.analytics.kpi_revenue"}}</dt><dd>{{if $r.Revenue}}{{.Money $r.Revenue}}{{else}}0{{end}}</dd></div>
+    <div class="tixo-kpi"><dt>{{.T "org.analytics.kpi_published"}}</dt><dd>{{$r.PublishedEvents}}</dd></div>
+  </dl>
+
+  {{if $r.HasSales}}
+  <section class="tixo-chart-section mb-5" aria-labelledby="by-day-title">
+    <h2 class="h4 mb-3" id="by-day-title">{{.T "org.analytics.by_day_title"}}</h2>
+    <details class="tixo-chart-data" open>
+      <summary>{{.T "org.analytics.table_toggle"}}</summary>
+      <div class="table-responsive tixo-chart-table" tabindex="0" role="region" aria-labelledby="by-day-title">
+        <table class="table align-middle tixo-table mb-0">
+          <thead><tr><th scope="col">{{.T "org.analytics.col_date"}}</th><th scope="col" class="text-end">{{.T "org.analytics.col_tickets"}}</th><th scope="col" class="text-end">{{.T "org.analytics.col_revenue"}}</th></tr></thead>
+          <tbody>
+            {{range $r.ByDay}}<tr><td class="text-nowrap">{{$.Date .Date}}</td><td class="text-end">{{.Tickets}}</td><td class="text-end text-nowrap">{{if .Revenue}}{{$.Money .Revenue}}{{else}}0{{end}}</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+
+  <section class="tixo-chart-section mb-5" aria-labelledby="by-event-title">
+    <h2 class="h4 mb-3" id="by-event-title">{{.T "org.analytics.by_event_title"}}</h2>
+    <details class="tixo-chart-data" open>
+      <summary>{{.T "org.analytics.table_toggle"}}</summary>
+      <div class="table-responsive tixo-chart-table" tabindex="0" role="region" aria-labelledby="by-event-title">
+        <table class="table align-middle tixo-table mb-0">
+          <thead><tr><th scope="col">{{.T "org.analytics.col_event"}}</th><th scope="col" class="text-end">{{.T "org.analytics.col_tickets"}}</th><th scope="col" class="text-end">{{.T "org.analytics.col_revenue"}}</th></tr></thead>
+          <tbody>
+            {{range $r.ByEvent}}<tr>
+              <td class="tixo-col-title text-break">{{if .IsOthers}}{{$.N "org.analytics.others" .OthersCount}}{{else}}<a href="{{$.URL (printf "/org/%s/events/%d" $.Data.Slug .ID)}}">{{.Title}}</a>{{end}}</td>
+              <td class="text-end">{{.Tickets}}</td><td class="text-end text-nowrap">{{if .Revenue}}{{$.Money .Revenue}}{{else}}0{{end}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </section>
+  {{else}}
+  <div class="mb-5">
+    <h2 class="h4 mb-2">{{.T "org.analytics.empty_title"}}</h2>
+    <p class="text-body-secondary mb-2">{{.T "org.analytics.empty_text"}}</p>
+    <a href="{{.URL (printf "/org/%s/events" .Data.Slug)}}">{{.T "org.analytics.empty_link"}}</a>
+  </div>
+  {{end}}
+
+  <section class="tixo-chart-section" aria-labelledby="by-genre-title">
+    <h2 class="h4 mb-3" id="by-genre-title">{{.T "org.analytics.by_genre_title"}}</h2>
+    {{with $r.ByGenre}}
+    <details class="tixo-chart-data" open>
+      <summary>{{$.T "org.analytics.table_toggle"}}</summary>
+      <div class="table-responsive tixo-chart-table" tabindex="0" role="region" aria-labelledby="by-genre-title">
+        <table class="table align-middle tixo-table mb-0">
+          <thead><tr><th scope="col">{{$.T "org.analytics.col_genre"}}</th><th scope="col" class="text-end">{{$.T "org.analytics.col_events"}}</th></tr></thead>
+          <tbody>
+            {{range .}}<tr><td>{{$.T (printf "genre.%s" .Genre)}}</td><td class="text-end">{{.Events}}</td></tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    {{else}}
+    <p class="text-body-secondary">{{.T "org.analytics.genres_empty"}}</p>
+    {{end}}
+  </section>
+</section>
+{{end}}
