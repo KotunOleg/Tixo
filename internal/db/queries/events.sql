@@ -57,3 +57,10 @@ JOIN venues v ON v.id = e.venue_id
 WHERE e.status = 'published' AND e.ends_at >= @after
 ORDER BY e.starts_at, e.id
 LIMIT @lim OFFSET @off;
+
+-- name: GetPublicEventBySlug :one
+SELECT sqlc.embed(e), sqlc.embed(v), o.name AS organizer_name, o.contacts AS organizer_contacts
+FROM events e
+JOIN venues v ON v.id = e.venue_id
+JOIN organizers o ON o.id = e.organizer_id
+WHERE e.slug = @slug AND e.status IN ('published', 'cancelled');

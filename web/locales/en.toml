@@ -363,3 +363,59 @@ name_length = "The name must be 100 characters or fewer."
 [errors.403]
 title = "Access denied"
 text = "Only the organizer's owner can do this."
+
+[date]
+day = "{{.Month}} {{.Day}}, {{.Year}}"
+at = "{{.Date}}, {{.Time}}"
+
+[date.month]
+jan = "January"
+feb = "February"
+mar = "March"
+apr = "April"
+may = "May"
+jun = "June"
+jul = "July"
+aug = "August"
+sep = "September"
+oct = "October"
+nov = "November"
+dec = "December"
+
+[money]
+free = "Free"
+
+[landing]
+poster_alt = "Poster for {{.Title}}"
+about = "About"
+lineup = "Lineup"
+headliner = "headliner"
+venue = "Venue"
+open_map = "Open in OpenStreetMap"
+new_tab = "(opens in a new tab)"
+organizer = "Organizer"
+panel = "Tickets and contacts"
+price_from_label = "Tickets from"
+buy = "Buy a ticket"
+
+[landing.cancelled]
+title = "This event is cancelled."
+text = "Tickets are no longer on sale."
+
+[landing.contact]
+email = "Email"
+phone = "Phone"
+telegram = "Telegram"
+
+[landing.tickets]
+title = "Tickets"
+cancelled = "The event is cancelled, sales are closed."
+ended = "Sales have ended"
+none = "Tickets are not on sale yet"
+sold_out = "Sold out"
+all_sold_out = "Sold out"
+all_sold_out_text = "There are no tickets left for this event."
+
+[landing.tickets.left]
+one = "{{.Count}} ticket left"
+other = "{{.Count}} tickets left"

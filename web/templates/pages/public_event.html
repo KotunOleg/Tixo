@@ -1,0 +1,127 @@
+{{define "title"}}{{.Data.Title}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<article class="tixo-landing" aria-labelledby="event-title">
+  {{if eq .Data.Sale "cancelled"}}
+  <div class="tixo-banner" role="status">
+    <div class="container py-3">
+      <p class="mb-0"><strong>{{.T "landing.cancelled.title"}}</strong> {{.T "landing.cancelled.text"}}</p>
+    </div>
+  </div>
+  {{end}}
+  <div class="container py-4 py-lg-5">
+    <div class="row g-4 g-lg-5">
+      <div class="col-lg-8">
+        <header class="mb-5">
+          {{if .Data.PosterURL}}<img class="tixo-poster mb-4" src="{{.Data.PosterURL}}" alt="{{.T "landing.poster_alt" "Title" .Data.Title}}">{{end}}
+          <p class="tixo-kicker mb-2">{{.T .Data.Genre}}</p>
+          <h1 id="event-title" class="mb-3">{{.Data.Title}}</h1>
+          <p class="lead mb-1"><time datetime="{{.Data.StartsAt.Format "2006-01-02T15:04:05Z07:00"}}">{{.When .Data.StartsAt .Data.EndsAt}}</time></p>
+          <p class="text-body-secondary mb-0">{{.Data.VenueName}}, {{.Data.VenueCity}}</p>
+        </header>
+
+        {{if .Data.Description}}
+        <section class="mb-5" aria-labelledby="about-title">
+          <h2 id="about-title" class="h3 mb-3">{{.T "landing.about"}}</h2>
+          <div class="tixo-prose">{{.Data.Description}}</div>
+        </section>
+        {{end}}
+
+        {{if .Data.Lineup}}
+        <section class="mb-5" aria-labelledby="lineup-title">
+          <h2 id="lineup-title" class="h3 mb-3">{{.T "landing.lineup"}}</h2>
+          <ul class="list-unstyled tixo-lineup mb-0">
+            {{range .Data.Lineup}}
+            <li class="{{if .Headliner}}tixo-lineup-headliner{{end}}">{{.Name}}{{if .Headliner}} <span class="tixo-badge">{{$.T "landing.headliner"}}</span>{{end}}</li>
+            {{end}}
+          </ul>
+        </section>
+        {{end}}
+
+        <section id="tickets" class="mb-5 tixo-anchor-target" tabindex="-1" aria-labelledby="tickets-title">
+          <h2 id="tickets-title" class="h3 mb-3">{{.T "landing.tickets.title"}}</h2>
+          {{if eq .Data.Sale "cancelled"}}
+          <p class="text-body-secondary">{{.T "landing.tickets.cancelled"}}</p>
+          {{else if eq .Data.Sale "ended"}}
+          <p class="text-body-secondary">{{.T "landing.tickets.ended"}}</p>
+          {{else if eq .Data.Sale "no_tiers"}}
+          <p class="text-body-secondary">{{.T "landing.tickets.none"}}</p>
+          {{else if eq .Data.Sale "sold_out"}}
+          <p class="text-body-secondary">{{.T "landing.tickets.all_sold_out_text"}}</p>
+          {{end}}
+          {{if .Data.Tiers}}
+          <ul class="list-unstyled tixo-tiers mb-0">
+            {{range .Data.Tiers}}
+            <li class="tixo-tier{{if eq .Available 0}} is-sold-out{{end}}">
+              <span class="tixo-tier-name">{{.Name}}</span>
+              <span class="tixo-tier-price">{{$.Money .Price}}</span>
+              <span class="tixo-tier-left">{{if eq .Available 0}}{{$.T "landing.tickets.sold_out"}}{{else}}{{$.N "landing.tickets.left" .Available}}{{end}}</span>
+            </li>
+            {{end}}
+          </ul>
+          {{end}}
+        </section>
+
+        <section class="mb-5" aria-labelledby="venue-title">
+          <h2 id="venue-title" class="h3 mb-3">{{.T "landing.venue"}}</h2>
+          <p class="mb-1 fw-semibold">{{.Data.VenueName}}</p>
+          <p class="mb-2 text-body-secondary">{{with .Data.VenueAddress}}{{.}}, {{end}}{{.Data.VenueCity}}</p>
+          <a href="{{.Data.MapURL}}" rel="noopener" target="_blank">{{.T "landing.open_map"}}<span class="visually-hidden"> {{.T "landing.new_tab"}}</span></a>
+        </section>
+
+        <section class="mb-5 d-lg-none" aria-labelledby="organizer-title-mobile">
+          <h2 id="organizer-title-mobile" class="h3 mb-3">{{.T "landing.organizer"}}</h2>
+          {{template "landing_organizer" .}}
+        </section>
+      </div>
+
+      <aside class="col-lg-4 d-none d-lg-block" aria-label="{{.T "landing.panel"}}">
+        <div class="tixo-buy-panel">
+          {{template "landing_buy" .}}
+          <hr class="my-4">
+          <h2 class="h5 mb-3">{{.T "landing.organizer"}}</h2>
+          {{template "landing_organizer" .}}
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  {{if .Data.OnSale}}
+  <div class="tixo-buybar d-lg-none js-buybar">
+    <div class="container d-flex align-items-center justify-content-between gap-3 py-2">
+      <p class="mb-0"><span class="d-block small text-body-secondary">{{.T "landing.price_from_label"}}</span><span class="fw-semibold">{{.Money .Data.PriceFrom}}</span></p>
+      <a class="btn btn-tixo flex-shrink-0" href="#tickets">{{.T "landing.buy"}}</a>
+    </div>
+  </div>
+  {{end}}
+</article>
+{{end}}
+
+{{define "landing_buy"}}
+{{if .Data.OnSale}}
+<p class="mb-1 small text-body-secondary">{{.T "landing.price_from_label"}}</p>
+<p class="h3 mb-3">{{.Money .Data.PriceFrom}}</p>
+<a class="btn btn-tixo btn-lg w-100" href="#tickets">{{.T "landing.buy"}}</a>
+{{else if eq .Data.Sale "sold_out"}}
+<p class="h4 mb-1">{{.T "landing.tickets.all_sold_out"}}</p>
+<p class="text-body-secondary mb-0">{{.T "landing.tickets.all_sold_out_text"}}</p>
+{{else if eq .Data.Sale "cancelled"}}
+<p class="h4 mb-0">{{.T "landing.cancelled.title"}}</p>
+{{else if eq .Data.Sale "ended"}}
+<p class="h4 mb-0">{{.T "landing.tickets.ended"}}</p>
+{{else}}
+<p class="h4 mb-0">{{.T "landing.tickets.none"}}</p>
+{{end}}
+<p class="mt-3 mb-0 small text-body-secondary"><time datetime="{{.Data.StartsAt.Format "2006-01-02T15:04:05Z07:00"}}">{{.DateTime .Data.StartsAt}}</time><br>{{.Data.VenueName}}, {{.Data.VenueCity}}</p>
+{{end}}
+
+{{define "landing_organizer"}}
+<p class="fw-semibold mb-2">{{.Data.OrganizerName}}</p>
+{{if .Data.Contacts}}
+<dl class="tixo-contacts mb-0">
+  {{range .Data.Contacts}}
+  <dt>{{$.T .Label}}</dt>
+  <dd>{{if .Href}}<a href="{{.Href}}">{{.Text}}</a>{{else}}{{.Text}}{{end}}</dd>
+  {{end}}
+</dl>
+{{end}}
+{{end}}

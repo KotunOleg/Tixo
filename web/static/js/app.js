@@ -152,3 +152,21 @@ function setupLineupAutocomplete() {
 
 setupPosterCompression();
 setupLineupAutocomplete();
+
+function setupBuyBar() {
+  const bar = document.querySelector(".js-buybar");
+  const tickets = document.getElementById("tickets");
+  if (!bar || !tickets || typeof IntersectionObserver !== "function") {
+    return;
+  }
+  new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting && bar.contains(document.activeElement)) {
+        tickets.focus();
+      }
+      bar.hidden = entry.isIntersecting;
+    }
+  }).observe(tickets);
+}
+
+setupBuyBar();
