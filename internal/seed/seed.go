@@ -324,3 +324,28 @@ func AddOwners(ctx context.Context, pool *pgxpool.Pool, owners []Owner) error {
 	}
 	return tx.Commit(ctx)
 }
+
+func EnsureAPIUser(ctx context.Context, pool *pgxpool.Pool, email, name, orgSlug, orgName string) (int64, error) {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := dbgen.New(tx)
+
+	userID, err := q.SeedUser(ctx, dbgen.SeedUserParams{Email: email, Name: name})
+	if err != nil {
+		return 0, fmt.Errorf("user %s: %w", email, err)
+	}
+	orgID, err := q.SeedOrganizer(ctx, dbgen.SeedOrganizerParams{Slug: orgSlug, Name: orgName, Contacts: json.RawMessage("{}"), Plan: "free"})
+	if err != nil {
+		return 0, fmt.Errorf("organizer %s: %w", orgSlug, err)
+	}
+	if err := q.SeedOwner(ctx, dbgen.SeedOwnerParams{UserID: userID, OrganizerID: orgID}); err != nil {
+		return 0, fmt.Errorf("owner %s of %s: %w", email, orgSlug, err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return userID, nil
+}
