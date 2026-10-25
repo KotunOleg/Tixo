@@ -168,6 +168,38 @@ func TestBuyEmitsGA4PurchaseOnceNotOnRevisit(t *testing.T) {
 	}
 }
 
+func TestGA4PurchaseIsNotMixedUpBetweenTwoPendingOrders(t *testing.T) {
+	s := newAuthSite(t)
+	idA := s.publicEvent(t, publicEvent{slug: "ga4-a", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 10000, Quantity: 5}}})
+	idB := s.publicEvent(t, publicEvent{slug: "ga4-b", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 20000, Quantity: 5}}})
+	buyer := s.signInAs(t, "sub-ga4-ab", "ga4ab@example.com", "Buyer")
+
+	boughtA := s.postForm(t, "/events/ga4-a/buy", buyValues(s.tierIDs(t, idA)[0], "1", uuid.NewString()), buyer)
+	locA := boughtA.Header().Get("Location")
+	boughtB := s.postForm(t, "/events/ga4-b/buy", buyValues(s.tierIDs(t, idB)[0], "1", uuid.NewString()), buyer)
+	locB := boughtB.Header().Get("Location")
+	if locA == locB {
+		t.Fatalf("both purchases redirected to the same order: %q", locA)
+	}
+
+	orderIDFromLocation := regexp.MustCompile(`/orders/([0-9]+)$`)
+	idFromA := orderIDFromLocation.FindStringSubmatch(locA)[1]
+	idFromB := orderIDFromLocation.FindStringSubmatch(locB)[1]
+
+	pageB := s.request(t, http.MethodGet, locB, buyer).Body.String()
+	if !strings.Contains(pageB, `"transaction_id":"`+idFromB+`"`) {
+		t.Fatalf("order B page does not carry order B's own transaction_id:\n%s", pageB)
+	}
+	if strings.Contains(pageB, `"transaction_id":"`+idFromA+`"`) {
+		t.Fatalf("order B page carries order A's transaction_id: payload leaked across orders\n%s", pageB)
+	}
+
+	pageA := s.request(t, http.MethodGet, locA, buyer).Body.String()
+	if !strings.Contains(pageA, `"transaction_id":"`+idFromA+`"`) {
+		t.Errorf("order A's ga4 purchase event was lost: viewing order B must not have consumed it\n%s", pageA)
+	}
+}
+
 func TestBuyFormErrorsKeepInput(t *testing.T) {
 	s := newAuthSite(t)
 	id := s.publicEvent(t, publicEvent{slug: "form-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 2}, {Name: "VIP", Price: 90000, Quantity: 2}}})
