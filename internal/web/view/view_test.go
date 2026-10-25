@@ -69,10 +69,10 @@ func TestPagePurchasePopsOnce(t *testing.T) {
 		calls++
 		return `{"transaction_id":"1"}`, true
 	}}
-	if got := p.Purchase(); got != `{"transaction_id":"1"}` {
+	if got := string(p.Purchase()); got != `{"transaction_id":"1"}` {
 		t.Errorf("Purchase() = %q, want the payload", got)
 	}
-	if got := p.Purchase(); got != `{"transaction_id":"1"}` {
+	if got := string(p.Purchase()); got != `{"transaction_id":"1"}` {
 		t.Errorf("second Purchase() on the same Page = %q, want the cached payload", got)
 	}
 	if calls != 1 {
@@ -81,7 +81,7 @@ func TestPagePurchasePopsOnce(t *testing.T) {
 }
 
 func TestRenderExposesGA4IDAndPurchasePayloadOnlyWhenPresent(t *testing.T) {
-	fsys := fixture(`{{define "content"}}GA4=[{{.GA4ID}}] <script type="application/json" id="p">{{.Purchase}}</script>{{end}}`)
+	fsys := fixture(`{{define "content"}}GA4=[{{.GA4ID}}] {{with .Purchase}}<script type="application/json" id="p">{{.}}</script>{{end}}{{end}}`)
 	tr, err := i18n.New(fsys)
 	if err != nil {
 		t.Fatal(err)
@@ -100,8 +100,8 @@ func TestRenderExposesGA4IDAndPurchasePayloadOnlyWhenPresent(t *testing.T) {
 
 	rec = httptest.NewRecorder()
 	v.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
-	if body := rec.Body.String(); !strings.Contains(body, `id="p"></script>`) {
-		t.Errorf("body = %q, want an empty purchase script without WithPurchase in context", body)
+	if body := rec.Body.String(); strings.Contains(body, "ga-purchase") || strings.Contains(body, `id="p"`) {
+		t.Errorf("body = %q, want no purchase script without WithPurchase in context", body)
 	}
 }
 

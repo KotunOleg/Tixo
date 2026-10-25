@@ -3,6 +3,7 @@ package view
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -188,7 +189,7 @@ func (p *Page) Flash() string {
 	return *p.flash
 }
 
-func (p *Page) Purchase() template.JS {
+func (p *Page) Purchase() json.RawMessage {
 	if p.purchase == nil {
 		var payload string
 		if p.popPurchase != nil {
@@ -196,7 +197,10 @@ func (p *Page) Purchase() template.JS {
 		}
 		p.purchase = &payload
 	}
-	return template.JS(*p.purchase)
+	if *p.purchase == "" {
+		return nil
+	}
+	return json.RawMessage(*p.purchase)
 }
 
 type Alternate struct {
