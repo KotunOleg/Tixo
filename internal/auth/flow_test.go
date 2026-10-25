@@ -1,9 +1,15 @@
 package auth
 
 import (
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/alexedwards/scs/v2/memstore"
 )
 
 func TestSafeNextKeepsOnlyLocalPaths(t *testing.T) {
@@ -31,6 +37,25 @@ func TestSafeNextKeepsOnlyLocalPaths(t *testing.T) {
 		if got := SafeNext(in); got != want {
 			t.Errorf("SafeNext(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestPurchasePayloadIsPoppedOnce(t *testing.T) {
+	base, _ := url.Parse("http://localhost:8080")
+	sm := NewSessionsWithStore(memstore.NewWithCleanupInterval(0), *base, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
+	var first, firstOK, second, secondOK any
+	h := sm.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		SetPurchase(r.Context(), sm, `{"transaction_id":"42"}`)
+		first, firstOK = PopPurchase(r.Context(), sm)
+		second, secondOK = PopPurchase(r.Context(), sm)
+	}))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+
+	if first != `{"transaction_id":"42"}` || firstOK != true {
+		t.Errorf("first PopPurchase = (%v, %v), want the payload and true", first, firstOK)
+	}
+	if second != "" || secondOK != false {
+		t.Errorf("second PopPurchase = (%v, %v), want empty and false: payload must be consumed once", second, secondOK)
 	}
 }
 
