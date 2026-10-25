@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Tixo">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff3d8b"/>
+      <stop offset="1" stop-color="#7c4dff"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#g)" d="M10 14h44a4 4 0 0 1 4 4v8a6 6 0 0 0 0 12v8a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4v-8a6 6 0 0 0 0-12v-8a4 4 0 0 1 4-4z"/>
+  <path fill="none" stroke="#0b0b12" stroke-width="2" stroke-dasharray="3 3" d="M42 16v32"/>
+  <path fill="#0b0b12" d="M18 24h16v4h-6v14h-4V28h-6z"/>
+</svg>

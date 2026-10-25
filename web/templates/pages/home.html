@@ -1,0 +1,88 @@
+{{define "title"}}{{.T "home.title"}}{{end}}
+{{define "content"}}
+<section class="tixo-hero">
+  <div class="container py-5">
+    <div class="row justify-content-center text-center py-lg-5">
+      <div class="col-lg-9">
+        <span class="badge rounded-pill tixo-kicker mb-3">{{.T "home.hero.kicker"}}</span>
+        <h1 class="display-4 fw-bold mb-3">{{.T "home.hero.title"}}</h1>
+        <p class="lead text-body-secondary mb-4">{{.T "home.hero.subtitle"}}</p>
+        <form class="tixo-search mx-auto" action="{{.URL "/events"}}" method="get" role="search">
+          <label class="visually-hidden" for="search-q">{{.T "home.search.label"}}</label>
+          <div class="input-group input-group-lg">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input id="search-q" class="form-control" type="search" name="q" placeholder="{{.T "home.search.placeholder"}}" autocomplete="off">
+            <button class="btn btn-tixo px-4" type="submit">{{.T "home.search.submit"}}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container py-5" aria-labelledby="upcoming-title">
+  <div class="d-flex align-items-end justify-content-between mb-4">
+    <h2 id="upcoming-title" class="h3 mb-0">{{.T "home.upcoming.title"}}</h2>
+    <a class="link-light small" href="{{.URL "/events"}}">{{.T "home.upcoming.all"}} <i class="bi bi-arrow-right"></i></a>
+  </div>
+  {{with .Data.Upcoming}}
+  <div class="row g-4">
+    {{range .}}
+    <div class="col-sm-6 col-lg-4">
+      <a class="card tixo-card h-100 text-decoration-none" href="{{.URL}}">
+        {{if .PosterURL}}<img class="card-img-top" src="{{.PosterURL}}" alt="" loading="lazy">{{end}}
+        <div class="card-body">
+          <h3 class="h5 card-title">{{.Title}}</h3>
+          <p class="card-text small text-body-secondary mb-0"><i class="bi bi-clock me-1"></i>{{.StartsAt}} · <i class="bi bi-geo-alt me-1"></i>{{.Venue}}</p>
+        </div>
+      </a>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <div class="tixo-empty text-center p-5">
+    <i class="bi bi-music-note-beamed display-5 d-block mb-3"></i>
+    <h3 class="h5">{{.T "home.upcoming.empty_title"}}</h3>
+    <p class="text-body-secondary mb-4">{{.T "home.upcoming.empty_text"}}</p>
+    <a class="btn btn-outline-light" href="{{.URL "/organizers"}}">{{.T "home.upcoming.organizer_cta"}}</a>
+  </div>
+  {{end}}
+</section>
+
+<section class="container py-5" aria-labelledby="how-title">
+  <h2 id="how-title" class="h3 mb-4">{{.T "home.how.title"}}</h2>
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="tixo-feature h-100 p-4">
+        <i class="bi bi-map fs-2 tixo-accent"></i>
+        <h3 class="h5 mt-3">{{.T "home.how.map.title"}}</h3>
+        <p class="text-body-secondary mb-0">{{.T "home.how.map.text"}}</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="tixo-feature h-100 p-4">
+        <i class="bi bi-stars fs-2 tixo-accent"></i>
+        <h3 class="h5 mt-3">{{.T "home.how.agent.title"}}</h3>
+        <p class="text-body-secondary mb-0">{{.T "home.how.agent.text"}}</p>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="tixo-feature h-100 p-4">
+        <i class="bi bi-qr-code fs-2 tixo-accent"></i>
+        <h3 class="h5 mt-3">{{.T "home.how.tickets.title"}}</h3>
+        <p class="text-body-secondary mb-0">{{.T "home.how.tickets.text"}}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="container pb-5">
+  <div class="tixo-cta p-4 p-lg-5 d-lg-flex align-items-center justify-content-between gap-4">
+    <div>
+      <h2 class="h3">{{.T "home.organizers.title"}}</h2>
+      <p class="mb-lg-0 text-body-secondary">{{.T "home.organizers.text"}}</p>
+    </div>
+    <a class="btn btn-tixo btn-lg flex-shrink-0" href="{{.URL "/organizers"}}">{{.T "home.organizers.cta"}}</a>
+  </div>
+</section>
+{{end}}
