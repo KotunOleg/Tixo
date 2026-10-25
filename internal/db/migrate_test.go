@@ -3,6 +3,8 @@ package db
 import (
 	"bytes"
 	"context"
+	"fmt"
+	neturl "net/url"
 	"os"
 	"strings"
 	"testing"
@@ -13,11 +15,39 @@ import (
 
 func testDatabaseURL(t *testing.T) string {
 	t.Helper()
-	url := os.Getenv("TEST_DATABASE_URL")
-	if url == "" {
+	raw := os.Getenv("TEST_DATABASE_URL")
+	if raw == "" {
 		t.Skip("TEST_DATABASE_URL not set; start postgres from compose to run integration tests")
 	}
-	return url
+	if err := requireTestDatabase(raw); err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+func requireTestDatabase(raw string) error {
+	u, err := neturl.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("TEST_DATABASE_URL: %w", err)
+	}
+	name := strings.TrimPrefix(u.Path, "/")
+	if !strings.Contains(name, "test") {
+		return fmt.Errorf("TEST_DATABASE_URL points to database %q; integration tests drop the schema, so the database name must contain \"test\"", name)
+	}
+	return nil
+}
+
+func TestRefusesNonTestDatabase(t *testing.T) {
+	cases := map[string]bool{
+		"postgres://tixo:tixo@localhost:55432/tixo_test?sslmode=disable": true,
+		"postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable":      false,
+		"postgres://u:p@prod-host:5432/ecommerce":                        false,
+	}
+	for raw, ok := range cases {
+		if err := requireTestDatabase(raw); (err == nil) != ok {
+			t.Errorf("%s: err = %v, want allowed=%v", raw, err, ok)
+		}
+	}
 }
 
 func TestMigrationsRoundTrip(t *testing.T) {
@@ -35,7 +65,7 @@ func TestMigrationsRoundTrip(t *testing.T) {
 		t.Fatalf("second up must be a no-op, got: %v", err)
 	}
 
-	pool, err := postgres.NewPool(ctx, url)
+	pool, err := postgres.NewPool(ctx, url, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +107,7 @@ func TestMigrateRejectsUnknownCommand(t *testing.T) {
 
 func TestHealthCheckReportsUnreachableDatabase(t *testing.T) {
 	ctx := context.Background()
-	pool, err := postgres.NewPool(ctx, "postgres://tixo:tixo@127.0.0.1:1/tixo?sslmode=disable&connect_timeout=1")
+	pool, err := postgres.NewPool(ctx, "postgres://tixo:tixo@127.0.0.1:1/tixo?sslmode=disable&connect_timeout=1", 2)
 	if err != nil {
 		t.Fatalf("pool creation must not dial eagerly: %v", err)
 	}

@@ -26,6 +26,9 @@ func TestLoadDefaults(t *testing.T) {
 		t.Errorf("BaseURL = %q, want http://localhost:8080", cfg.BaseURL.String())
 	}
 
+	if cfg.DBMaxConns != 10 {
+		t.Errorf("DBMaxConns = %d, want 10", cfg.DBMaxConns)
+	}
 	if len(cfg.SessionSecret) < minSecretLen {
 		t.Errorf("dev session secret not generated: len=%d", len(cfg.SessionSecret))
 	}
@@ -44,6 +47,9 @@ func TestLoadRejects(t *testing.T) {
 		{name: "unknown app env", set: map[string]string{"APP_ENV": "staging"}, wantVar: "APP_ENV"},
 		{name: "base url without scheme", set: map[string]string{"BASE_URL": "localhost:8080"}, wantVar: "BASE_URL"},
 		{name: "base url with trailing path", set: map[string]string{"BASE_URL": "https://tixo.me/app"}, wantVar: "BASE_URL"},
+		{name: "db pool of zero connections", set: map[string]string{"DB_MAX_CONNS": "0"}, wantVar: "DB_MAX_CONNS"},
+		{name: "db pool larger than postgres allows", set: map[string]string{"DB_MAX_CONNS": "500"}, wantVar: "DB_MAX_CONNS"},
+		{name: "db pool not a number", set: map[string]string{"DB_MAX_CONNS": "ten"}, wantVar: "DB_MAX_CONNS"},
 		{name: "prod without session secret", set: map[string]string{"APP_ENV": "prod", "BASE_URL": "https://tixo.me"}, wantVar: "SESSION_SECRET"},
 		{name: "prod with short session secret", set: map[string]string{"APP_ENV": "prod", "BASE_URL": "https://tixo.me", "SESSION_SECRET": "short"}, wantVar: "SESSION_SECRET"},
 		{name: "prod over plain http", set: map[string]string{"APP_ENV": "prod", "SESSION_SECRET": strings.Repeat("x", 32), "BASE_URL": "http://tixo.me"}, wantVar: "BASE_URL"},
