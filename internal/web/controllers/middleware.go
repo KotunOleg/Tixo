@@ -20,6 +20,7 @@ func loadUser(sm *scs.SessionManager, svc *users.Service, log *slog.Logger, onEr
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			session := r.Context()
 			ctx := view.WithFlash(session, func() string { return auth.PopFlash(session, sm) })
+			ctx = view.WithPurchase(ctx, func() (string, bool) { return auth.PopPurchase(session, sm) })
 			if id, ok := auth.UserID(session, sm); ok && svc != nil {
 				u, err := svc.Get(session, id)
 				switch {
