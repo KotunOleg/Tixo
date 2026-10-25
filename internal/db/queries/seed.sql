@@ -53,3 +53,11 @@ ON CONFLICT (event_id, name) DO NOTHING;
 INSERT INTO memberships (user_id, organizer_id, role)
 VALUES (@user_id, @organizer_id, 'owner')
 ON CONFLICT (user_id, organizer_id) DO UPDATE SET role = 'owner';
+
+-- name: SeedTierID :one
+SELECT t.id FROM ticket_tiers t
+JOIN events e ON e.id = t.event_id
+WHERE e.slug = @event_slug AND t.name = @tier_name;
+
+-- name: SeedOrderCreatedAt :exec
+UPDATE orders SET created_at = @created_at WHERE id = @id;
