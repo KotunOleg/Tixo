@@ -1,0 +1,10 @@
+[site]
+name = "Tixo"
+tagline = "Concerts, talks and meetups near you"
+
+[lang]
+switch = "Українська"
+switch_short = "UA"
+suggest = "Looks like you prefer English. Switch to the English version?"
+suggest_accept = "Switch to English"
+suggest_dismiss = "Stay here"
