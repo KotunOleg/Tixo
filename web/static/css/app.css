@@ -800,6 +800,74 @@ body:has(.tixo-buybar) {
   overflow-wrap: anywhere;
 }
 
+.tixo-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem 2rem;
+  max-width: 56rem;
+}
+
+.tixo-kpi {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--tixo-border-strong);
+}
+
+.tixo-kpi dt {
+  font-size: var(--tixo-text-sm);
+  font-weight: 400;
+  color: var(--tixo-text-muted);
+}
+
+.tixo-kpi dd {
+  margin: 0.25rem 0 0;
+  font-size: var(--tixo-text-2xl);
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.tixo-badge-inline {
+  margin-inline-start: 0.375rem;
+  padding: 0 0.5rem;
+  font-size: var(--tixo-text-xs);
+}
+
+.tixo-chart-section {
+  max-width: 56rem;
+}
+
+.tixo-chart {
+  position: relative;
+  height: 16rem;
+  margin-bottom: 1rem;
+}
+
+.tixo-chart[hidden] {
+  display: none;
+}
+
+.tixo-chart-data > summary {
+  width: fit-content;
+  margin-bottom: 0.75rem;
+  color: var(--tixo-link);
+  cursor: pointer;
+}
+
+.tixo-chart-data > summary:hover {
+  color: var(--tixo-link-hover);
+}
+
+.tixo-chart-data > summary:focus-visible {
+  outline: 2px solid var(--tixo-focus);
+  outline-offset: 2px;
+}
+
+.tixo-chart-table {
+  max-height: 24rem;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
