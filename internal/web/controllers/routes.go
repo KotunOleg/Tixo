@@ -55,7 +55,7 @@ func Mount(r chi.Router, d Deps) {
 	r.Group(func(r chi.Router) {
 		r.Use(d.Sessions.LoadAndSave, d.loadUser())
 		r.Get("/", Home{View: d.View, Events: d.Events, Log: d.Logger}.ServeHTTP)
-		pe := PublicEvents{View: d.View, Svc: d.Events, Orders: d.Orders, Log: d.Logger}
+		pe := PublicEvents{View: d.View, Sessions: d.Sessions, Svc: d.Events, Orders: d.Orders, Log: d.Logger}
 		r.Get("/events/{slug}", pe.Show)
 		r.Post("/events/{slug}/buy", pe.Buy)
 
