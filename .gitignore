@@ -1,0 +1,17 @@
+
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+.env
+.env.*
+!.env.example
+
+/bin/
+/tmp/
+*.test
+*.out
+coverage.*
+
+compose.override.yml
