@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{if .GA4ID}}<script async src="https://www.googletagmanager.com/gtag/js?id={{.GA4ID}}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","{{.GA4ID}}");</script>{{end}}
   <title>{{block "title" .}}{{.T "site.name"}}{{end}}</title>
   <meta name="description" content="{{block "description" .}}{{.T "site.meta_description"}}{{end}}">
   {{block "head_meta" .}}{{end}}

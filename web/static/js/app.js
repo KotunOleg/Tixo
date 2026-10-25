@@ -347,3 +347,20 @@ function setupAnalyticsCharts() {
 }
 
 setupAnalyticsCharts();
+
+function pushGA4Purchase() {
+  const source = document.getElementById("ga-purchase");
+  if (!source) {
+    return;
+  }
+  let payload;
+  try {
+    payload = JSON.parse(source.textContent);
+  } catch {
+    return;
+  }
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: "purchase", ecommerce: payload });
+}
+
+pushGA4Purchase();
