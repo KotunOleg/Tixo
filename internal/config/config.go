@@ -35,11 +35,15 @@ type Config struct {
 
 	GoogleClientID     string `env:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
+
+	GA4MeasurementID string `env:"GA4_MEASUREMENT_ID"`
 }
 
 func (c *Config) IsProd() bool { return c.AppEnv == EnvProd }
 
 func (c *Config) GoogleEnabled() bool { return c.GoogleClientID != "" && c.GoogleClientSecret != "" }
+
+func (c *Config) GA4Enabled() bool { return c.GA4MeasurementID != "" }
 
 func Load() (*Config, error) {
 	return LoadFrom(environ())

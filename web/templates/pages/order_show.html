@@ -29,4 +29,5 @@
 
   <a class="btn btn-quiet" href="{{.URL "/tickets"}}">{{.T "order.to_tickets"}}</a>
 </section>
+{{with .Purchase .Data.ID}}<script type="application/json" id="ga-purchase">{{.}}</script>{{end}}
 {{end}}
