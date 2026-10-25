@@ -52,6 +52,7 @@ make check             # lint + перевірка згенерованого к
 | `tixo serve` | вебсервер |
 | `tixo migrate up\|down\|reset\|status` | міграції БД (`down` і `reset` заборонені при `APP_ENV=prod`) |
 | `tixo probe` | перевірка `/healthz` для healthcheck контейнера |
+| `tixo flags enable\|disable <прапорець> --org <slug>`, `tixo flags list --org <slug>` | увімкнути чи вимкнути функцію (напр. `sales_analytics`) для організатора без деплою й без зміни плану |
 | `tixo version` | версія збірки |
 
 ## Конфігурація
@@ -108,6 +109,10 @@ make seed OWNERS="kyiv-live=you@gmail.com lviv-sound=friend@gmail.com"
 
 Акаунт стає власником вказаного демо-організатора. Під час першого входу через Google з цим email
 (email має бути підтверджений) обліковий запис прив'язується автоматично.
+
+`kyiv-live` у демо — Premium: `make seed` створює для нього продажі за 30 днів, і в кабінеті доступна
+«Аналітика» (`/org/kyiv-live/analytics`, `GET /api/v1/organizers/kyiv-live/analytics`). `lviv-sound` — Free і бачить
+пояснення з 403. Доступ вмикає прапорець `sales_analytics`: за планом Premium або вручну через `tixo flags`.
 
 ## Деплой
 
