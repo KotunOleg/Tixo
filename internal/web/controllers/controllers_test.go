@@ -42,8 +42,9 @@ func newSite(t *testing.T, extra func(r chi.Router)) http.Handler {
 	})
 }
 
-func do(h http.Handler, path string, headers ...string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodGet, path, nil)
+func do(t *testing.T, h http.Handler, path string, headers ...string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 	for i := 0; i+1 < len(headers); i += 2 {
 		req.Header.Set(headers[i], headers[i+1])
 	}
@@ -67,7 +68,7 @@ func TestPagesRenderInBothLanguages(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {
-			rec := do(site, tc.path)
+			rec := do(t, site, tc.path)
 			body := rec.Body.String()
 			if rec.Code != tc.wantStatus {
 				t.Fatalf("status = %d, want %d\n%s", rec.Code, tc.wantStatus, body)
@@ -94,7 +95,7 @@ func TestPagesRenderInBothLanguages(t *testing.T) {
 }
 
 func TestSEOLinks(t *testing.T) {
-	body := do(newSite(t, nil), "/en/").Body.String()
+	body := do(t, newSite(t, nil), "/en/").Body.String()
 	for _, want := range []string{
 		`<link rel="canonical" href="https://tixo.example/en/">`,
 		`<link rel="alternate" hreflang="uk" href="https://tixo.example/">`,
@@ -109,10 +110,10 @@ func TestSEOLinks(t *testing.T) {
 
 func TestLanguageSwitchKeepsCurrentPage(t *testing.T) {
 	site := newSite(t, nil)
-	if body := do(site, "/").Body.String(); !strings.Contains(body, `href="/en/"`) {
+	if body := do(t, site, "/").Body.String(); !strings.Contains(body, `href="/en/"`) {
 		t.Error("ukrainian home has no switch link to /en/")
 	}
-	if body := do(site, "/en/").Body.String(); !strings.Contains(body, `href="/" hreflang="uk"`) {
+	if body := do(t, site, "/en/").Body.String(); !strings.Contains(body, `href="/" hreflang="uk"`) {
 		t.Error("english home has no switch link back to /")
 	}
 }
@@ -120,13 +121,13 @@ func TestLanguageSwitchKeepsCurrentPage(t *testing.T) {
 func TestEnglishSuggestionBanner(t *testing.T) {
 	site := newSite(t, nil)
 	marker := `id="lang-suggest"`
-	if body := do(site, "/", "Accept-Language", "en-US,en;q=0.9").Body.String(); !strings.Contains(body, marker) {
+	if body := do(t, site, "/", "Accept-Language", "en-US,en;q=0.9").Body.String(); !strings.Contains(body, marker) {
 		t.Error("english browser on ukrainian page sees no suggestion banner")
 	}
-	if body := do(site, "/", "Accept-Language", "uk-UA").Body.String(); strings.Contains(body, marker) {
+	if body := do(t, site, "/", "Accept-Language", "uk-UA").Body.String(); strings.Contains(body, marker) {
 		t.Error("ukrainian browser is offered english")
 	}
-	if body := do(site, "/en/", "Accept-Language", "en-US").Body.String(); strings.Contains(body, marker) {
+	if body := do(t, site, "/en/", "Accept-Language", "en-US").Body.String(); strings.Contains(body, marker) {
 		t.Error("banner shown on the english page itself")
 	}
 }
@@ -135,7 +136,7 @@ func TestPanicRendersErrorPageWithRequestID(t *testing.T) {
 	site := newSite(t, func(r chi.Router) {
 		r.Get("/boom", func(http.ResponseWriter, *http.Request) { panic("boom") })
 	})
-	rec := do(site, "/boom")
+	rec := do(t, site, "/boom")
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d", rec.Code)
 	}
@@ -159,7 +160,7 @@ func TestStaticAssets(t *testing.T) {
 		{"/static/img/logo.svg", "image/svg+xml"},
 	}
 	for _, tc := range cases {
-		rec := do(site, tc.path)
+		rec := do(t, site, tc.path)
 		if rec.Code != http.StatusOK {
 			t.Errorf("%s = %d", tc.path, rec.Code)
 			continue
@@ -171,7 +172,10 @@ func TestStaticAssets(t *testing.T) {
 			t.Errorf("%s has no Cache-Control", tc.path)
 		}
 	}
-	if rec := do(site, "/static/"); rec.Code != http.StatusNotFound {
-		t.Errorf("/static/ directory listing exposed: %d", rec.Code)
+	for _, path := range []string{"/static/", "/static/css/", "/static/%2e%2e/templates/layouts/base.html", "/static/..%2ftemplates/layouts/base.html"} {
+		rec := do(t, site, path)
+		if rec.Code == http.StatusOK || strings.Contains(rec.Body.String(), `{{define "base"}}`) {
+			t.Errorf("%s escaped the static dir or listed it: %d", path, rec.Code)
+		}
 	}
 }

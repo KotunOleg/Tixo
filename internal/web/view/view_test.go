@@ -44,7 +44,7 @@ func TestRenderErrorSendsNoPartialPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	rec := httptest.NewRecorder()
-	v.Render(rec, httptest.NewRequest(http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
+	v.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
 	if rec.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", rec.Code)
 	}

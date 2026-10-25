@@ -38,10 +38,12 @@ func TestProbe(t *testing.T) {
 
 func TestProbeAddress(t *testing.T) {
 	cases := map[string]string{
-		":8080":          "http://127.0.0.1:8080/healthz",
-		"0.0.0.0:8080":   "http://127.0.0.1:8080/healthz",
-		"127.0.0.1:9000": "http://127.0.0.1:9000/healthz",
-		"":               "http://127.0.0.1:8080/healthz",
+		":8080":           "http://127.0.0.1:8080/healthz",
+		"0.0.0.0:8080":    "http://127.0.0.1:8080/healthz",
+		"127.0.0.1:9000":  "http://127.0.0.1:9000/healthz",
+		"evil.example:80": "http://127.0.0.1:80/healthz",
+		":notaport":       "http://127.0.0.1:8080/healthz",
+		"":                "http://127.0.0.1:8080/healthz",
 	}
 	for addr, want := range cases {
 		if got := probeURL(addr); got != want {

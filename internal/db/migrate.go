@@ -23,7 +23,7 @@ func Migrate(ctx context.Context, databaseURL, command string, out io.Writer) er
 	if err != nil {
 		return fmt.Errorf("migrate: open: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	provider, err := goose.NewProvider(goose.DialectPostgres, conn, migrations.FS)
 	if err != nil {

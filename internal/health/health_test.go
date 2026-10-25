@@ -36,7 +36,7 @@ type body struct {
 func get(t *testing.T, h http.Handler) (int, body) {
 	t.Helper()
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	h.ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil))
 	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
 		t.Errorf("Content-Type = %q, want application/json", ct)
 	}
@@ -109,7 +109,7 @@ func TestHealthDoesNotLeakErrorDetails(t *testing.T) {
 	secret := "password authentication failed for user tixo at 10.0.0.5"
 	rec := httptest.NewRecorder()
 	Handler(time.Second, fakeChecker{name: "postgres", err: errors.New(secret)}).
-		ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+		ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil))
 	if got := rec.Body.String(); strings.Contains(got, "10.0.0.5") {
 		t.Errorf("public health response exposes dependency error: %s", got)
 	}

@@ -24,7 +24,7 @@ func Dial(ctx context.Context, url string) (*amqp.Connection, error) {
 			}
 			if deadline, ok := ctx.Deadline(); ok {
 				if err := conn.SetDeadline(deadline); err != nil {
-					conn.Close()
+					_ = conn.Close()
 					return nil, err
 				}
 			}
