@@ -2,12 +2,15 @@ package controllers
 
 import (
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/auth"
+	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
 
@@ -15,6 +18,9 @@ type Deps struct {
 	View     *view.Renderer
 	FS       fs.FS
 	Sessions *scs.SessionManager
+	Google   *auth.Google
+	Users    *users.Service
+	Logger   *slog.Logger
 }
 
 func Mount(r chi.Router, d Deps) {
@@ -22,6 +28,11 @@ func Mount(r chi.Router, d Deps) {
 	r.Group(func(r chi.Router) {
 		r.Use(d.Sessions.LoadAndSave)
 		r.Get("/", Home{View: d.View}.ServeHTTP)
+
+		a := Auth{View: d.View, Sessions: d.Sessions, Google: d.Google, Users: d.Users, Log: d.Logger}
+		r.Get("/auth/google/login", a.Login)
+		r.Get(auth.CallbackPath, a.Callback)
+		r.Post("/auth/logout", a.Logout)
 	})
 }
 

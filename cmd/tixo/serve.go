@@ -19,6 +19,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/platform/rabbitmq"
 	"github.com/KotunOleg/Tixo/internal/platform/redisclient"
 	"github.com/KotunOleg/Tixo/internal/server"
+	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/web/controllers"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
@@ -64,12 +65,20 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	defer func() { _ = rdb.Close() }()
 
 	sessions := auth.NewSessions(rdb, cfg.BaseURL, log, pages.ServerError)
+	var google *auth.Google
+	if cfg.GoogleEnabled() {
+		google = auth.NewGoogle(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.BaseURL)
+	} else {
+		log.Warn("google sign-in disabled: GOOGLE_CLIENT_ID is not set")
+	}
 
 	handler := server.New(server.Deps{
 		Logger: log,
 		Health: health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
 		Routes: func(r chi.Router) {
-			controllers.Mount(r, controllers.Deps{View: pages, FS: web.FS, Sessions: sessions})
+			controllers.Mount(r, controllers.Deps{
+				View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Logger: log,
+			})
 		},
 		NotFound:    pages.NotFound,
 		ServerError: pages.ServerError,

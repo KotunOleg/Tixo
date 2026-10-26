@@ -76,3 +76,14 @@ text = "The event may have moved or the link is out of date."
 [errors.500]
 title = "Something went wrong"
 text = "We already see the error. Please try again in a minute."
+
+[auth.error]
+title = "Sign-in failed"
+state = "The sign-in session expired or the link was tampered with. Please sign in again."
+provider = "Google is not responding right now. Please try again in a minute."
+unverified = "Google has not verified the email address of this account. Verify it in Google and try again."
+taken = "This email address is already linked to another Google account."
+retry = "Sign in again"
+
+[auth.flash]
+cancelled = "Sign-in cancelled."
