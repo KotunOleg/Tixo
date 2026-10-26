@@ -127,3 +127,50 @@ func TestDeleteVenueSucceeds(t *testing.T) {
 		t.Fatalf("status = %d, want 204: %s", del.Code, del.Body.String())
 	}
 }
+
+func TestListVenuesCachesSecondRequest(t *testing.T) {
+	s := newTestSite(t)
+	ownerID := s.createUser(t, "owner70@example.com")
+	s.createOrganizer(t, ownerID, "Kyiv Live", "kyiv-live-70")
+	token := s.tokenFor(t, ownerID)
+	create := s.request(t, http.MethodPost, "/api/v1/organizers/kyiv-live-70/venues", token,
+		`{"name":"Hall 70","address":"1 Street","city":"Kyiv","lat":50.45,"lng":30.52,"capacity":100}`)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create venue = %d: %s", create.Code, create.Body.String())
+	}
+
+	first := s.request(t, http.MethodGet, "/api/v1/organizers/kyiv-live-70/venues", token, "")
+	if got := first.Header().Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache = %q, want MISS", got)
+	}
+	second := s.request(t, http.MethodGet, "/api/v1/organizers/kyiv-live-70/venues", token, "")
+	if got := second.Header().Get("X-Cache"); got != "HIT" {
+		t.Fatalf("X-Cache = %q, want HIT", got)
+	}
+	if first.Body.String() != second.Body.String() {
+		t.Fatalf("cached body differs from original:\nfirst:  %s\nsecond: %s", first.Body.String(), second.Body.String())
+	}
+}
+
+func TestShowVenueCachesSecondRequest(t *testing.T) {
+	s := newTestSite(t)
+	ownerID := s.createUser(t, "owner71@example.com")
+	s.createOrganizer(t, ownerID, "Kyiv Live", "kyiv-live-71")
+	token := s.tokenFor(t, ownerID)
+	create := s.request(t, http.MethodPost, "/api/v1/organizers/kyiv-live-71/venues", token,
+		`{"name":"Hall 71","address":"1 Street","city":"Kyiv","lat":50.45,"lng":30.52,"capacity":100}`)
+	var created venueJSON
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	path := fmt.Sprintf("/api/v1/organizers/kyiv-live-71/venues/%d", created.ID)
+	first := s.request(t, http.MethodGet, path, token, "")
+	if got := first.Header().Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache = %q, want MISS", got)
+	}
+	second := s.request(t, http.MethodGet, path, token, "")
+	if got := second.Header().Get("X-Cache"); got != "HIT" {
+		t.Fatalf("X-Cache = %q, want HIT", got)
+	}
+}

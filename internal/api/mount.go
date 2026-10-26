@@ -8,6 +8,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
+	"github.com/KotunOleg/Tixo/internal/cache"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/orders"
@@ -26,6 +27,7 @@ type Deps struct {
 	Orders     *orders.Service
 	Analytics  *analytics.Service
 	APITokens  *apitokens.Service
+	Cache      *cache.Store
 	Logger     *slog.Logger
 }
 
@@ -49,7 +51,7 @@ func Mount(r chi.Router, d Deps) {
 		r.Post("/orders", ord.Create)
 		r.Get("/orders/{id}", ord.Show)
 
-		v := Venues{Svc: d.Venues, Log: d.Logger}
+		v := Venues{Svc: d.Venues, Log: d.Logger, Cache: d.Cache}
 		r.Route("/organizers/{slug}", func(r chi.Router) {
 			r.Use(requireMember(d.Organizers))
 			r.Get("/", o.Show)
@@ -64,7 +66,7 @@ func Mount(r chi.Router, d Deps) {
 			r.Patch("/venues/{id}", v.Update)
 			r.Delete("/venues/{id}", v.Delete)
 
-			e := Events{Svc: d.Events, Log: d.Logger}
+			e := Events{Svc: d.Events, Log: d.Logger, Cache: d.Cache}
 			r.Get("/events", e.List)
 			r.Post("/events", e.Create)
 			r.Get("/events/{id}", e.Show)

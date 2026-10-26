@@ -115,3 +115,56 @@ func TestGetEventRejectsForeignOrganizer(t *testing.T) {
 		t.Fatalf("status = %d, want 404: %s", foreign.Code, foreign.Body.String())
 	}
 }
+
+func TestListEventsCachesSecondRequest(t *testing.T) {
+	s := newTestSite(t)
+	ownerID := s.createUser(t, "owner24@example.com")
+	org := s.createOrganizer(t, ownerID, "Kyiv Live", "kyiv-live-24")
+	token := s.tokenFor(t, ownerID)
+	venueID := s.createVenue(t, org, "Hall 24")
+	create := s.request(t, http.MethodPost, "/api/v1/organizers/kyiv-live-24/events", token, fmt.Sprintf(
+		`{"venueId":%d,"slug":"show-24","title":"Show","startsAt":"2030-06-01T19:00:00Z","endsAt":"2030-06-01T21:00:00Z","genre":"rock","priceFrom":1500,"posterKey":"posters/24.jpg"}`, venueID))
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create event = %d: %s", create.Code, create.Body.String())
+	}
+
+	first := s.request(t, http.MethodGet, "/api/v1/organizers/kyiv-live-24/events", token, "")
+	if first.Code != http.StatusOK {
+		t.Fatalf("list = %d: %s", first.Code, first.Body.String())
+	}
+	if got := first.Header().Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache = %q, want MISS", got)
+	}
+
+	second := s.request(t, http.MethodGet, "/api/v1/organizers/kyiv-live-24/events", token, "")
+	if got := second.Header().Get("X-Cache"); got != "HIT" {
+		t.Fatalf("X-Cache = %q, want HIT", got)
+	}
+	if first.Body.String() != second.Body.String() {
+		t.Fatalf("cached body differs from original:\nfirst:  %s\nsecond: %s", first.Body.String(), second.Body.String())
+	}
+}
+
+func TestShowEventCachesSecondRequest(t *testing.T) {
+	s := newTestSite(t)
+	ownerID := s.createUser(t, "owner25@example.com")
+	org := s.createOrganizer(t, ownerID, "Kyiv Live", "kyiv-live-25")
+	token := s.tokenFor(t, ownerID)
+	venueID := s.createVenue(t, org, "Hall 25")
+	create := s.request(t, http.MethodPost, "/api/v1/organizers/kyiv-live-25/events", token, fmt.Sprintf(
+		`{"venueId":%d,"slug":"show-25","title":"Show","startsAt":"2030-06-01T19:00:00Z","endsAt":"2030-06-01T21:00:00Z","genre":"rock"}`, venueID))
+	var created eventJSON
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	path := fmt.Sprintf("/api/v1/organizers/kyiv-live-25/events/%d", created.ID)
+	first := s.request(t, http.MethodGet, path, token, "")
+	if got := first.Header().Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache = %q, want MISS", got)
+	}
+	second := s.request(t, http.MethodGet, path, token, "")
+	if got := second.Header().Get("X-Cache"); got != "HIT" {
+		t.Fatalf("X-Cache = %q, want HIT", got)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -16,6 +17,14 @@ import (
 )
 
 const maxJSONBodyBytes = 64 << 10
+const cacheTTL = 60 * time.Second
+
+func cacheStatus(hit bool) string {
+	if hit {
+		return "HIT"
+	}
+	return "MISS"
+}
 
 type membershipKey struct{}
 
