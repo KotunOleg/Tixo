@@ -8,3 +8,8 @@ sql:
         package: dbgen
         out: internal/db/gen
         sql_package: pgx/v5
+        overrides:
+          - db_type: timestamptz
+            go_type: time.Time
+          - db_type: jsonb
+            go_type: encoding/json.RawMessage

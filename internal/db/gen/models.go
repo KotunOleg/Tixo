@@ -3,3 +3,34 @@
 //   sqlc v1.30.0
 
 package dbgen
+
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Membership struct {
+	UserID      int64
+	OrganizerID int64
+	Role        string
+	CreatedAt   time.Time
+}
+
+type Organizer struct {
+	ID        int64
+	Slug      string
+	Name      string
+	Contacts  json.RawMessage
+	Plan      string
+	CreatedAt time.Time
+}
+
+type User struct {
+	ID        int64
+	Email     string
+	Name      string
+	GoogleSub pgtype.Text
+	CreatedAt time.Time
+}
