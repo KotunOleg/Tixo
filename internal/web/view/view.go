@@ -102,7 +102,7 @@ func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 	return &Page{
 		Name:           name,
 		Lang:           lang,
-		Path:           r.URL.Path,
+		Path:           cleanPath(r.URL.Path),
 		Data:           data,
 		SuggestEnglish: i18n.SuggestEnglish(r, lang),
 		RequestID:      middleware.GetReqID(r.Context()),
