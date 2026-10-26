@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -118,6 +119,27 @@ func TestEventRejectsVenueFromAnotherOrganizer(t *testing.T) {
 	}
 }
 
+func TestEventCreateDoesNotOrphanPosterOnValidationFailure(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	bob := s.signInAs(t, "sub-bob", "bob@example.com", "Bob")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	s.createOrganizer(t, bob, "Lviv Sound", "lviv-sound")
+	foreignVenue := mustEventVenue(t, s, "lviv-sound", bob)
+
+	rec := s.postMultipart(t, "/org/kyiv-live/events/new", eventFields(foreignVenue, "big-show"), "poster", "poster.png", pngBytes, alice)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("create with foreign venue and poster = %d\n%s", rec.Code, rec.Body.String())
+	}
+	entries, err := os.ReadDir(s.storageDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("a rejected create must not leave the uploaded poster on disk, found %v", entries)
+	}
+}
+
 func TestEventFormValidation(t *testing.T) {
 	s := newAuthSite(t)
 	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
@@ -179,6 +201,41 @@ func TestEventPosterUploadAndReplace(t *testing.T) {
 	}
 	if _, err := s.deps.Storage.Open(firstKey); err == nil {
 		t.Error("old poster must be deleted from storage after replacement")
+	}
+}
+
+func TestEventUpdateDoesNotOrphanNewPosterOnValidationFailure(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	bob := s.signInAs(t, "sub-bob", "bob@example.com", "Bob")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	s.createOrganizer(t, bob, "Lviv Sound", "lviv-sound")
+	venueID := mustEventVenue(t, s, "kyiv-live", alice)
+	foreignVenue := mustEventVenue(t, s, "lviv-sound", bob)
+
+	s.postMultipart(t, "/org/kyiv-live/events/new", eventFields(venueID, "big-show"), "poster", "poster.png", pngBytes, alice)
+	org := mustOrgID(t, s, "kyiv-live")
+	evs, err := dbgen.New(s.pool).ListEventsForOrganizer(context.Background(), dbgen.ListEventsForOrganizerParams{OrganizerID: org, Lim: 10})
+	if err != nil || len(evs) != 1 || !evs[0].PosterKey.Valid {
+		t.Fatalf("expected event with a poster, got %+v, %v", evs, err)
+	}
+	firstKey := evs[0].PosterKey.String
+	id := strconv.FormatInt(evs[0].ID, 10)
+
+	f := eventFields(foreignVenue, "big-show")
+	rec := s.postMultipart(t, "/org/kyiv-live/events/"+id+"/edit", f, "poster", "poster2.png", pngBytes, alice)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("update with foreign venue and new poster = %d\n%s", rec.Code, rec.Body.String())
+	}
+	if _, err := s.deps.Storage.Open(firstKey); err != nil {
+		t.Errorf("original poster must survive a rejected update: %v", err)
+	}
+	entries, err := os.ReadDir(s.storageDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("a rejected update must not leave the newly uploaded poster on disk, found %v", entries)
 	}
 }
 

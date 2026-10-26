@@ -102,11 +102,12 @@ func (f *fakeGoogle) userinfo(w http.ResponseWriter, r *http.Request) {
 }
 
 type authSite struct {
-	h    http.Handler
-	deps Deps
-	fake *fakeGoogle
-	svc  *users.Service
-	pool *pgxpool.Pool
+	h          http.Handler
+	deps       Deps
+	fake       *fakeGoogle
+	svc        *users.Service
+	pool       *pgxpool.Pool
+	storageDir string
 }
 
 func newAuthSite(t *testing.T) *authSite {
@@ -127,6 +128,7 @@ func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)
 	}
 	pool := dbtest.Pool(t)
 	svc := users.New(pool)
+	storageDir := t.TempDir()
 	h, d := buildSite(t, func(d *Deps) {
 		d.Users = svc
 		d.Organizers = organizers.New(pool)
@@ -135,7 +137,7 @@ func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)
 		d.Tiers = tiers.New(pool)
 		d.Lineup = lineup.New(pool)
 		d.Artists = artists.New(pool)
-		store, err := storage.New(t.TempDir())
+		store, err := storage.New(storageDir)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -145,7 +147,7 @@ func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)
 			Userinfo: fake.srv.URL + "/userinfo",
 		}, client)
 	}, extra)
-	return &authSite{h: h, deps: d, fake: fake, svc: svc, pool: pool}
+	return &authSite{h: h, deps: d, fake: fake, svc: svc, pool: pool, storageDir: storageDir}
 }
 
 func (s *authSite) signInAs(t *testing.T, sub, email, name string) *http.Cookie {
