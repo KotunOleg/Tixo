@@ -197,6 +197,8 @@ func TestStaticAssets(t *testing.T) {
 		{"/static/css/app.css", "text/css"},
 		{"/static/js/app.js", "text/javascript"},
 		{"/static/img/logo.svg", "image/svg+xml"},
+		{"/static/fonts/inter-cyrillic-wght-normal.woff2", "font/woff2"},
+		{"/static/fonts/unbounded-cyrillic-wght-normal.woff2", "font/woff2"},
 	}
 	for _, tc := range cases {
 		rec := do(t, site, tc.path)
