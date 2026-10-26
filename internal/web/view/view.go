@@ -107,6 +107,10 @@ func (v *Renderer) NotFound(w http.ResponseWriter, r *http.Request) {
 	v.Render(w, r, http.StatusNotFound, "errors/404", nil)
 }
 
+func (v *Renderer) Forbidden(w http.ResponseWriter, r *http.Request) {
+	v.Render(w, r, http.StatusForbidden, "errors/403", nil)
+}
+
 func (v *Renderer) ServerError(w http.ResponseWriter, r *http.Request) {
 	v.Render(w, r, http.StatusInternalServerError, "errors/500", nil)
 }

@@ -173,3 +173,77 @@ func TestEventsListsOnlyTheMembersOrganizer(t *testing.T) {
 		t.Errorf("alice's events = %+v, want only Kyiv Live show", events)
 	}
 }
+
+func TestOwnerAddsExistingUserAsEditor(t *testing.T) {
+	pool := dbtest.Pool(t)
+	svc := New(pool)
+	alice := mustUser(t, pool, "alice@example.com")
+	bob := mustUser(t, pool, "bob@example.com")
+	if _, err := svc.Create(context.Background(), alice, CreateInput{Name: "Kyiv Live", Slug: "kyiv-live"}); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := svc.ForMember(context.Background(), alice, "kyiv-live")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	added, err := svc.AddMember(context.Background(), owner, "  Bob@Example.com ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if added.UserID != bob || added.Role != RoleEditor {
+		t.Errorf("added = %+v, want bob as editor", added)
+	}
+	m, err := svc.ForMember(context.Background(), bob, "kyiv-live")
+	if err != nil || m.Role != RoleEditor {
+		t.Errorf("bob after being added = %+v, %v; want editor access", m, err)
+	}
+	members, err := svc.Members(context.Background(), owner)
+	if err != nil || len(members) != 2 || members[0].Role != RoleOwner || members[1].Email != "bob@example.com" {
+		t.Errorf("members = %+v, %v; want owner first, then bob", members, err)
+	}
+}
+
+func TestAddMemberRejections(t *testing.T) {
+	pool := dbtest.Pool(t)
+	svc := New(pool)
+	alice := mustUser(t, pool, "alice@example.com")
+	bob := mustUser(t, pool, "bob@example.com")
+	mustUser(t, pool, "carol@example.com")
+	if _, err := svc.Create(context.Background(), alice, CreateInput{Name: "Kyiv Live", Slug: "kyiv-live"}); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := svc.ForMember(context.Background(), alice, "kyiv-live")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AddMember(context.Background(), owner, "bob@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	editor, err := svc.ForMember(context.Background(), bob, "kyiv-live")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := svc.AddMember(context.Background(), editor, "carol@example.com"); !errors.Is(err, ErrForbidden) {
+		t.Errorf("editor adding a member: err = %v, want ErrForbidden", err)
+	}
+	cases := map[string]string{
+		"":                   CodeRequired,
+		"not-an-email":       CodeFormat,
+		"nobody@example.com": CodeNotFound,
+		"bob@example.com":    CodeMember,
+		"ALICE@example.com":  CodeMember,
+	}
+	for email, want := range cases {
+		_, err := svc.AddMember(context.Background(), owner, email)
+		var verr *ValidationError
+		if !errors.As(err, &verr) || verr.Fields[FieldEmail] != want {
+			t.Errorf("AddMember(%q) err = %v, want email=%s", email, err, want)
+		}
+	}
+	var n int
+	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM memberships").Scan(&n); err != nil || n != 2 {
+		t.Errorf("memberships = %d, %v; want 2 (owner + bob)", n, err)
+	}
+}
