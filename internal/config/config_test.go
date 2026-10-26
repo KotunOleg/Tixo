@@ -53,6 +53,9 @@ func TestLoadRejects(t *testing.T) {
 		{name: "prod without session secret", set: map[string]string{"APP_ENV": "prod", "BASE_URL": "https://tixo.me"}, wantVar: "SESSION_SECRET"},
 		{name: "prod with short session secret", set: map[string]string{"APP_ENV": "prod", "BASE_URL": "https://tixo.me", "SESSION_SECRET": "short"}, wantVar: "SESSION_SECRET"},
 		{name: "prod over plain http", set: map[string]string{"APP_ENV": "prod", "SESSION_SECRET": strings.Repeat("x", 32), "BASE_URL": "http://tixo.me"}, wantVar: "BASE_URL"},
+		{name: "google client id without secret", set: map[string]string{"GOOGLE_CLIENT_ID": "id.apps.googleusercontent.com"}, wantVar: "GOOGLE_CLIENT_SECRET"},
+		{name: "google client secret without id", set: map[string]string{"GOOGLE_CLIENT_SECRET": "secret"}, wantVar: "GOOGLE_CLIENT_ID"},
+		{name: "prod without google sign-in", set: map[string]string{"APP_ENV": "prod", "SESSION_SECRET": strings.Repeat("x", 32), "BASE_URL": "https://tixo.me"}, wantVar: "GOOGLE_CLIENT_ID"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -79,11 +82,26 @@ func TestLoadAcceptsValidProd(t *testing.T) {
 	env["APP_ENV"] = "prod"
 	env["SESSION_SECRET"] = strings.Repeat("s", 32)
 	env["BASE_URL"] = "https://tixo.me"
+	env["GOOGLE_CLIENT_ID"] = "id.apps.googleusercontent.com"
+	env["GOOGLE_CLIENT_SECRET"] = "secret"
 	cfg, err := LoadFrom(env)
 	if err != nil {
 		t.Fatalf("valid prod env rejected: %v", err)
 	}
 	if !cfg.IsProd() {
 		t.Error("IsProd() = false for APP_ENV=prod")
+	}
+	if !cfg.GoogleEnabled() {
+		t.Error("GoogleEnabled() = false with both google credentials set")
+	}
+}
+
+func TestDevStartsWithoutGoogleSignIn(t *testing.T) {
+	cfg, err := LoadFrom(validEnv())
+	if err != nil {
+		t.Fatalf("dev env without google credentials rejected: %v", err)
+	}
+	if cfg.GoogleEnabled() {
+		t.Error("GoogleEnabled() = true without credentials")
 	}
 }

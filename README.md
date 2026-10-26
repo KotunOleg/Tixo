@@ -69,6 +69,8 @@ make check             # lint + перевірка згенерованого к
 | `REDIS_URL` | — | Redis |
 | `AMQP_URL` | — | RabbitMQ |
 | `SESSION_SECRET` | генерується в dev | ключ сесій, у prod обов'язковий, ≥ 32 байти |
+| `GOOGLE_CLIENT_ID` | — | OAuth client для входу через Google; без нього в dev вхід вимкнено, у prod обов'язковий |
+| `GOOGLE_CLIENT_SECRET` | — | секрет того ж OAuth client, задається разом з `GOOGLE_CLIENT_ID` |
 
 ## Структура
 
