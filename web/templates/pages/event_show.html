@@ -18,5 +18,57 @@
     <form method="post" action="{{.URL (printf "/org/%s/events/%d/cancel" .Data.Slug .Data.ID)}}" data-confirm="{{.T "event.show.cancel_confirm"}}"><button class="btn btn-quiet btn-sm" type="submit">{{.T "event.show.cancel"}}</button></form>
     {{end}}
   </div>
+  <h2 class="h4 mb-3">{{.T "event.tiers.title"}}</h2>
+  {{if .Data.Tiers}}
+  <div class="table-responsive mb-4">
+    <table class="table tixo-table align-middle">
+      <thead><tr>
+        <th scope="col">{{.T "event.tiers.name"}}</th>
+        <th scope="col">{{.T "event.tiers.price"}}</th>
+        <th scope="col">{{.T "event.tiers.quantity"}}</th>
+        <th scope="col">{{.T "event.tiers.available"}}</th>
+        <th scope="col"><span class="visually-hidden">{{.T "event.tiers.actions"}}</span></th>
+      </tr></thead>
+      <tbody>
+        {{range .Data.Tiers}}
+        <tr>
+          <td><label class="visually-hidden" for="tier-name-{{.ID}}">{{$.T "event.tiers.name"}}</label><input class="form-control form-control-sm" form="tier-{{.ID}}" id="tier-name-{{.ID}}" name="name" value="{{.Name}}" required maxlength="100"></td>
+          <td><label class="visually-hidden" for="tier-price-{{.ID}}">{{$.T "event.tiers.price"}}</label><input class="form-control form-control-sm" form="tier-{{.ID}}" id="tier-price-{{.ID}}" name="price" inputmode="decimal" value="{{.Price}}" required></td>
+          <td><label class="visually-hidden" for="tier-quantity-{{.ID}}">{{$.T "event.tiers.quantity"}}</label><input class="form-control form-control-sm" form="tier-{{.ID}}" id="tier-quantity-{{.ID}}" name="quantity" inputmode="numeric" value="{{.Quantity}}" required></td>
+          <td>{{.Available}}</td>
+          <td class="text-end text-nowrap">
+            <button class="btn btn-quiet btn-sm" form="tier-{{.ID}}" type="submit">{{$.T "event.tiers.save"}}</button>
+            <button class="btn btn-quiet btn-sm" form="tier-delete-{{.ID}}" type="submit">{{$.T "event.tiers.delete"}}</button>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{range .Data.Tiers}}
+  <form id="tier-{{.ID}}" method="post" action="{{$.URL (printf "/org/%s/events/%d/tiers/%d" $.Data.Slug $.Data.ID .ID)}}"></form>
+  <form id="tier-delete-{{.ID}}" method="post" action="{{$.URL (printf "/org/%s/events/%d/tiers/%d/delete" $.Data.Slug $.Data.ID .ID)}}" data-confirm="{{$.T "event.tiers.delete_confirm"}}"></form>
+  {{end}}
+  {{else}}
+  <p class="text-muted mb-4">{{.T "event.tiers.empty"}}</p>
+  {{end}}
+  <form method="post" action="{{.URL (printf "/org/%s/events/%d/tiers" .Data.Slug .Data.ID)}}" class="tixo-form mb-5" style="max-width: 32rem">
+    <h3 class="h6 mb-3">{{.T "event.tiers.add_title"}}</h3>
+    <div class="mb-3">
+      <label class="form-label" for="new-tier-name">{{.T "event.tiers.name"}}</label>
+      <input class="form-control" id="new-tier-name" name="name" required maxlength="100">
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-sm-6">
+        <label class="form-label" for="new-tier-price">{{.T "event.tiers.price"}}</label>
+        <input class="form-control" id="new-tier-price" name="price" inputmode="decimal" placeholder="0.00" required>
+      </div>
+      <div class="col-sm-6">
+        <label class="form-label" for="new-tier-quantity">{{.T "event.tiers.quantity"}}</label>
+        <input class="form-control" id="new-tier-quantity" name="quantity" inputmode="numeric" required>
+      </div>
+    </div>
+    <button class="btn btn-tixo" type="submit">{{.T "event.tiers.add"}}</button>
+  </form>
 </section>
 {{end}}
