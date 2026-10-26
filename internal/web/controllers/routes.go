@@ -14,6 +14,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/users"
+	"github.com/KotunOleg/Tixo/internal/venues"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
 
@@ -24,6 +25,7 @@ type Deps struct {
 	Google     *auth.Google
 	Users      *users.Service
 	Organizers *organizers.Service
+	Venues     *venues.Service
 	Storage    *storage.Store
 	Logger     *slog.Logger
 }
@@ -50,6 +52,14 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Post("/org/{slug}/members", o.AddMember)
 			r.With(o.RequireMember).Get("/org/{slug}/edit", o.Edit)
 			r.With(o.RequireMember).Post("/org/{slug}/edit", o.EditSubmit)
+
+			v := Venues{View: d.View, Svc: d.Venues, Log: d.Logger}
+			r.With(o.RequireMember).Get("/org/{slug}/venues", v.List)
+			r.With(o.RequireMember).Get("/org/{slug}/venues/new", v.New)
+			r.With(o.RequireMember).Post("/org/{slug}/venues/new", v.Create)
+			r.With(o.RequireMember).Get("/org/{slug}/venues/{id}/edit", v.Edit)
+			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/edit", v.Update)
+			r.With(o.RequireMember).Post("/org/{slug}/venues/{id}/delete", v.Delete)
 		})
 	})
 }

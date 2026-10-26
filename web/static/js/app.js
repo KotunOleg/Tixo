@@ -8,3 +8,10 @@ document.addEventListener("click", (event) => {
 });
 
 document.querySelector("[data-focus-on-load]")?.focus();
+
+document.addEventListener("submit", (event) => {
+  const message = event.target.getAttribute?.("data-confirm");
+  if (message && !confirm(message)) {
+    event.preventDefault();
+  }
+});

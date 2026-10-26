@@ -127,6 +127,7 @@ col_title = "Title"
 col_starts = "Starts (Kyiv)"
 col_status = "Status"
 edit = "Edit"
+venues = "Venues"
 
 [org.edit]
 title = "Organizer settings"
@@ -162,6 +163,44 @@ email = "Add a member by email"
 email_help = "The person must have signed in to Tixo with Google at least once. They get the editor role."
 submit = "Add"
 added = "Member added."
+
+[venue.list]
+title = "Venues"
+create = "Add venue"
+empty = "No venues yet."
+shared = "Shared"
+edit = "Edit"
+
+[venue.form]
+title_new = "New venue"
+title_edit = "Edit venue"
+name = "Name"
+address = "Address"
+city = "City"
+lat = "Latitude"
+lng = "Longitude"
+capacity = "Capacity"
+submit = "Save"
+delete = "Delete venue"
+delete_confirm = "Delete this venue? This cannot be undone."
+
+[venue.form.error]
+name_required = "Enter a name."
+name_length = "The name must be 2 to 150 characters long."
+name_taken = "You already have a venue with this name."
+address_required = "Enter an address."
+address_length = "The address is too long."
+city_required = "Enter a city."
+city_length = "The city must be 2 to 100 characters long."
+lat_range = "Latitude must be between -90 and 90."
+lat_format = "Enter a number, e.g. 50.45."
+lng_range = "Longitude must be between -180 and 180."
+lng_format = "Enter a number, e.g. 30.52."
+capacity_range = "Capacity must be greater than zero."
+capacity_format = "Enter a whole number."
+
+[venue.delete]
+has_events = "Delete or move this venue's events first."
 
 [errors.403]
 title = "Access denied"

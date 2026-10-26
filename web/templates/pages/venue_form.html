@@ -1,0 +1,69 @@
+{{define "title"}}{{if .Data.Editing}}{{.Data.Name}}{{else}}{{.T "venue.form.title_new"}}{{end}} · {{.Data.OrgName}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.OrgName}}</a></li>
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s/venues" .Data.Slug)}}">{{.T "venue.list.title"}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{if .Data.Editing}}{{.Data.Name}}{{else}}{{.T "venue.form.title_new"}}{{end}}</li>
+  </ol></nav>
+  <div class="tixo-form">
+    <h1 class="mb-4">{{if .Data.Editing}}{{.T "venue.form.title_edit"}}{{else}}{{.T "venue.form.title_new"}}{{end}}</h1>
+    {{with .Data.Errors}}
+    <div class="tixo-error-summary mb-4" id="venue-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="venue-errors-title">
+      <h2 class="h6 mb-2" id="venue-errors-title">{{$.T "org.form.errors_title"}}</h2>
+      <ul class="mb-0">
+        {{with index . "name"}}<li><a href="#venue-name">{{$.T .}}</a></li>{{end}}
+        {{with index . "address"}}<li><a href="#venue-address">{{$.T .}}</a></li>{{end}}
+        {{with index . "city"}}<li><a href="#venue-city">{{$.T .}}</a></li>{{end}}
+        {{with index . "lat"}}<li><a href="#venue-lat">{{$.T .}}</a></li>{{end}}
+        {{with index . "lng"}}<li><a href="#venue-lng">{{$.T .}}</a></li>{{end}}
+        {{with index . "capacity"}}<li><a href="#venue-capacity">{{$.T .}}</a></li>{{end}}
+      </ul>
+    </div>
+    {{end}}
+    <form method="post" action="{{if .Data.Editing}}{{.URL (printf "/org/%s/venues/%d/edit" .Data.Slug .Data.ID)}}{{else}}{{.URL (printf "/org/%s/venues/new" .Data.Slug)}}{{end}}" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="venue-name">{{.T "venue.form.name"}}</label>
+        <input class="form-control{{if index .Data.Errors "name"}} is-invalid{{end}}" id="venue-name" name="name" value="{{.Data.Name}}"{{if index .Data.Errors "name"}} aria-invalid="true" aria-describedby="venue-name-error"{{end}} required minlength="2" maxlength="150">
+        {{with index .Data.Errors "name"}}<div class="invalid-feedback" id="venue-name-error">{{$.T .}}</div>{{end}}
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="venue-address">{{.T "venue.form.address"}}</label>
+        <input class="form-control{{if index .Data.Errors "address"}} is-invalid{{end}}" id="venue-address" name="address" value="{{.Data.Address}}"{{if index .Data.Errors "address"}} aria-invalid="true" aria-describedby="venue-address-error"{{end}} required maxlength="200">
+        {{with index .Data.Errors "address"}}<div class="invalid-feedback" id="venue-address-error">{{$.T .}}</div>{{end}}
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="venue-city">{{.T "venue.form.city"}}</label>
+        <input class="form-control{{if index .Data.Errors "city"}} is-invalid{{end}}" id="venue-city" name="city" value="{{.Data.City}}"{{if index .Data.Errors "city"}} aria-invalid="true" aria-describedby="venue-city-error"{{end}} required minlength="2" maxlength="100">
+        {{with index .Data.Errors "city"}}<div class="invalid-feedback" id="venue-city-error">{{$.T .}}</div>{{end}}
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label" for="venue-lat">{{.T "venue.form.lat"}}</label>
+          <input class="form-control{{if index .Data.Errors "lat"}} is-invalid{{end}}" id="venue-lat" name="lat" inputmode="decimal" value="{{.Data.Lat}}"{{if index .Data.Errors "lat"}} aria-invalid="true" aria-describedby="venue-lat-error"{{end}} required>
+          {{with index .Data.Errors "lat"}}<div class="invalid-feedback" id="venue-lat-error">{{$.T .}}</div>{{end}}
+        </div>
+        <div class="col-6">
+          <label class="form-label" for="venue-lng">{{.T "venue.form.lng"}}</label>
+          <input class="form-control{{if index .Data.Errors "lng"}} is-invalid{{end}}" id="venue-lng" name="lng" inputmode="decimal" value="{{.Data.Lng}}"{{if index .Data.Errors "lng"}} aria-invalid="true" aria-describedby="venue-lng-error"{{end}} required>
+          {{with index .Data.Errors "lng"}}<div class="invalid-feedback" id="venue-lng-error">{{$.T .}}</div>{{end}}
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="form-label" for="venue-capacity">{{.T "venue.form.capacity"}}</label>
+        <input class="form-control{{if index .Data.Errors "capacity"}} is-invalid{{end}}" id="venue-capacity" name="capacity" inputmode="numeric" value="{{.Data.Capacity}}"{{if index .Data.Errors "capacity"}} aria-invalid="true" aria-describedby="venue-capacity-error"{{end}} required>
+        {{with index .Data.Errors "capacity"}}<div class="invalid-feedback" id="venue-capacity-error">{{$.T .}}</div>{{end}}
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-tixo" type="submit">{{.T "venue.form.submit"}}</button>
+        <a class="btn btn-quiet" href="{{.URL (printf "/org/%s/venues" .Data.Slug)}}">{{.T "org.form.cancel"}}</a>
+      </div>
+    </form>
+    {{if .Data.Editing}}
+    <form method="post" action="{{.URL (printf "/org/%s/venues/%d/delete" .Data.Slug .Data.ID)}}" class="mt-4" data-confirm="{{.T "venue.form.delete_confirm"}}">
+      <button class="btn btn-quiet" type="submit">{{.T "venue.form.delete"}}</button>
+    </form>
+    {{end}}
+  </div>
+</section>
+{{end}}

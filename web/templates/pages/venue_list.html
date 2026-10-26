@@ -1,0 +1,26 @@
+{{define "title"}}{{.T "venue.list.title"}} · {{.Data.OrgName}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.OrgName}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{.T "venue.list.title"}}</li>
+  </ol></nav>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="mb-0">{{.T "venue.list.title"}}</h1>
+    <a class="btn btn-tixo" href="{{.URL (printf "/org/%s/venues/new" .Data.Slug)}}">{{.T "venue.list.create"}}</a>
+  </div>
+  {{with .Data.ErrorMsg}}<div class="tixo-error-summary mb-4" role="alert">{{$.T .}}</div>{{end}}
+  {{with .Data.Items}}
+  <ul class="list-group">
+    {{range .}}<li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span class="text-break"><span class="d-block fw-semibold">{{.Name}}</span><span class="d-block text-body-secondary small">{{.City}}</span></span>
+      {{if .Shared}}<span class="tixo-badge">{{$.T "venue.list.shared"}}</span>
+      {{else}}<a class="btn btn-quiet btn-sm" href="{{$.URL .EditURL}}">{{$.T "venue.list.edit"}}</a>{{end}}
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="text-body-secondary">{{.T "venue.list.empty"}}</p>
+  {{end}}
+</section>
+{{end}}
