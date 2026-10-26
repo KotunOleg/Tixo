@@ -26,7 +26,7 @@ type Deps struct {
 func Mount(r chi.Router, d Deps) {
 	r.Get("/static/*", staticFiles(d.View, d.FS))
 	r.Group(func(r chi.Router) {
-		r.Use(d.Sessions.LoadAndSave)
+		r.Use(d.Sessions.LoadAndSave, d.loadUser())
 		r.Get("/", Home{View: d.View}.ServeHTTP)
 
 		a := Auth{View: d.View, Sessions: d.Sessions, Google: d.Google, Users: d.Users, Log: d.Logger}
@@ -34,6 +34,14 @@ func Mount(r chi.Router, d Deps) {
 		r.Get(auth.CallbackPath, a.Callback)
 		r.Post("/auth/logout", a.Logout)
 	})
+}
+
+func (d Deps) loadUser() func(http.Handler) http.Handler {
+	return loadUser(d.Sessions, d.Users, d.Logger, d.View.ServerError)
+}
+
+func (d Deps) NotFound() http.HandlerFunc {
+	return d.Sessions.LoadAndSave(d.loadUser()(http.HandlerFunc(d.View.NotFound))).ServeHTTP
 }
 
 func staticFiles(v *view.Renderer, fsys fs.FS) http.HandlerFunc {

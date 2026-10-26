@@ -12,6 +12,9 @@ map = "Мапа"
 organizers = "Організаторам"
 sign_in = "Увійти"
 toggle = "Відкрити меню"
+my_organizers = "Мої організатори"
+sign_out = "Вийти"
+account = "Акаунт"
 
 [lang]
 switch = "English"
@@ -87,3 +90,6 @@ retry = "Увійти ще раз"
 
 [auth.flash]
 cancelled = "Вхід скасовано."
+
+[flash]
+close = "Закрити"

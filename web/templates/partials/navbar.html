@@ -15,7 +15,25 @@
       </ul>
       <div class="d-flex align-items-center gap-2">
         <a class="btn btn-sm btn-outline-light" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}" title="{{.T "lang.switch"}}">{{.T "lang.switch_short"}}</a>
-        <a class="btn btn-sm btn-tixo" href="{{.URL "/login"}}"><i class="bi bi-person me-1"></i>{{.T "nav.sign_in"}}</a>
+        {{if .Viewer}}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="{{.T "nav.account"}}">
+            <i class="bi bi-person-circle me-1"></i><span class="tixo-viewer-name">{{.Viewer.Name}}</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><span class="dropdown-item-text small text-body-secondary">{{.Viewer.Email}}</span></li>
+            <li><a class="dropdown-item" href="{{.URL "/org"}}"><i class="bi bi-building me-2"></i>{{.T "nav.my_organizers"}}</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+              <form method="post" action="{{.URL "/auth/logout"}}">
+                <button class="dropdown-item" type="submit"><i class="bi bi-box-arrow-right me-2"></i>{{.T "nav.sign_out"}}</button>
+              </form>
+            </li>
+          </ul>
+        </div>
+        {{else if .SignIn}}
+        <a class="btn btn-sm btn-tixo" href="{{.URL "/auth/google/login"}}?next={{.Path}}"><i class="bi bi-google me-1"></i>{{.T "nav.sign_in"}}</a>
+        {{end}}
       </div>
     </div>
   </div>

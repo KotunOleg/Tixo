@@ -47,7 +47,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	if err != nil {
 		return err
 	}
-	pages, err := view.New(web.FS, tr, view.Config{BaseURL: cfg.BaseURL, Logger: log})
+	pages, err := view.New(web.FS, tr, view.Config{BaseURL: cfg.BaseURL, Logger: log, SignIn: cfg.GoogleEnabled()})
 	if err != nil {
 		return err
 	}
@@ -72,15 +72,14 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		log.Warn("google sign-in disabled: GOOGLE_CLIENT_ID is not set")
 	}
 
+	site := controllers.Deps{
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Logger: log,
+	}
 	handler := server.New(server.Deps{
-		Logger: log,
-		Health: health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
-		Routes: func(r chi.Router) {
-			controllers.Mount(r, controllers.Deps{
-				View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Logger: log,
-			})
-		},
-		NotFound:    pages.NotFound,
+		Logger:      log,
+		Health:      health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
+		Routes:      func(r chi.Router) { controllers.Mount(r, site) },
+		NotFound:    site.NotFound(),
 		ServerError: pages.ServerError,
 	})
 
