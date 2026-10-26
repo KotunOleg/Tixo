@@ -2,7 +2,7 @@ TEST_ENV = TEST_DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo_test?sslm
 	TEST_REDIS_URL=redis://localhost:56379/1 \
 	TEST_AMQP_URL=amqp://tixo:tixo@localhost:55672/
 
-.PHONY: up down infra run test test-integration lint gen gen-check check
+.PHONY: up down infra run seed test test-integration lint gen gen-check check
 
 up:
 	docker compose up --build -d
@@ -19,6 +19,12 @@ run:
 	REDIS_URL=redis://localhost:56379/0 \
 	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
 	go run ./cmd/tixo serve
+
+seed:
+	DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable \
+	REDIS_URL=redis://localhost:56379/0 \
+	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
+	go run ./cmd/tixo seed
 
 test:
 	go test -race -count=1 ./...
