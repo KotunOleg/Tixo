@@ -2,9 +2,13 @@ package controllers
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
+	"os"
+	"path"
 	"strings"
 
 	"github.com/alexedwards/scs/v2"
@@ -42,13 +46,13 @@ type Deps struct {
 	Features   *features.Service
 	Analytics  *analytics.Service
 	APITokens  *apitokens.Service
-	Storage    *storage.Store
+	Storage    storage.Store
 	Logger     *slog.Logger
 }
 
 func Mount(r chi.Router, d Deps) {
 	r.Get("/static/*", staticFiles(d.View, d.FS))
-	r.Get("/media/{key}", mediaFiles(d.View, d.Storage))
+	r.Get("/media/{key}", mediaFiles(d.View, d.Logger, d.Storage))
 	seo := SEO{View: d.View, Events: d.Events, Log: d.Logger}
 	r.Get("/robots.txt", seo.Robots)
 	r.Get("/sitemap.xml", seo.Sitemap)
@@ -150,9 +154,10 @@ func staticFiles(v *view.Renderer, fsys fs.FS) http.HandlerFunc {
 	}
 }
 
-func mediaFiles(v *view.Renderer, store *storage.Store) http.HandlerFunc {
+func mediaFiles(v *view.Renderer, log *slog.Logger, store storage.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		f, err := store.Open(chi.URLParam(r, "key"))
+		key := chi.URLParam(r, "key")
+		f, err := store.Open(key)
 		if errors.Is(err, storage.ErrNotFound) {
 			v.NotFound(w, r)
 			return
@@ -162,12 +167,21 @@ func mediaFiles(v *view.Renderer, store *storage.Store) http.HandlerFunc {
 			return
 		}
 		defer func() { _ = f.Close() }()
-		info, err := f.Stat()
-		if err != nil {
-			v.ServerError(w, r)
-			return
-		}
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
-		http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+		if rs, ok := f.(io.ReadSeeker); ok {
+			if statter, ok := f.(interface{ Stat() (os.FileInfo, error) }); ok {
+				info, err := statter.Stat()
+				if err != nil {
+					v.ServerError(w, r)
+					return
+				}
+				http.ServeContent(w, r, info.Name(), info.ModTime(), rs)
+				return
+			}
+		}
+		w.Header().Set("Content-Type", mime.TypeByExtension(path.Ext(key)))
+		if _, err := io.Copy(w, f); err != nil {
+			log.Error("stream media file", "key", key, "error", err)
+		}
 	}
 }
