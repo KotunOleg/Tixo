@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	searchMinLen = 2
+	searchMinLen = 3
 	searchLimit  = 20
 	nameMaxLen   = 200
 )
