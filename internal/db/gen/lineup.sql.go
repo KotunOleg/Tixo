@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countEventArtists = `-- name: CountEventArtists :one
+SELECT count(*)::integer FROM event_artists WHERE event_id = $1
+`
+
+func (q *Queries) CountEventArtists(ctx context.Context, eventID int64) (int32, error) {
+	row := q.db.QueryRow(ctx, countEventArtists, eventID)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listEventArtists = `-- name: ListEventArtists :many
 SELECT a.id, a.mbid, a.name, a.sort_name, a.type, a.country, a.disambiguation, a.genres, a.links, a.enriched_at, ea.position, ea.is_headliner
 FROM event_artists ea
@@ -32,6 +43,59 @@ func (q *Queries) ListEventArtists(ctx context.Context, eventID int64) ([]ListEv
 	var items []ListEventArtistsRow
 	for rows.Next() {
 		var i ListEventArtistsRow
+		if err := rows.Scan(
+			&i.Artist.ID,
+			&i.Artist.Mbid,
+			&i.Artist.Name,
+			&i.Artist.SortName,
+			&i.Artist.Type,
+			&i.Artist.Country,
+			&i.Artist.Disambiguation,
+			&i.Artist.Genres,
+			&i.Artist.Links,
+			&i.Artist.EnrichedAt,
+			&i.Position,
+			&i.IsHeadliner,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEventArtistsForOrganizer = `-- name: ListEventArtistsForOrganizer :many
+SELECT a.id, a.mbid, a.name, a.sort_name, a.type, a.country, a.disambiguation, a.genres, a.links, a.enriched_at, ea.position, ea.is_headliner
+FROM event_artists ea
+JOIN artists a ON a.id = ea.artist_id
+JOIN events e ON e.id = ea.event_id
+WHERE ea.event_id = $1 AND e.organizer_id = $2
+ORDER BY ea.is_headliner DESC, ea.position, a.name
+`
+
+type ListEventArtistsForOrganizerParams struct {
+	EventID     int64
+	OrganizerID int64
+}
+
+type ListEventArtistsForOrganizerRow struct {
+	Artist      Artist
+	Position    int32
+	IsHeadliner bool
+}
+
+func (q *Queries) ListEventArtistsForOrganizer(ctx context.Context, arg ListEventArtistsForOrganizerParams) ([]ListEventArtistsForOrganizerRow, error) {
+	rows, err := q.db.Query(ctx, listEventArtistsForOrganizer, arg.EventID, arg.OrganizerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListEventArtistsForOrganizerRow
+	for rows.Next() {
+		var i ListEventArtistsForOrganizerRow
 		if err := rows.Scan(
 			&i.Artist.ID,
 			&i.Artist.Mbid,

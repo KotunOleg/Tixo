@@ -11,16 +11,22 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/config"
+	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/health"
+	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
 	"github.com/KotunOleg/Tixo/internal/platform/postgres"
 	"github.com/KotunOleg/Tixo/internal/platform/rabbitmq"
 	"github.com/KotunOleg/Tixo/internal/platform/redisclient"
+	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/server"
+	"github.com/KotunOleg/Tixo/internal/tiers"
 	"github.com/KotunOleg/Tixo/internal/users"
+	"github.com/KotunOleg/Tixo/internal/venues"
 	"github.com/KotunOleg/Tixo/internal/web/controllers"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
@@ -59,6 +65,11 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 	defer pool.Close()
 
+	posters, err := storage.New(cfg.StorageDir)
+	if err != nil {
+		return err
+	}
+
 	rdb, err := redisclient.New(cfg.RedisURL)
 	if err != nil {
 		return err
@@ -74,7 +85,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 
 	site := controllers.Deps{
-		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Logger: log,
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: organizers.New(pool), Venues: venues.New(pool), Events: events.New(pool), Tiers: tiers.New(pool), Lineup: lineup.New(pool), Artists: artists.New(pool), Storage: posters, Logger: log,
 	}
 	handler := server.New(server.Deps{
 		Logger:      log,

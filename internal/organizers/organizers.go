@@ -21,9 +21,12 @@ const (
 	RoleOwner  = "owner"
 	RoleEditor = "editor"
 
-	FieldName  = "name"
-	FieldSlug  = "slug"
-	FieldEmail = "email"
+	FieldName            = "name"
+	FieldSlug            = "slug"
+	FieldEmail           = "email"
+	FieldContactEmail    = "contact_email"
+	FieldContactPhone    = "contact_phone"
+	FieldContactTelegram = "contact_telegram"
 
 	CodeRequired = "required"
 	CodeLength   = "length"
@@ -37,6 +40,10 @@ const (
 	nameMaxLen = 100
 	slugMinLen = 3
 	slugMaxLen = 50
+
+	ContactKeyEmail    = "email"
+	ContactKeyPhone    = "phone"
+	ContactKeyTelegram = "telegram"
 
 	eventsPageSize  = 50
 	uniqueViolation = "23505"
@@ -68,6 +75,13 @@ func (e *ValidationError) Error() string {
 type CreateInput struct {
 	Name string
 	Slug string
+}
+
+type UpdateInput struct {
+	Name            string
+	ContactEmail    string
+	ContactPhone    string
+	ContactTelegram string
 }
 
 type Membership struct {
@@ -141,6 +155,63 @@ func validate(in CreateInput) error {
 		return &ValidationError{Fields: fields}
 	}
 	return nil
+}
+
+func (s *Service) Update(ctx context.Context, org dbgen.Organizer, in UpdateInput) (dbgen.Organizer, error) {
+	in.Name = strings.TrimSpace(in.Name)
+	in.ContactEmail = strings.TrimSpace(in.ContactEmail)
+	in.ContactPhone = strings.TrimSpace(in.ContactPhone)
+	in.ContactTelegram = strings.TrimSpace(in.ContactTelegram)
+	if err := validateUpdate(in); err != nil {
+		return dbgen.Organizer{}, err
+	}
+
+	contacts := map[string]string{}
+	if in.ContactEmail != "" {
+		contacts[ContactKeyEmail] = in.ContactEmail
+	}
+	if in.ContactPhone != "" {
+		contacts[ContactKeyPhone] = in.ContactPhone
+	}
+	if in.ContactTelegram != "" {
+		contacts[ContactKeyTelegram] = in.ContactTelegram
+	}
+	raw, err := json.Marshal(contacts)
+	if err != nil {
+		return dbgen.Organizer{}, fmt.Errorf("marshal contacts: %w", err)
+	}
+
+	updated, err := s.q.UpdateOrganizer(ctx, dbgen.UpdateOrganizerParams{ID: org.ID, Name: in.Name, Contacts: raw})
+	if err != nil {
+		return dbgen.Organizer{}, fmt.Errorf("update organizer: %w", err)
+	}
+	return updated, nil
+}
+
+func validateUpdate(in UpdateInput) error {
+	fields := map[string]string{}
+	switch n := utf8.RuneCountInString(in.Name); {
+	case n == 0:
+		fields[FieldName] = CodeRequired
+	case n < nameMinLen || n > nameMaxLen:
+		fields[FieldName] = CodeLength
+	}
+	if in.ContactEmail != "" && !strings.Contains(in.ContactEmail, "@") {
+		fields[FieldContactEmail] = CodeFormat
+	}
+	if len(fields) > 0 {
+		return &ValidationError{Fields: fields}
+	}
+	return nil
+}
+
+func Contacts(org dbgen.Organizer) map[string]string {
+	if len(org.Contacts) == 0 {
+		return nil
+	}
+	var m map[string]string
+	_ = json.Unmarshal(org.Contacts, &m)
+	return m
 }
 
 func (s *Service) ListForUser(ctx context.Context, userID int64) ([]Membership, error) {

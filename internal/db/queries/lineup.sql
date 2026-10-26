@@ -20,3 +20,14 @@ FROM event_artists ea
 JOIN artists a ON a.id = ea.artist_id
 WHERE ea.event_id = $1
 ORDER BY ea.is_headliner DESC, ea.position, a.name;
+
+-- name: ListEventArtistsForOrganizer :many
+SELECT sqlc.embed(a), ea.position, ea.is_headliner
+FROM event_artists ea
+JOIN artists a ON a.id = ea.artist_id
+JOIN events e ON e.id = ea.event_id
+WHERE ea.event_id = sqlc.arg(event_id) AND e.organizer_id = sqlc.arg(organizer_id)
+ORDER BY ea.is_headliner DESC, ea.position, a.name;
+
+-- name: CountEventArtists :one
+SELECT count(*)::integer FROM event_artists WHERE event_id = $1;
