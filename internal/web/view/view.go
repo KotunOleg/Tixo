@@ -181,6 +181,9 @@ func (p *Page) N(id string, count int) (string, error) { return p.tr.N(p.Lang, i
 func (p *Page) URL(target string) string { return i18n.Path(p.Lang, cleanPath(target)) }
 
 func (p *Page) Here() string {
+	if strings.HasPrefix(p.Path, "/auth/") {
+		return "/"
+	}
 	if p.query == "" {
 		return p.Path
 	}
