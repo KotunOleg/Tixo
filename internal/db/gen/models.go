@@ -11,6 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ApiToken struct {
+	ID         int64
+	UserID     int64
+	Name       string
+	TokenHash  string
+	LastUsedAt pgtype.Timestamptz
+	CreatedAt  time.Time
+}
+
 type Artist struct {
 	ID             int64
 	Mbid           pgtype.UUID
