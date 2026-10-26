@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -110,6 +111,34 @@ func TestPurchaseFixesPriceAndIssuesOneTicketPerSeat(t *testing.T) {
 	}
 	if n := f.available(t); n != 7 {
 		t.Errorf("available = %d, want 7", n)
+	}
+}
+
+func TestPurchaseWritesOneUnpublishedOutboxRowForTheOrder(t *testing.T) {
+	f := newFixture(t, 10)
+	buyer := mustUser(t, f.pool, "alice")
+
+	got, _, err := f.svc.Purchase(context.Background(), buyer, Input{TierID: f.tier.ID, Quantity: 1, Key: uuid.New()})
+	if err != nil {
+		t.Fatalf("Purchase: %v", err)
+	}
+
+	rows, err := dbgen.New(f.pool).ClaimOutboxBatch(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("ClaimOutboxBatch: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("outbox rows = %d, want 1", len(rows))
+	}
+	if rows[0].Topic != TopicTicketsIssue {
+		t.Errorf("topic = %q, want %q", rows[0].Topic, TopicTicketsIssue)
+	}
+	var payload outboxPayload
+	if err := json.Unmarshal(rows[0].Payload, &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if payload.OrderID != got.ID {
+		t.Errorf("payload order_id = %d, want %d", payload.OrderID, got.ID)
 	}
 }
 
