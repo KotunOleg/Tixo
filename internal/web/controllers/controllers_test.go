@@ -220,3 +220,20 @@ func TestStaticAssets(t *testing.T) {
 		}
 	}
 }
+
+func TestPanicOnEnglishPageRendersEnglishErrorPage(t *testing.T) {
+	site := newSite(t, func(r chi.Router) {
+		r.Get("/boom", func(http.ResponseWriter, *http.Request) { panic("boom") })
+	})
+	rec := do(t, site, "/en/boom", "Accept-Language", "en-US")
+	body := rec.Body.String()
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if !strings.Contains(body, `<html lang="en"`) || !strings.Contains(body, "Something went wrong") {
+		t.Error("english visitor got the 500 page in another language")
+	}
+	if strings.Contains(body, `id="lang-suggest"`) || strings.Contains(body, `href="/en/en/`) {
+		t.Error("500 page treats /en/ as part of the path: offers english again or builds /en/en/ links")
+	}
+}
