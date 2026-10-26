@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/KotunOleg/Tixo/internal/cache"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/platform/httpx"
 	"github.com/KotunOleg/Tixo/internal/venues"
@@ -48,13 +50,21 @@ func (b venueBody) toInput() venues.Input {
 }
 
 type Venues struct {
-	Svc *venues.Service
-	Log *slog.Logger
+	Svc   *venues.Service
+	Cache *cache.Store
+	Log   *slog.Logger
+}
+
+func (c Venues) venuesCacheNS(orgID int64) string {
+	return "cache:org:" + strconv.FormatInt(orgID, 10) + ":venues"
 }
 
 func (c Venues) List(w http.ResponseWriter, r *http.Request) {
 	m := membershipFrom(r)
-	list, err := c.Svc.List(r.Context(), m.Organizer.ID)
+	list, hit, err := cache.Fetch(r.Context(), c.Cache, c.venuesCacheNS(m.Organizer.ID), "list", cacheTTL,
+		func(ctx context.Context) ([]dbgen.Venue, error) {
+			return c.Svc.List(ctx, m.Organizer.ID)
+		})
 	if err != nil {
 		c.serverError(w, r, err)
 		return
@@ -68,6 +78,7 @@ func (c Venues) List(w http.ResponseWriter, r *http.Request) {
 	for i, v := range list {
 		items[i] = venueFrom(v)
 	}
+	w.Header().Set("X-Cache", cacheStatus(hit))
 	httpx.WriteJSON(w, http.StatusOK, httpx.Envelope(pageSlice(items, skip, limit), int64(len(items)), skip, limit, r))
 }
 
@@ -78,7 +89,10 @@ func (c Venues) Show(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "venue not found", nil)
 		return
 	}
-	v, err := c.Svc.GetVisible(r.Context(), m.Organizer.ID, id)
+	v, hit, err := cache.Fetch(r.Context(), c.Cache, c.venuesCacheNS(m.Organizer.ID), strconv.FormatInt(id, 10), cacheTTL,
+		func(ctx context.Context) (dbgen.Venue, error) {
+			return c.Svc.GetVisible(ctx, m.Organizer.ID, id)
+		})
 	if errors.Is(err, venues.ErrNotFound) {
 		httpx.WriteError(w, http.StatusNotFound, "venue not found", nil)
 		return
@@ -87,6 +101,7 @@ func (c Venues) Show(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	w.Header().Set("X-Cache", cacheStatus(hit))
 	httpx.WriteJSON(w, http.StatusOK, venueFrom(v))
 }
 
@@ -136,6 +151,7 @@ func (c Venues) Update(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.venuesCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "venue updated via api", "venue_id", v.ID, "request_id", middleware.GetReqID(r.Context()))
 	httpx.WriteJSON(w, http.StatusOK, venueFrom(v))
 }
@@ -159,6 +175,7 @@ func (c Venues) Delete(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.venuesCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "venue deleted via api", "venue_id", id, "request_id", middleware.GetReqID(r.Context()))
 	w.WriteHeader(http.StatusNoContent)
 }

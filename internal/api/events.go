@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/KotunOleg/Tixo/internal/cache"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/platform/httpx"
@@ -67,13 +69,21 @@ func (b eventBody) toInput() events.Input {
 }
 
 type Events struct {
-	Svc *events.Service
-	Log *slog.Logger
+	Svc   *events.Service
+	Cache *cache.Store
+	Log   *slog.Logger
+}
+
+func (c Events) eventsCacheNS(orgID int64) string {
+	return "cache:org:" + strconv.FormatInt(orgID, 10) + ":events"
 }
 
 func (c Events) List(w http.ResponseWriter, r *http.Request) {
 	m := membershipFrom(r)
-	list, err := c.Svc.List(r.Context(), m.Organizer.ID, allEventsLimit, 0)
+	list, hit, err := cache.Fetch(r.Context(), c.Cache, c.eventsCacheNS(m.Organizer.ID), "list", cacheTTL,
+		func(ctx context.Context) ([]dbgen.Event, error) {
+			return c.Svc.List(ctx, m.Organizer.ID, allEventsLimit, 0)
+		})
 	if err != nil {
 		c.serverError(w, r, err)
 		return
@@ -87,6 +97,7 @@ func (c Events) List(w http.ResponseWriter, r *http.Request) {
 	for i, e := range list {
 		items[i] = eventFrom(e)
 	}
+	w.Header().Set("X-Cache", cacheStatus(hit))
 	httpx.WriteJSON(w, http.StatusOK, httpx.Envelope(pageSlice(items, skip, limit), int64(len(items)), skip, limit, r))
 }
 
@@ -97,7 +108,10 @@ func (c Events) Show(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "event not found", nil)
 		return
 	}
-	e, err := c.Svc.Get(r.Context(), m.Organizer.ID, id)
+	e, hit, err := cache.Fetch(r.Context(), c.Cache, c.eventsCacheNS(m.Organizer.ID), strconv.FormatInt(id, 10), cacheTTL,
+		func(ctx context.Context) (dbgen.Event, error) {
+			return c.Svc.Get(ctx, m.Organizer.ID, id)
+		})
 	if errors.Is(err, events.ErrNotFound) {
 		httpx.WriteError(w, http.StatusNotFound, "event not found", nil)
 		return
@@ -106,6 +120,7 @@ func (c Events) Show(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	w.Header().Set("X-Cache", cacheStatus(hit))
 	httpx.WriteJSON(w, http.StatusOK, eventFrom(e))
 }
 
@@ -155,6 +170,7 @@ func (c Events) Update(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.eventsCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "event updated via api", "event_id", e.ID, "request_id", middleware.GetReqID(r.Context()))
 	httpx.WriteJSON(w, http.StatusOK, eventFrom(e))
 }
@@ -185,6 +201,7 @@ func (c Events) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.eventsCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "event status changed via api", "event_id", e.ID, "status", e.Status, "request_id", middleware.GetReqID(r.Context()))
 	httpx.WriteJSON(w, http.StatusOK, eventFrom(e))
 }
@@ -208,6 +225,7 @@ func (c Events) Delete(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.eventsCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "event deleted via api", "event_id", id, "request_id", middleware.GetReqID(r.Context()))
 	w.WriteHeader(http.StatusNoContent)
 }
