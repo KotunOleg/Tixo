@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
@@ -107,5 +109,64 @@ func TestSeedHasPastAndUpcomingPublishedEvents(t *testing.T) {
 	}
 	if len(upcoming) < 3 || len(all) <= len(upcoming) {
 		t.Errorf("upcoming = %d, all published = %d; want several upcoming and at least one past event", len(upcoming), len(all))
+	}
+}
+
+func TestParseOwnerAcceptsOnlyDemoOrganizers(t *testing.T) {
+	good, err := ParseOwner(" Kyiv-Live = Me@Gmail.com ")
+	if err != nil || good != (Owner{Slug: "kyiv-live", Email: "me@gmail.com"}) {
+		t.Errorf("ParseOwner = %+v, %v", good, err)
+	}
+	for _, bad := range []string{"", "kyiv-live", "kyiv-live=", "=me@gmail.com", "kyiv-live=not-an-email", "my-own-org=me@gmail.com"} {
+		if _, err := ParseOwner(bad); err == nil {
+			t.Errorf("ParseOwner(%q) accepted", bad)
+		}
+	}
+}
+
+func TestAddOwnersGivesRealAccountsTheDemoOrganizers(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	if _, err := Run(ctx, pool, seedNow); err != nil {
+		t.Fatal(err)
+	}
+	q := dbgen.New(pool)
+	signedIn, err := q.CreateUser(ctx, dbgen.CreateUserParams{Email: "b@gmail.com", Name: "B", GoogleSub: pgtype.Text{String: "sub-b", Valid: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owners := []Owner{{Slug: "kyiv-live", Email: "a@gmail.com"}, {Slug: "lviv-sound", Email: "b@gmail.com"}}
+	for range 2 {
+		if err := AddOwners(ctx, pool, owners); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var memberships int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM memberships m JOIN users u ON u.id = m.user_id
+		WHERE u.email IN ('a@gmail.com', 'b@gmail.com') AND m.role = 'owner'`).Scan(&memberships); err != nil || memberships != 2 {
+		t.Errorf("owner memberships for the real accounts = %d, %v; want 2 after two runs", memberships, err)
+	}
+	pending, err := q.GetUserByEmail(ctx, "a@gmail.com")
+	if err != nil || pending.GoogleSub.Valid {
+		t.Errorf("a@gmail.com = %+v, %v; want a user without google_sub, linked on first sign-in", pending, err)
+	}
+	org, err := q.GetOrganizerBySlug(ctx, "lviv-sound")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.GetMembership(ctx, dbgen.GetMembershipParams{UserID: signedIn.ID, OrganizerID: org.ID}); err != nil {
+		t.Errorf("already signed-in b@gmail.com got no membership in lviv-sound: %v", err)
+	}
+}
+
+func TestAddOwnersNeedsTheDemoDataFirst(t *testing.T) {
+	pool := dbtest.Pool(t)
+	if err := AddOwners(context.Background(), pool, []Owner{{Slug: "kyiv-live", Email: "a@gmail.com"}}); err == nil {
+		t.Error("AddOwners without seeded organizers succeeded")
+	}
+	var users int
+	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM users").Scan(&users); err != nil || users != 0 {
+		t.Errorf("users after failed AddOwners = %d, %v; want 0", users, err)
 	}
 }

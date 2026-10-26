@@ -12,6 +12,9 @@ map = "Map"
 organizers = "For organizers"
 sign_in = "Sign in"
 toggle = "Open menu"
+my_organizers = "My organizers"
+sign_out = "Sign out"
+account = "Account"
 
 [lang]
 switch = "Українська"
@@ -76,3 +79,75 @@ text = "The event may have moved or the link is out of date."
 [errors.500]
 title = "Something went wrong"
 text = "We already see the error. Please try again in a minute."
+
+[auth.error]
+title = "Sign-in failed"
+state = "The sign-in session expired or the link was tampered with. Please sign in again."
+provider = "Google is not responding right now. Please try again in a minute."
+unverified = "Google has not verified the email address of this account. Verify it in Google and try again."
+taken = "This email address is already linked to another Google account."
+retry = "Sign in again"
+
+[auth.flash]
+cancelled = "Sign-in cancelled."
+
+[flash]
+close = "Close"
+
+[org.list]
+title = "My organizers"
+create = "Create organizer"
+empty_title = "You have no organizers yet"
+empty_text = "Create an organizer to add venues and events. Only you and your team can see its data."
+
+[org.form]
+title = "New organizer"
+name = "Name"
+slug = "Workspace address"
+slug_help = "Lowercase Latin letters, digits and hyphens, 3–50 characters. For example, kyiv-live."
+submit = "Create"
+cancel = "Cancel"
+
+[org.form.error]
+name_required = "Enter a name."
+name_length = "The name must be 2 to 100 characters long."
+slug_required = "Enter a workspace address."
+slug_length = "The address must be 3 to 50 characters long."
+slug_format = "Only lowercase Latin letters, digits and hyphens between them."
+slug_reserved = "This address is reserved, choose another one."
+slug_taken = "This address is already taken."
+email_required = "Enter an email."
+email_format = "This does not look like an email."
+email_not_found = "No Tixo user has this email yet. Ask them to sign in with Google first."
+email_member = "This person is already a member."
+
+[org.show]
+events = "Events"
+events_empty = "No events yet."
+col_title = "Title"
+col_starts = "Starts (Kyiv)"
+col_status = "Status"
+
+[org.role]
+owner = "Owner"
+editor = "Editor"
+
+[org.plan]
+free = "Free"
+premium = "Premium"
+
+[org.event_status]
+draft = "Draft"
+published = "Published"
+cancelled = "Cancelled"
+
+[org.members]
+title = "Members"
+email = "Add a member by email"
+email_help = "The person must have signed in to Tixo with Google at least once. They get the editor role."
+submit = "Add"
+added = "Member added."
+
+[errors.403]
+title = "Access denied"
+text = "Only the organizer's owner can do this."

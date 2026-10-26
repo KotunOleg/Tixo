@@ -10,37 +10,53 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/server"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 	"github.com/KotunOleg/Tixo/web"
 )
 
+var testBaseURL = url.URL{Scheme: "https", Host: "tixo.example"}
+
 func newSite(t *testing.T, extra func(r chi.Router)) http.Handler {
+	t.Helper()
+	h, _ := buildSite(t, nil, extra)
+	return h
+}
+
+func buildSite(t *testing.T, configure func(d *Deps), extra func(r chi.Router)) (http.Handler, Deps) {
 	t.Helper()
 	tr, err := i18n.New(web.FS)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	v, err := view.New(web.FS, tr, view.Config{BaseURL: url.URL{Scheme: "https", Host: "tixo.example"}, Logger: log})
+	d := Deps{FS: web.FS, Logger: log}
+	if configure != nil {
+		configure(&d)
+	}
+	v, err := view.New(web.FS, tr, view.Config{BaseURL: testBaseURL, Logger: log, SignIn: d.Google != nil})
 	if err != nil {
 		t.Fatalf("templates failed to parse: %v", err)
 	}
+	d.View = v
+	d.Sessions = auth.NewSessionsWithStore(memstore.NewWithCleanupInterval(0), testBaseURL, log, v.ServerError)
 	return server.New(server.Deps{
 		Logger: log,
 		Health: http.NotFoundHandler(),
 		Routes: func(r chi.Router) {
-			Mount(r, v, web.FS)
+			Mount(r, d)
 			if extra != nil {
 				extra(r)
 			}
 		},
-		NotFound:    v.NotFound,
+		NotFound:    d.NotFound(),
 		ServerError: v.ServerError,
-	})
+	}), d
 }
 
 func do(t *testing.T, h http.Handler, path string, headers ...string) *httptest.ResponseRecorder {

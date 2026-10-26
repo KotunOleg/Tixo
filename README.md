@@ -69,6 +69,44 @@ make check             # lint + перевірка згенерованого к
 | `REDIS_URL` | — | Redis |
 | `AMQP_URL` | — | RabbitMQ |
 | `SESSION_SECRET` | генерується в dev | ключ сесій, у prod обов'язковий, ≥ 32 байти |
+| `GOOGLE_CLIENT_ID` | — | OAuth client для входу через Google; без нього в dev вхід вимкнено, у prod обов'язковий |
+| `GOOGLE_CLIENT_SECRET` | — | секрет того ж OAuth client, задається разом з `GOOGLE_CLIENT_ID` |
+
+## Вхід через Google
+
+Вхід працює через OAuth 2.0 (Authorization Code + PKCE) з Google. Перший вхід реєструє користувача. Сесія живе в Redis
+(cookie `tixo_session`: HttpOnly, SameSite=Lax, Secure на https), а вийти можна лише POST-формою.
+Без `GOOGLE_CLIENT_ID` у dev кнопки входу немає, решта сайту працює.
+
+Щоб увімкнути вхід локально:
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → створити проєкт (або взяти наявний).
+2. **Google Auth Platform → Branding**: назва застосунку `Tixo`, пошта підтримки, пошта розробника.
+3. **Audience**: тип **External**, статус **Testing**. У **Test users** додати Google-акаунти, якими входитимете
+   (поки застосунок у Testing, інших Google не пустить).
+4. **Data access**: достатньо базових `openid`, `.../auth/userinfo.email`, `.../auth/userinfo.profile`.
+   Вони не чутливі, тож верифікація Google не потрібна.
+5. **Clients → Create client**, тип **Web application**:
+   - Authorized JavaScript origins: `http://localhost:8080`
+   - Authorized redirect URIs: `http://localhost:8080/auth/google/callback`
+6. Скопіювати Client ID і Client secret у `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) і перезапустити
+   `make run` або `docker compose up`.
+
+Redirect URI будується як `BASE_URL` + `/auth/google/callback`. Якщо змінили порт чи домен, змініть `BASE_URL` і
+додайте нову адресу в redirect URIs того ж client.
+
+Після входу в меню акаунта з'являються «Мої організатори». На `/org/new` можна створити організатора (тенант), творець стає власником.
+Кабінет `/org/{slug}` бачать лише члени організатора, для інших він відповідає 404.
+Власник додає учасників за email (роль «редактор»). Людина має хоча б раз увійти в Tixo.
+
+Демо-організатори з подіями для ваших Google-акаунтів:
+
+```sh
+make seed OWNERS="kyiv-live=you@gmail.com lviv-sound=friend@gmail.com"
+```
+
+Акаунт стає власником вказаного демо-організатора. Під час першого входу через Google з цим email
+(email має бути підтверджений) обліковий запис прив'язується автоматично.
 
 ## Структура
 
@@ -78,6 +116,9 @@ internal/config/       конфіг з env і його валідація
 internal/server/       роутер, middleware, graceful shutdown
 internal/health/       /healthz
 internal/web/          MVC: controllers, view (рендер шаблонів), i18n
+internal/auth/         Google OAuth (state + PKCE), сесії в Redis, поточний користувач
+internal/users/        користувачі: реєстрація та вхід через Google
+internal/organizers/   організатори-тенанти, membership, кабінет
 internal/db/           міграції, SQL-запити, згенерований sqlc-код (gen/ — не редагувати)
 internal/platform/     клієнти Postgres, Redis, RabbitMQ, логер
 internal/repolint/     перевірка правил репо (у коді немає коментарів)

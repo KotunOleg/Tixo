@@ -17,6 +17,12 @@
   <a class="visually-hidden-focusable skip-link" href="#main">{{.T "a11y.skip"}}</a>
   {{template "navbar" .}}
   {{if .SuggestEnglish}}{{template "lang_suggest" .}}{{end}}
+  {{with .Flash}}<div class="container mt-3">
+    <div class="alert alert-info alert-dismissible fade show tixo-flash" role="status">
+      {{$.T .}}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{$.T "flash.close"}}"></button>
+    </div>
+  </div>{{end}}
   <main id="main" class="flex-grow-1">
     {{template "content" .}}
   </main>

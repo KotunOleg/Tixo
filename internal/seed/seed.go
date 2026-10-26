@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -271,4 +272,55 @@ func count(ctx context.Context, tx pgx.Tx) (Report, error) {
 	}
 	err := tx.QueryRow(ctx, "SELECT "+strings.Join(parts, ", ")).Scan(dsts...)
 	return r, err
+}
+
+type Owner struct {
+	Slug  string
+	Email string
+}
+
+var ErrBadOwner = errors.New(`owner must look like <demo-organizer-slug>=<email>`)
+
+func ParseOwner(raw string) (Owner, error) {
+	slug, email, ok := strings.Cut(raw, "=")
+	o := Owner{Slug: strings.ToLower(strings.TrimSpace(slug)), Email: strings.ToLower(strings.TrimSpace(email))}
+	if !ok || o.Slug == "" || !strings.Contains(o.Email, "@") {
+		return Owner{}, fmt.Errorf("%w, got %q", ErrBadOwner, raw)
+	}
+	if !slices.ContainsFunc(organizers, func(d organizer) bool { return d.slug == o.Slug }) {
+		return Owner{}, fmt.Errorf("%w: %q is not a demo organizer (%s)", ErrBadOwner, o.Slug, demoSlugs())
+	}
+	return o, nil
+}
+
+func demoSlugs() string {
+	slugs := make([]string, len(organizers))
+	for i, o := range organizers {
+		slugs[i] = o.slug
+	}
+	return strings.Join(slugs, ", ")
+}
+
+func AddOwners(ctx context.Context, pool *pgxpool.Pool, owners []Owner) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := dbgen.New(tx)
+	for _, o := range owners {
+		org, err := q.GetOrganizerBySlug(ctx, o.Slug)
+		if err != nil {
+			return fmt.Errorf("organizer %s: %w (run seed without --owner first)", o.Slug, err)
+		}
+		name, _, _ := strings.Cut(o.Email, "@")
+		userID, err := q.SeedUser(ctx, dbgen.SeedUserParams{Email: o.Email, Name: name})
+		if err != nil {
+			return fmt.Errorf("user %s: %w", o.Email, err)
+		}
+		if err := q.SeedOwner(ctx, dbgen.SeedOwnerParams{UserID: userID, OrganizerID: org.ID}); err != nil {
+			return fmt.Errorf("owner %s of %s: %w", o.Email, o.Slug, err)
+		}
+	}
+	return tx.Commit(ctx)
 }
