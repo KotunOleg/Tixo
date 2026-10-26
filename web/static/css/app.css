@@ -137,8 +137,7 @@ body {
 
 h1, .h1,
 h2, .h2,
-.display-4,
-.tixo-display {
+.display-4 {
   font-family: var(--tixo-font-display);
   font-weight: 700;
   line-height: 1.15;
@@ -286,10 +285,6 @@ h6, .h6 { font-size: var(--tixo-text-sm); }
   font-family: var(--tixo-font-display);
   font-weight: 700;
   color: var(--tixo-text);
-}
-
-.tixo-accent {
-  color: var(--tixo-accent);
 }
 
 .btn-tixo {

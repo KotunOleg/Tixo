@@ -4,7 +4,7 @@
   <div class="tixo-form">
     <h1 class="mb-4">{{.T "org.form.title"}}</h1>
     {{with .Data.Errors}}
-    <div class="tixo-error-summary mb-4" role="alert" aria-labelledby="org-errors-title">
+    <div class="tixo-error-summary mb-4" id="org-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="org-errors-title">
       <h2 class="h6 mb-2" id="org-errors-title">{{$.T "org.form.errors_title"}}</h2>
       <ul class="mb-0">
         {{with index . "name"}}<li><a href="#org-name">{{$.T .}}</a></li>{{end}}

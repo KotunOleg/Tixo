@@ -4,12 +4,13 @@
       <img src="/static/img/logo.svg" alt="" width="32" height="32">
       <span class="tixo-wordmark">{{.T "site.name"}}</span>
     </a>
+    {{if or .Viewer .SignIn}}
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav-main" aria-controls="nav-main" aria-expanded="false" aria-label="{{.T "nav.toggle"}}">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="nav-main">
       <ul class="navbar-nav me-auto">
-        {{if or .Viewer .SignIn}}<li class="nav-item"><a class="nav-link"{{if .Current "/org"}} aria-current="page"{{end}} href="{{.URL "/org"}}">{{.T "nav.organizers"}}</a></li>{{end}}
+        <li class="nav-item"><a class="nav-link"{{if .Current "/org"}} aria-current="page"{{end}} href="{{.URL "/org"}}">{{.T "nav.organizers"}}</a></li>
       </ul>
       <div class="tixo-nav-actions d-flex flex-wrap align-items-center gap-2">
         <a class="btn btn-sm btn-quiet" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}">{{.T "lang.switch"}}</a>
@@ -32,10 +33,13 @@
             </li>
           </ul>
         </div>
-        {{else if .SignIn}}
+        {{else}}
         <a class="btn btn-sm btn-tixo" href="{{.URL "/auth/google/login"}}?next={{.Here}}"><i class="bi bi-google me-1" aria-hidden="true"></i>{{.T "nav.sign_in"}}</a>
         {{end}}
       </div>
     </div>
+    {{else}}
+    <a class="btn btn-sm btn-quiet ms-auto" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}">{{.T "lang.switch"}}</a>
+    {{end}}
   </div>
 </nav>{{end}}
