@@ -32,6 +32,11 @@ func Mount(r chi.Router, d Deps) {
 		o := Organizers{Svc: d.Organizers, Log: d.Logger}
 		r.Get("/organizers", o.List)
 
+		a := Artists{Svc: d.Artists, Log: d.Logger}
+		r.Get("/artists", a.List)
+		r.Post("/artists", a.Create)
+		r.Get("/artists/{id}", a.Show)
+
 		v := Venues{Svc: d.Venues, Log: d.Logger}
 		r.Route("/organizers/{slug}", func(r chi.Router) {
 			r.Use(requireMember(d.Organizers))
@@ -51,6 +56,17 @@ func Mount(r chi.Router, d Deps) {
 			r.Patch("/events/{id}", e.Update)
 			r.Post("/events/{id}/status", e.UpdateStatus)
 			r.Delete("/events/{id}", e.Delete)
+
+			ti := Tiers{Svc: d.Tiers, Log: d.Logger}
+			r.Get("/events/{id}/tiers", ti.List)
+			r.Post("/events/{id}/tiers", ti.Create)
+			r.Patch("/events/{id}/tiers/{tierID}", ti.Update)
+			r.Delete("/events/{id}/tiers/{tierID}", ti.Delete)
+
+			lu := Lineup{Svc: d.Lineup, Log: d.Logger}
+			r.Get("/events/{id}/lineup", lu.List)
+			r.Post("/events/{id}/lineup", lu.Add)
+			r.Delete("/events/{id}/lineup/{artistID}", lu.Remove)
 		})
 	})
 }
