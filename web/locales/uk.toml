@@ -126,6 +126,22 @@ events_empty = "Подій поки немає."
 col_title = "Назва"
 col_starts = "Початок (Київ)"
 col_status = "Статус"
+edit = "Редагувати"
+
+[org.edit]
+title = "Налаштування організатора"
+submit = "Зберегти"
+contacts_title = "Контакти"
+contacts_help = "Показуються на сторінці події для відвідувачів."
+contact_email = "Email"
+contact_phone = "Телефон"
+contact_telegram = "Telegram"
+saved = "Зміни збережено."
+
+[org.edit.error]
+name_required = "Вкажіть назву."
+name_length = "Назва має містити від 2 до 100 символів."
+contact_email_format = "Це не схоже на email."
 
 [org.role]
 owner = "Власник"

@@ -48,6 +48,8 @@ func Mount(r chi.Router, d Deps) {
 			r.Post("/org/new", o.Create)
 			r.With(o.RequireMember).Get("/org/{slug}", o.Show)
 			r.With(o.RequireMember).Post("/org/{slug}/members", o.AddMember)
+			r.With(o.RequireMember).Get("/org/{slug}/edit", o.Edit)
+			r.With(o.RequireMember).Post("/org/{slug}/edit", o.EditSubmit)
 		})
 	})
 }
