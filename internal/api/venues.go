@@ -78,7 +78,7 @@ func (c Venues) Show(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusNotFound, "venue not found", nil)
 		return
 	}
-	v, err := c.Svc.Get(r.Context(), m.Organizer.ID, id)
+	v, err := c.Svc.GetVisible(r.Context(), m.Organizer.ID, id)
 	if errors.Is(err, venues.ErrNotFound) {
 		httpx.WriteError(w, http.StatusNotFound, "venue not found", nil)
 		return

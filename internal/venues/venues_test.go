@@ -119,6 +119,40 @@ func TestGetRejectsVenueFromAnotherOrganizer(t *testing.T) {
 	}
 }
 
+func mustSharedVenue(t *testing.T, pool *pgxpool.Pool) int64 {
+	t.Helper()
+	var id int64
+	err := pool.QueryRow(context.Background(),
+		"insert into venues (organizer_id, name, address, city, lat, lng, capacity) values (null, 'Shared Hall', 'addr', 'Kyiv', 50.45, 30.52, 100) returning id",
+	).Scan(&id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestGetVisibleAllowsSharedVenueButNotAnotherOrganizers(t *testing.T) {
+	pool := dbtest.Pool(t)
+	svc := New(pool)
+	a := mustOrganizer(t, pool, "kyiv-live")
+	b := mustOrganizer(t, pool, "lviv-sound")
+	owned, err := svc.Create(context.Background(), a, validInput())
+	if err != nil {
+		t.Fatal(err)
+	}
+	shared := mustSharedVenue(t, pool)
+
+	if _, err := svc.GetVisible(context.Background(), a, shared); err != nil {
+		t.Errorf("GetVisible(shared venue) = %v, want nil error", err)
+	}
+	if _, err := svc.GetVisible(context.Background(), a, owned.ID); err != nil {
+		t.Errorf("GetVisible(own venue) = %v, want nil error", err)
+	}
+	if _, err := svc.GetVisible(context.Background(), b, owned.ID); !errors.Is(err, ErrNotFound) {
+		t.Errorf("GetVisible(other organizer's venue) = %v, want ErrNotFound", err)
+	}
+}
+
 func TestUpdateChangesFields(t *testing.T) {
 	pool := dbtest.Pool(t)
 	svc := New(pool)
