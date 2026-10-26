@@ -11,6 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Event struct {
+	ID          int64
+	OrganizerID int64
+	VenueID     int64
+	Slug        string
+	Title       string
+	Description string
+	StartsAt    time.Time
+	EndsAt      time.Time
+	Genre       string
+	PriceFrom   pgtype.Int8
+	PosterKey   pgtype.Text
+	Status      string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type Membership struct {
 	UserID      int64
 	OrganizerID int64
@@ -33,4 +50,16 @@ type User struct {
 	Name      string
 	GoogleSub pgtype.Text
 	CreatedAt time.Time
+}
+
+type Venue struct {
+	ID          int64
+	OrganizerID pgtype.Int8
+	Name        string
+	Address     string
+	City        string
+	Lat         float64
+	Lng         float64
+	Capacity    int32
+	CreatedAt   time.Time
 }
