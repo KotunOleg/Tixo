@@ -29,9 +29,9 @@ func New(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(requestID)
 	r.Use(requestLogger(d.Logger))
+	r.Use(i18n.Middleware)
 	r.Use(recoverer(d.Logger, d.ServerError))
 	r.Use(http.NewCrossOriginProtection().Handler)
-	r.Use(i18n.Middleware)
 
 	r.Method(http.MethodGet, "/healthz", d.Health)
 	if d.Routes != nil {

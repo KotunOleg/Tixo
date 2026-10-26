@@ -3,14 +3,17 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 
@@ -107,6 +110,11 @@ func newAuthSite(t *testing.T) *authSite {
 
 func newAuthSiteWithClient(t *testing.T, client *http.Client) *authSite {
 	t.Helper()
+	return newAuthSiteWith(t, client, nil)
+}
+
+func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)) *authSite {
+	t.Helper()
 	fake := newFakeGoogle(t)
 	if client == nil {
 		client = fake.srv.Client()
@@ -120,7 +128,7 @@ func newAuthSiteWithClient(t *testing.T, client *http.Client) *authSite {
 			Auth:     oauth2.Endpoint{AuthURL: fake.srv.URL + "/authorize", TokenURL: fake.srv.URL + "/token"},
 			Userinfo: fake.srv.URL + "/userinfo",
 		}, client)
-	}, nil)
+	}, extra)
 	return &authSite{h: h, deps: d, fake: fake, svc: svc, pool: pool}
 }
 
@@ -382,5 +390,48 @@ func TestSlowGoogleTimesOutWith502(t *testing.T) {
 	}
 	if took := time.Since(began); took > 2*time.Second {
 		t.Errorf("callback waited %s for google: the http client timeout is not used for the token exchange", took)
+	}
+}
+
+func TestFailedSignInRetryReturnsToStartPage(t *testing.T) {
+	cases := []struct {
+		start, wantRetry string
+	}{
+		{"/en/auth/google/login?next=/org/new?tab=1", `href="/en/auth/google/login?next=%2forg%2fnew%3ftab%3d1"`},
+		{"/auth/google/login?next=/org", `href="/auth/google/login?next=%2forg"`},
+		{"/auth/google/login", `href="/auth/google/login"`},
+	}
+	for _, tc := range cases {
+		s := newAuthSite(t)
+		s.fake.tokenStatus = http.StatusServiceUnavailable
+		start := s.startLogin(t, tc.start)
+		s.fake.issueCode("code-1", start.challenge)
+		body := s.request(t, http.MethodGet, callbackURL("code-1", start.state), start.cookie).Body.String()
+		if !strings.Contains(body, tc.wantRetry) {
+			t.Errorf("%s: retry link must be %s, so the user lands back where sign-in started", tc.start, tc.wantRetry)
+		}
+	}
+}
+
+func TestSignInFromFailedSignInPageDoesNotReplayCallback(t *testing.T) {
+	s := newAuthSite(t)
+	s.fake.tokenStatus = http.StatusServiceUnavailable
+	start := s.startLogin(t, "/auth/google/login?next=/org")
+	s.fake.issueCode("code-used", start.challenge)
+	page := s.request(t, http.MethodGet, callbackURL("code-used", start.state), start.cookie).Body.String()
+	if strings.Contains(page, "code-used") {
+		t.Error("failed sign-in page puts the spent google code into its links")
+	}
+
+	m := regexp.MustCompile(`<a class="btn btn-sm btn-tixo" href="([^"]+)"`).FindStringSubmatch(page)
+	if m == nil {
+		t.Fatal("navbar sign-in link not found on the failed sign-in page")
+	}
+	s.fake.tokenStatus = 0
+	retry := s.startLogin(t, html.UnescapeString(m[1]))
+	s.fake.issueCode("code-new", retry.challenge)
+	rec := s.request(t, http.MethodGet, callbackURL("code-new", retry.state), retry.cookie)
+	if loc := rec.Header().Get("Location"); rec.Code != http.StatusFound || strings.HasPrefix(loc, "/auth/") {
+		t.Errorf("signing in from the error page navbar ends at %d → %q; want a redirect away from /auth/", rec.Code, loc)
 	}
 }

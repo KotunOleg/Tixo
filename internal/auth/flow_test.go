@@ -8,20 +8,24 @@ import (
 
 func TestSafeNextKeepsOnlyLocalPaths(t *testing.T) {
 	cases := map[string]string{
-		"":                         "/",
-		"/":                        "/",
-		"/events":                  "/events",
-		"/en/org/kyiv-live?tab=ev": "/en/org/kyiv-live?tab=ev",
-		"//evil.com":               "/",
-		"///evil.com":              "/",
-		"/\\evil.com":              "/",
-		"/events\\..\\//evil.com":  "/",
-		"https://evil.com":         "/",
-		"http:/evil.com":           "/",
-		"javascript:alert(1)":      "/",
-		"evil.com/path":            "/",
-		"/events\r\nSet-Cookie: x": "/",
-		"/events\tx":               "/",
+		"":                                     "/",
+		"/":                                    "/",
+		"/events":                              "/events",
+		"/en/org/kyiv-live?tab=ev":             "/en/org/kyiv-live?tab=ev",
+		"//evil.com":                           "/",
+		"///evil.com":                          "/",
+		"/\\evil.com":                          "/",
+		"/events\\..\\//evil.com":              "/",
+		"https://evil.com":                     "/",
+		"http:/evil.com":                       "/",
+		"javascript:alert(1)":                  "/",
+		"evil.com/path":                        "/",
+		"/events\r\nSet-Cookie: x":             "/",
+		"/events\tx":                           "/",
+		"/auth/google/callback?code=c&state=s": "/",
+		"/auth/google/login":                   "/",
+		"/en/auth/google/callback":             "/",
+		"/authors":                             "/authors",
 	}
 	for in, want := range cases {
 		if got := SafeNext(in); got != want {

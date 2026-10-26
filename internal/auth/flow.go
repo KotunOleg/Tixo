@@ -84,6 +84,14 @@ func PopFlash(ctx context.Context, sm *scs.SessionManager) string {
 }
 
 func SafeNext(raw string) string {
+	next := LocalPath(raw)
+	if isAuthPath(next) {
+		return "/"
+	}
+	return next
+}
+
+func LocalPath(raw string) string {
 	if !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") || strings.ContainsAny(raw, "\\\r\n\t") {
 		return "/"
 	}
@@ -92,4 +100,11 @@ func SafeNext(raw string) string {
 		return "/"
 	}
 	return raw
+}
+
+func isAuthPath(p string) bool {
+	if i := strings.IndexAny(p, "?#"); i >= 0 {
+		p = p[:i]
+	}
+	return strings.HasPrefix(p, "/auth/") || strings.HasPrefix(p, "/en/auth/")
 }
