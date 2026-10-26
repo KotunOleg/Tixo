@@ -151,6 +151,7 @@ func (c Venues) Update(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.venuesCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "venue updated via api", "venue_id", v.ID, "request_id", middleware.GetReqID(r.Context()))
 	httpx.WriteJSON(w, http.StatusOK, venueFrom(v))
 }
@@ -174,6 +175,7 @@ func (c Venues) Delete(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.venuesCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "venue deleted via api", "venue_id", id, "request_id", middleware.GetReqID(r.Context()))
 	w.WriteHeader(http.StatusNoContent)
 }

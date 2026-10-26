@@ -174,3 +174,69 @@ func TestShowVenueCachesSecondRequest(t *testing.T) {
 		t.Fatalf("X-Cache = %q, want HIT", got)
 	}
 }
+
+func TestUpdateVenueInvalidatesListAndShowCache(t *testing.T) {
+	s := newTestSite(t)
+	ownerID := s.createUser(t, "owner72@example.com")
+	s.createOrganizer(t, ownerID, "Kyiv Live", "kyiv-live-72")
+	token := s.tokenFor(t, ownerID)
+	create := s.request(t, http.MethodPost, "/api/v1/organizers/kyiv-live-72/venues", token,
+		`{"name":"Hall 72","address":"1 Street","city":"Kyiv","lat":50.45,"lng":30.52,"capacity":100}`)
+	var created venueJSON
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	listPath := "/api/v1/organizers/kyiv-live-72/venues"
+	showPath := fmt.Sprintf("/api/v1/organizers/kyiv-live-72/venues/%d", created.ID)
+	s.request(t, http.MethodGet, listPath, token, "")
+	s.request(t, http.MethodGet, showPath, token, "")
+
+	update := s.request(t, http.MethodPatch, showPath, token,
+		`{"name":"Renamed Hall","address":"1 Street","city":"Kyiv","lat":50.45,"lng":30.52,"capacity":100}`)
+	if update.Code != http.StatusOK {
+		t.Fatalf("update = %d: %s", update.Code, update.Body.String())
+	}
+
+	listAfter := s.request(t, http.MethodGet, listPath, token, "")
+	if got := listAfter.Header().Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache after update = %q, want MISS (list cache not invalidated)", got)
+	}
+	showAfter := s.request(t, http.MethodGet, showPath, token, "")
+	if got := showAfter.Header().Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache after update = %q, want MISS (show cache not invalidated)", got)
+	}
+	var updated venueJSON
+	if err := json.Unmarshal(showAfter.Body.Bytes(), &updated); err != nil {
+		t.Fatal(err)
+	}
+	if updated.Name != "Renamed Hall" {
+		t.Fatalf("name = %q, want Renamed Hall (stale cache served)", updated.Name)
+	}
+}
+
+func TestDeleteVenueInvalidatesListCache(t *testing.T) {
+	s := newTestSite(t)
+	ownerID := s.createUser(t, "owner73@example.com")
+	s.createOrganizer(t, ownerID, "Kyiv Live", "kyiv-live-73")
+	token := s.tokenFor(t, ownerID)
+	create := s.request(t, http.MethodPost, "/api/v1/organizers/kyiv-live-73/venues", token,
+		`{"name":"Hall 73","address":"1 Street","city":"Kyiv","lat":50.45,"lng":30.52,"capacity":100}`)
+	var created venueJSON
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	listPath := "/api/v1/organizers/kyiv-live-73/venues"
+	s.request(t, http.MethodGet, listPath, token, "")
+
+	del := s.request(t, http.MethodDelete, fmt.Sprintf("/api/v1/organizers/kyiv-live-73/venues/%d", created.ID), token, "")
+	if del.Code != http.StatusNoContent {
+		t.Fatalf("delete = %d: %s", del.Code, del.Body.String())
+	}
+
+	listAfter := s.request(t, http.MethodGet, listPath, token, "")
+	if got := listAfter.Header().Get("X-Cache"); got != "MISS" {
+		t.Fatalf("X-Cache after delete = %q, want MISS (list cache not invalidated)", got)
+	}
+}
