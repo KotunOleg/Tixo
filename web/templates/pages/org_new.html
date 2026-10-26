@@ -1,0 +1,26 @@
+{{define "title"}}{{.T "org.form.title"}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5" style="max-width: 40rem">
+  <h1 class="h2 mb-4">{{.T "org.form.title"}}</h1>
+  <form method="post" action="{{.URL "/org/new"}}" novalidate>
+    <div class="mb-3">
+      <label class="form-label" for="org-name">{{.T "org.form.name"}}</label>
+      <input class="form-control{{if index .Data.Errors "name"}} is-invalid{{end}}" id="org-name" name="name" value="{{.Data.Name}}" required minlength="2" maxlength="100" autocomplete="organization">
+      {{with index .Data.Errors "name"}}<div class="invalid-feedback">{{$.T .}}</div>{{end}}
+    </div>
+    <div class="mb-4">
+      <label class="form-label" for="org-slug">{{.T "org.form.slug"}}</label>
+      <div class="input-group has-validation">
+        <span class="input-group-text">/org/</span>
+        <input class="form-control{{if index .Data.Errors "slug"}} is-invalid{{end}}" id="org-slug" name="slug" value="{{.Data.Slug}}" required minlength="3" maxlength="50" pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="org-slug-help" autocapitalize="none" spellcheck="false">
+        {{with index .Data.Errors "slug"}}<div class="invalid-feedback">{{$.T .}}</div>{{end}}
+      </div>
+      <div class="form-text" id="org-slug-help">{{.T "org.form.slug_help"}}</div>
+    </div>
+    <div class="d-flex gap-2">
+      <button class="btn btn-tixo" type="submit">{{.T "org.form.submit"}}</button>
+      <a class="btn btn-outline-light" href="{{.URL "/org"}}">{{.T "org.form.cancel"}}</a>
+    </div>
+  </form>
+</section>
+{{end}}

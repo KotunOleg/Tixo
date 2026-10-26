@@ -15,6 +15,7 @@ import (
 
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
+	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/users"
 )
 
@@ -97,12 +98,21 @@ func newAuthSite(t *testing.T) *authSite {
 	svc := users.New(pool)
 	h, d := buildSite(t, func(d *Deps) {
 		d.Users = svc
+		d.Organizers = organizers.New(pool)
 		d.Google = auth.NewGoogleWith("client-id", "client-secret", testBaseURL, auth.GoogleEndpoints{
 			Auth:     oauth2.Endpoint{AuthURL: fake.srv.URL + "/authorize", TokenURL: fake.srv.URL + "/token"},
 			Userinfo: fake.srv.URL + "/userinfo",
 		}, fake.srv.Client())
 	}, nil)
 	return &authSite{h: h, deps: d, fake: fake, svc: svc, pool: pool}
+}
+
+func (s *authSite) signInAs(t *testing.T, sub, email, name string) *http.Cookie {
+	t.Helper()
+	s.fake.mu.Lock()
+	s.fake.profile = map[string]any{"sub": sub, "email": email, "email_verified": true, "name": name}
+	s.fake.mu.Unlock()
+	return s.signIn(t)
 }
 
 func (s *authSite) signIn(t *testing.T) *http.Cookie {

@@ -10,17 +10,19 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/KotunOleg/Tixo/internal/auth"
+	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
 
 type Deps struct {
-	View     *view.Renderer
-	FS       fs.FS
-	Sessions *scs.SessionManager
-	Google   *auth.Google
-	Users    *users.Service
-	Logger   *slog.Logger
+	View       *view.Renderer
+	FS         fs.FS
+	Sessions   *scs.SessionManager
+	Google     *auth.Google
+	Users      *users.Service
+	Organizers *organizers.Service
+	Logger     *slog.Logger
 }
 
 func Mount(r chi.Router, d Deps) {
@@ -33,6 +35,15 @@ func Mount(r chi.Router, d Deps) {
 		r.Get("/auth/google/login", a.Login)
 		r.Get(auth.CallbackPath, a.Callback)
 		r.Post("/auth/logout", a.Logout)
+
+		o := Organizers{View: d.View, Svc: d.Organizers, Log: d.Logger}
+		r.Group(func(r chi.Router) {
+			r.Use(requireUser)
+			r.Get("/org", o.List)
+			r.Get("/org/new", o.New)
+			r.Post("/org/new", o.Create)
+			r.With(o.RequireMember).Get("/org/{slug}", o.Show)
+		})
 	})
 }
 
