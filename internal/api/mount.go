@@ -43,6 +43,14 @@ func Mount(r chi.Router, d Deps) {
 			r.Get("/venues/{id}", v.Show)
 			r.Patch("/venues/{id}", v.Update)
 			r.Delete("/venues/{id}", v.Delete)
+
+			e := Events{Svc: d.Events, Log: d.Logger}
+			r.Get("/events", e.List)
+			r.Post("/events", e.Create)
+			r.Get("/events/{id}", e.Show)
+			r.Patch("/events/{id}", e.Update)
+			r.Post("/events/{id}/status", e.UpdateStatus)
+			r.Delete("/events/{id}", e.Delete)
 		})
 	})
 }
