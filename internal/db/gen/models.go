@@ -3,3 +3,92 @@
 //   sqlc v1.30.0
 
 package dbgen
+
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Artist struct {
+	ID             int64
+	Mbid           pgtype.UUID
+	Name           string
+	SortName       string
+	Type           pgtype.Text
+	Country        pgtype.Text
+	Disambiguation string
+	Genres         []string
+	Links          json.RawMessage
+	EnrichedAt     pgtype.Timestamptz
+}
+
+type Event struct {
+	ID          int64
+	OrganizerID int64
+	VenueID     int64
+	Slug        string
+	Title       string
+	Description string
+	StartsAt    time.Time
+	EndsAt      time.Time
+	Genre       string
+	PriceFrom   pgtype.Int8
+	PosterKey   pgtype.Text
+	Status      string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type EventArtist struct {
+	EventID     int64
+	ArtistID    int64
+	Position    int32
+	IsHeadliner bool
+}
+
+type Membership struct {
+	UserID      int64
+	OrganizerID int64
+	Role        string
+	CreatedAt   time.Time
+}
+
+type Organizer struct {
+	ID        int64
+	Slug      string
+	Name      string
+	Contacts  json.RawMessage
+	Plan      string
+	CreatedAt time.Time
+}
+
+type TicketTier struct {
+	ID        int64
+	EventID   int64
+	Name      string
+	Price     int64
+	Quantity  int32
+	Available int32
+}
+
+type User struct {
+	ID        int64
+	Email     string
+	Name      string
+	GoogleSub pgtype.Text
+	CreatedAt time.Time
+}
+
+type Venue struct {
+	ID          int64
+	OrganizerID pgtype.Int8
+	Name        string
+	Address     string
+	City        string
+	Lat         float64
+	Lng         float64
+	Capacity    int32
+	CreatedAt   time.Time
+}
