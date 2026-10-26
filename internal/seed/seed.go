@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
+	"github.com/KotunOleg/Tixo/internal/events"
 )
 
 type organizer struct {
@@ -91,49 +92,49 @@ var clubTiers = []tier{
 	{name: "VIP", price: 150000, quantity: 50},
 }
 
-var events = []event{
+var demoEvents = []event{
 	{
-		slug: "okean-elzy-palats-sportu", organizer: "kyiv-live", venue: "palats-sportu", genre: "rock", status: "published", dayOffset: 21,
+		slug: "okean-elzy-palats-sportu", organizer: "kyiv-live", venue: "palats-sportu", genre: events.GenreRock, status: "published", dayOffset: 21,
 		title: "Океан Ельзи. Великий концерт", description: "Головні пісні гурту за 30 років на одній сцені.",
 		lineup: []string{"Океан Ельзи"}, tiers: standardTiers,
 	},
 	{
-		slug: "dakhabrakha-lviv-opera", organizer: "lviv-sound", venue: "lviv-opera", genre: "folk", status: "published", dayOffset: 35,
+		slug: "dakhabrakha-lviv-opera", organizer: "lviv-sound", venue: "lviv-opera", genre: events.GenreFolk, status: "published", dayOffset: 35,
 		title: "DakhaBrakha в Опері", description: "Етно-хаос у залі Львівської опери.",
 		lineup: []string{"DakhaBrakha"}, tiers: []tier{{name: "Партер", price: 150000, quantity: 600}, {name: "Ложа", price: 250000, quantity: 120}},
 	},
 	{
-		slug: "hardkiss-atlas", organizer: "kyiv-live", venue: "atlas", genre: "alternative", status: "published", dayOffset: 10,
+		slug: "hardkiss-atlas", organizer: "kyiv-live", venue: "atlas", genre: events.GenreAlternative, status: "published", dayOffset: 10,
 		title: "The Hardkiss + Onuka", description: "Два сети за один вечір.",
 		lineup: []string{"The Hardkiss", "Onuka"}, tiers: standardTiers[:2],
 	},
 	{
-		slug: "go-a-kalush-arena-lviv", organizer: "lviv-sound", venue: "arena-lviv", genre: "electronic", status: "published", dayOffset: 60,
+		slug: "go-a-kalush-arena-lviv", organizer: "lviv-sound", venue: "arena-lviv", genre: events.GenreElectronic, status: "published", dayOffset: 60,
 		title: "Go_A × KALUSH: Open Air", description: "Великий літній опен-ейр на Арені Львів.",
 		lineup: []string{"KALUSH", "Go_A"}, tiers: standardTiers,
 	},
 	{
-		slug: "boombox-rooftop", organizer: "kyiv-live", venue: "kyiv-live-rooftop", genre: "pop", status: "published", dayOffset: 5,
+		slug: "boombox-rooftop", organizer: "kyiv-live", venue: "kyiv-live-rooftop", genre: events.GenrePop, status: "published", dayOffset: 5,
 		title: "Бумбокс: акустика на даху", description: "Камерний акустичний вечір.",
 		lineup: []string{"Бумбокс"}, tiers: clubTiers,
 	},
 	{
-		slug: "brit-night-palats-sportu", organizer: "kyiv-live", venue: "palats-sportu", genre: "indie", status: "published", dayOffset: 90,
+		slug: "brit-night-palats-sportu", organizer: "kyiv-live", venue: "palats-sportu", genre: events.GenreIndie, status: "published", dayOffset: 90,
 		title: "Brit Night: Arctic Monkeys, Muse, Radiohead", description: "Ніч британського року.",
 		lineup: []string{"Arctic Monkeys", "Muse", "Radiohead"}, tiers: standardTiers,
 	},
 	{
-		slug: "daft-punk-tribute-atlas", organizer: "kyiv-live", venue: "atlas", genre: "electronic", status: "draft", dayOffset: 120,
+		slug: "daft-punk-tribute-atlas", organizer: "kyiv-live", venue: "atlas", genre: events.GenreElectronic, status: "draft", dayOffset: 120,
 		title: "Daft Punk Tribute Night", description: "Чернетка: програма ще формується.",
 		lineup: []string{"Daft Punk"}, tiers: clubTiers,
 	},
 	{
-		slug: "coldplay-arena-lviv", organizer: "lviv-sound", venue: "arena-lviv", genre: "pop", status: "cancelled", dayOffset: 45,
+		slug: "coldplay-arena-lviv", organizer: "lviv-sound", venue: "arena-lviv", genre: events.GenrePop, status: "cancelled", dayOffset: 45,
 		title: "Coldplay у Львові", description: "Концерт скасовано організатором.",
 		lineup: []string{"Coldplay"}, tiers: standardTiers,
 	},
 	{
-		slug: "bjork-lviv-opera", organizer: "lviv-sound", venue: "lviv-opera", genre: "electronic", status: "published", dayOffset: -30,
+		slug: "bjork-lviv-opera", organizer: "lviv-sound", venue: "lviv-opera", genre: events.GenreElectronic, status: "published", dayOffset: -30,
 		title: "Björk: Orchestral", description: "Минула подія — для історії й аналітики.",
 		lineup: []string{"Björk"}, tiers: []tier{{name: "Партер", price: 300000, quantity: 600}},
 	},
@@ -208,7 +209,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) (Report, error)
 	}
 
 	day := now.UTC().Truncate(24 * time.Hour)
-	for _, e := range events {
+	for _, e := range demoEvents {
 		starts := day.AddDate(0, 0, e.dayOffset).Add(16 * time.Hour)
 		eventID, err := q.SeedEvent(ctx, dbgen.SeedEventParams{
 			OrganizerID: orgIDs[e.organizer], VenueID: venueIDs[e.venue], Slug: e.slug, Title: e.title,

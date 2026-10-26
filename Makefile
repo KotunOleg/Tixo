@@ -2,7 +2,7 @@ TEST_ENV = TEST_DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo_test?sslm
 	TEST_REDIS_URL=redis://localhost:56379/1 \
 	TEST_AMQP_URL=amqp://tixo:tixo@localhost:55672/
 
-.PHONY: up down infra run seed test test-integration lint gen gen-check check
+.PHONY: up down infra run seed import-mb test test-integration lint gen gen-check check
 
 up:
 	docker compose up --build -d
@@ -25,6 +25,13 @@ seed:
 	REDIS_URL=redis://localhost:56379/0 \
 	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
 	go run ./cmd/tixo seed
+
+import-mb:
+	@test -n "$(FILE)" || { echo "usage: make import-mb FILE=path/to/mbdump.tar.bz2"; exit 2; }
+	DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable \
+	REDIS_URL=redis://localhost:56379/0 \
+	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
+	go run ./cmd/tixo import-musicbrainz "$(FILE)"
 
 test:
 	go test -race -count=1 ./...
