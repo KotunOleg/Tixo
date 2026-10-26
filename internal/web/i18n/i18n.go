@@ -166,6 +166,17 @@ func Path(lang Lang, path string) string {
 	return path
 }
 
+func Strip(path string) string {
+	if FromPath(path) != EN {
+		return path
+	}
+	rest := strings.TrimPrefix(path, enPrefix)
+	if !strings.HasPrefix(rest, "/") {
+		rest = "/" + rest
+	}
+	return rest
+}
+
 var matcher = language.NewMatcher([]language.Tag{language.Ukrainian, language.English})
 
 func SuggestEnglish(r *http.Request, current Lang) bool {
