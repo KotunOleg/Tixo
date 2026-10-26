@@ -1,0 +1,22 @@
+{{define "title"}}{{.Data.Title}} · {{.Data.OrgName}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.OrgName}}</a></li>
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s/events" .Data.Slug)}}">{{.T "event.list.title"}}</a></li>
+    <li class="breadcrumb-item active text-break" aria-current="page">{{.Data.Title}}</li>
+  </ol></nav>
+  {{if .Data.PosterURL}}<img src="{{.Data.PosterURL}}" alt="" class="rounded mb-3 border" style="max-width: 320px; border-color: var(--tixo-border-strong)!important">{{end}}
+  <h1 class="mb-2">{{.Data.Title}}</h1>
+  <p class="mb-4"><span class="tixo-status tixo-status-{{.Data.Status}}">{{.T .Data.StatusLabel}}</span></p>
+  <div class="d-flex flex-wrap gap-2 mb-5">
+    <a class="btn btn-quiet btn-sm" href="{{.URL (printf "/org/%s/events/%d/edit" .Data.Slug .Data.ID)}}">{{.T "event.show.edit"}}</a>
+    {{if eq .Data.Status "draft"}}
+    <form method="post" action="{{.URL (printf "/org/%s/events/%d/publish" .Data.Slug .Data.ID)}}"><button class="btn btn-tixo btn-sm" type="submit">{{.T "event.show.publish"}}</button></form>
+    {{else if eq .Data.Status "published"}}
+    <form method="post" action="{{.URL (printf "/org/%s/events/%d/unpublish" .Data.Slug .Data.ID)}}"><button class="btn btn-quiet btn-sm" type="submit">{{.T "event.show.unpublish"}}</button></form>
+    <form method="post" action="{{.URL (printf "/org/%s/events/%d/cancel" .Data.Slug .Data.ID)}}" data-confirm="{{.T "event.show.cancel_confirm"}}"><button class="btn btn-quiet btn-sm" type="submit">{{.T "event.show.cancel"}}</button></form>
+    {{end}}
+  </div>
+</section>
+{{end}}

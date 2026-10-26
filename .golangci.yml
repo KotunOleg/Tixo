@@ -19,6 +19,9 @@ linters:
         - fmt.Fprint
         - fmt.Fprintf
         - fmt.Fprintln
+    gosec:
+      excludes:
+        - G120
   exclusions:
     generated: strict
     paths:

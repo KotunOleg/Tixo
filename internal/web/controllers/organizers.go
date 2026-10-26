@@ -52,6 +52,7 @@ type orgFormData struct {
 }
 
 type orgEventRow struct {
+	ID          int64
 	Status      string
 	Title       string
 	StartsAt    string
@@ -245,7 +246,7 @@ func (o Organizers) renderShow(w http.ResponseWriter, r *http.Request, status in
 	}
 	rows := make([]orgEventRow, len(events))
 	for i, e := range events {
-		rows[i] = orgEventRow{Title: e.Title, StartsAt: e.StartsAt.In(kyiv).Format(dateLayout), Status: e.Status, StatusLabel: "org.event_status." + e.Status}
+		rows[i] = orgEventRow{ID: e.ID, Title: e.Title, StartsAt: e.StartsAt.In(kyiv).Format(dateLayout), Status: e.Status, StatusLabel: "org.event_status." + e.Status}
 	}
 	people := make([]orgMemberRow, len(members))
 	for i, p := range members {

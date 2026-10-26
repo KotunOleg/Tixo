@@ -1,0 +1,31 @@
+{{define "title"}}{{.T "event.list.title"}} · {{.Data.OrgName}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL (printf "/org/%s" .Data.Slug)}}">{{.Data.OrgName}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{.T "event.list.title"}}</li>
+  </ol></nav>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="mb-0">{{.T "event.list.title"}}</h1>
+    <a class="btn btn-tixo" href="{{.URL (printf "/org/%s/events/new" .Data.Slug)}}">{{.T "event.list.create"}}</a>
+  </div>
+  {{with .Data.ErrorMsg}}<div class="tixo-error-summary mb-4" role="alert">{{$.T .}}</div>{{end}}
+  {{with .Data.Items}}
+  <div class="table-responsive" tabindex="0" role="region" aria-labelledby="event-list-title">
+    <table class="table align-middle tixo-table mb-0">
+      <thead><tr><th scope="col" id="event-list-title">{{$.T "org.show.col_title"}}</th><th scope="col">{{$.T "org.show.col_starts"}}</th><th scope="col">{{$.T "org.show.col_status"}}</th></tr></thead>
+      <tbody>
+        {{range .}}<tr>
+          <td class="tixo-col-title"><a href="{{$.URL (printf "/org/%s/events/%d" $.Data.Slug .ID)}}">{{.Title}}</a></td>
+          <td class="text-nowrap">{{.StartsAt}}</td>
+          <td><span class="tixo-status tixo-status-{{.Status}}">{{$.T .StatusLabel}}</span></td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="text-body-secondary">{{.T "event.list.empty"}}</p>
+  {{end}}
+</section>
+{{end}}
