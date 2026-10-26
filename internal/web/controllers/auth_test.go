@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
@@ -25,6 +26,7 @@ type fakeGoogle struct {
 	challenges  map[string]string
 	profile     map[string]any
 	tokenStatus int
+	tokenDelay  time.Duration
 }
 
 func newFakeGoogle(t *testing.T) *fakeGoogle {
@@ -53,11 +55,18 @@ func (f *fakeGoogle) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f.mu.Lock()
-	status := f.tokenStatus
+	status, delay := f.tokenStatus, f.tokenDelay
 	code := r.PostForm.Get("code")
 	challenge, ok := f.challenges[code]
 	delete(f.challenges, code)
 	f.mu.Unlock()
+	if delay > 0 {
+		select {
+		case <-time.After(delay):
+		case <-r.Context().Done():
+			return
+		}
+	}
 	if status != 0 {
 		w.WriteHeader(status)
 		return
@@ -93,7 +102,15 @@ type authSite struct {
 
 func newAuthSite(t *testing.T) *authSite {
 	t.Helper()
+	return newAuthSiteWithClient(t, nil)
+}
+
+func newAuthSiteWithClient(t *testing.T, client *http.Client) *authSite {
+	t.Helper()
 	fake := newFakeGoogle(t)
+	if client == nil {
+		client = fake.srv.Client()
+	}
 	pool := dbtest.Pool(t)
 	svc := users.New(pool)
 	h, d := buildSite(t, func(d *Deps) {
@@ -102,7 +119,7 @@ func newAuthSite(t *testing.T) *authSite {
 		d.Google = auth.NewGoogleWith("client-id", "client-secret", testBaseURL, auth.GoogleEndpoints{
 			Auth:     oauth2.Endpoint{AuthURL: fake.srv.URL + "/authorize", TokenURL: fake.srv.URL + "/token"},
 			Userinfo: fake.srv.URL + "/userinfo",
-		}, fake.srv.Client())
+		}, client)
 	}, nil)
 	return &authSite{h: h, deps: d, fake: fake, svc: svc, pool: pool}
 }
@@ -347,5 +364,23 @@ func TestSignInRoutesAre404WhenGoogleIsNotConfigured(t *testing.T) {
 		if rec := do(t, site, p); rec.Code != http.StatusNotFound {
 			t.Errorf("GET %s = %d, want 404", p, rec.Code)
 		}
+	}
+}
+
+func TestSlowGoogleTimesOutWith502(t *testing.T) {
+	s := newAuthSiteWithClient(t, &http.Client{Timeout: 200 * time.Millisecond})
+	s.fake.mu.Lock()
+	s.fake.tokenDelay = 5 * time.Second
+	s.fake.mu.Unlock()
+	start := s.startLogin(t, "/auth/google/login")
+	s.fake.issueCode("code-1", start.challenge)
+
+	began := time.Now()
+	rec := s.request(t, http.MethodGet, callbackURL("code-1", start.state), start.cookie)
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("slow google = %d, want 502", rec.Code)
+	}
+	if took := time.Since(began); took > 2*time.Second {
+		t.Errorf("callback waited %s for google: the http client timeout is not used for the token exchange", took)
 	}
 }

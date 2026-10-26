@@ -1,6 +1,3 @@
--include .env
-export GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
-
 TEST_ENV = TEST_DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo_test?sslmode=disable \
 	TEST_REDIS_URL=redis://localhost:56379/1 \
 	TEST_AMQP_URL=amqp://tixo:tixo@localhost:55672/
@@ -18,6 +15,8 @@ infra:
 	docker compose up -d postgres redis rabbitmq
 
 run:
+	@if [ -f .env ]; then . ./.env; fi; \
+	GOOGLE_CLIENT_ID="$$GOOGLE_CLIENT_ID" GOOGLE_CLIENT_SECRET="$$GOOGLE_CLIENT_SECRET" \
 	DATABASE_URL=postgres://tixo:tixo@localhost:55432/tixo?sslmode=disable \
 	REDIS_URL=redis://localhost:56379/0 \
 	AMQP_URL=amqp://tixo:tixo@localhost:55672/ \
