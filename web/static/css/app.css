@@ -90,7 +90,7 @@
   --tixo-text-lg: 1.25rem;
   --tixo-text-xl: 1.5625rem;
   --tixo-text-2xl: 1.953rem;
-  --tixo-text-3xl: clamp(1.953rem, 1.4rem + 2.4vw, 2.441rem);
+  --tixo-text-3xl: clamp(1.5625rem, 1.1rem + 2.4vw, 2.441rem);
   --tixo-text-4xl: clamp(2.2rem, 1.3rem + 3.8vw, 3.052rem);
 
   --tixo-radius-sm: 0.375rem;
@@ -407,6 +407,92 @@ h6, .h6 { font-size: var(--tixo-text-sm); }
   line-height: 1;
   color: var(--tixo-accent);
 }
+
+.tixo-form {
+  max-width: 40rem;
+}
+
+.tixo-error-summary {
+  padding: 1rem 1.25rem;
+  background: var(--tixo-surface);
+  border: 1px solid var(--tixo-danger);
+  border-radius: var(--tixo-radius);
+}
+
+.tixo-error-summary a {
+  color: var(--tixo-danger);
+}
+
+.tixo-badge {
+  display: inline-block;
+  padding: 0.125rem 0.625rem;
+  font-size: var(--tixo-text-sm);
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--tixo-text);
+  background: var(--tixo-surface-2);
+  border: 1px solid var(--tixo-border);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.list-group {
+  --bs-list-group-bg: var(--tixo-surface);
+  --bs-list-group-border-color: var(--tixo-border);
+  --bs-list-group-action-hover-bg: var(--tixo-surface-2);
+  --bs-list-group-action-color: var(--tixo-text);
+  --bs-list-group-action-hover-color: var(--tixo-text);
+  --bs-list-group-action-active-bg: var(--tixo-surface-2);
+}
+
+.list-group-item-action:focus-within {
+  outline: 2px solid var(--tixo-focus);
+  outline-offset: -2px;
+}
+
+.list-group-item-action .stretched-link:focus-visible {
+  outline: none;
+}
+
+.tixo-table {
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--tixo-border);
+}
+
+.tixo-table th {
+  font-size: var(--tixo-text-sm);
+  font-weight: 600;
+  color: var(--tixo-text-muted);
+}
+
+.tixo-col-title {
+  min-width: 10rem;
+}
+
+.table-responsive:focus-visible {
+  outline: 2px solid var(--tixo-focus);
+  outline-offset: 2px;
+}
+
+.tixo-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--tixo-text-sm);
+  white-space: nowrap;
+}
+
+.tixo-status::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.tixo-status-draft { color: var(--tixo-text-muted); }
+.tixo-status-published { color: var(--tixo-success); }
+.tixo-status-cancelled { color: var(--tixo-danger); }
 
 .dropdown-menu {
   --bs-dropdown-bg: var(--tixo-surface-2);

@@ -1,23 +1,25 @@
 {{define "title"}}{{.T "org.list.title"}} · {{.T "site.name"}}{{end}}
 {{define "content"}}
 <section class="container py-5">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-    <h1 class="h2 mb-0">{{.T "org.list.title"}}</h1>
-    <a class="btn btn-tixo" href="{{.URL "/org/new"}}"><i class="bi bi-plus-lg me-1"></i>{{.T "org.list.create"}}</a>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <h1 class="mb-0">{{.T "org.list.title"}}</h1>
+    <a class="btn btn-tixo" href="{{.URL "/org/new"}}">{{.T "org.list.create"}}</a>
   </div>
   {{with .Data.Items}}
-  <div class="list-group">
-    {{range .}}<a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" href="{{$.URL .Path}}">
-      <span><strong>{{.Name}}</strong> <span class="text-body-secondary">/{{.Slug}}</span></span>
-      <span class="badge text-bg-secondary">{{$.T .RoleLabel}}</span>
-    </a>
+  <ul class="list-group">
+    {{range .}}<li class="list-group-item list-group-item-action position-relative d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span class="text-break">
+        <a class="stretched-link fw-semibold text-reset text-decoration-none" href="{{$.URL .Path}}">{{.Name}}</a>
+        <span class="d-block small text-body-secondary">/org/{{.Slug}}</span>
+      </span>
+      <span class="tixo-badge">{{$.T .RoleLabel}}</span>
+    </li>
     {{end}}
-  </div>
+  </ul>
   {{else}}
-  <div class="text-center py-5">
-    <i class="bi bi-building display-5 text-body-secondary"></i>
-    <h2 class="h5 mt-3">{{.T "org.list.empty_title"}}</h2>
-    <p class="text-body-secondary">{{.T "org.list.empty_text"}}</p>
+  <div class="tixo-empty p-4 p-lg-5">
+    <h2 class="h5">{{.T "org.list.empty_title"}}</h2>
+    <p class="text-body-secondary mb-0">{{.T "org.list.empty_text"}}</p>
   </div>
   {{end}}
 </section>
