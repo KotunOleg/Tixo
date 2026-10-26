@@ -131,6 +131,7 @@ func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 		Name:           name,
 		Lang:           lang,
 		Path:           cleanPath(r.URL.Path),
+		query:          r.URL.RawQuery,
 		Data:           data,
 		SuggestEnglish: i18n.SuggestEnglish(r, lang),
 		RequestID:      middleware.GetReqID(r.Context()),
@@ -154,6 +155,7 @@ type Page struct {
 	base           url.URL
 	popFlash       func() string
 	flash          *string
+	query          string
 }
 
 func (p *Page) Flash() string {
@@ -177,6 +179,17 @@ func (p *Page) T(id string, kv ...any) (string, error) { return p.tr.T(p.Lang, i
 func (p *Page) N(id string, count int) (string, error) { return p.tr.N(p.Lang, id, count) }
 
 func (p *Page) URL(target string) string { return i18n.Path(p.Lang, cleanPath(target)) }
+
+func (p *Page) Here() string {
+	if p.query == "" {
+		return p.Path
+	}
+	return p.Path + "?" + p.query
+}
+
+func (p *Page) Current(section string) bool {
+	return p.Path == section || strings.HasPrefix(p.Path, section+"/")
+}
 
 func (p *Page) SwitchURL() string { return i18n.Path(p.OtherLang(), p.Path) }
 

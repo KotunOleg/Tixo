@@ -1,9 +1,9 @@
-{{define "lang_suggest"}}<div id="lang-suggest" class="alert tixo-lang-suggest rounded-0 mb-0 py-2" role="region" lang="en">
+{{define "lang_suggest"}}<div id="lang-suggest" class="tixo-lang-suggest py-2" role="region" aria-labelledby="lang-suggest-text" lang="en">
   <div class="container d-flex flex-wrap align-items-center justify-content-between gap-2">
-    <span><i class="bi bi-translate me-2"></i>{{.T "lang.suggest"}}</span>
-    <span class="d-flex gap-2">
+    <span id="lang-suggest-text">{{.T "lang.suggest"}}</span>
+    <span class="d-flex flex-wrap gap-2">
       <a class="btn btn-sm btn-tixo" href="{{.EnglishURL}}" hreflang="en">{{.T "lang.suggest_accept"}}</a>
-      <button type="button" class="btn btn-sm btn-outline-light" data-dismiss-lang>{{.T "lang.suggest_dismiss"}}</button>
+      <button type="button" class="btn btn-sm btn-quiet" data-dismiss-lang>{{.T "lang.suggest_dismiss"}}</button>
     </span>
   </div>
 </div>{{end}}

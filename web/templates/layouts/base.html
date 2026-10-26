@@ -20,7 +20,7 @@
   {{template "navbar" .}}
   {{if .SuggestEnglish}}{{template "lang_suggest" .}}{{end}}
   {{with .Flash}}<div class="container mt-3">
-    <div class="alert alert-info alert-dismissible fade show tixo-flash" role="status">
+    <div class="alert alert-dismissible fade show tixo-flash" role="status">
       {{$.T .}}
       <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{{$.T "flash.close"}}"></button>
     </div>
