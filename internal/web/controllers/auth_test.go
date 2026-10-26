@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 
+	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
@@ -137,6 +138,7 @@ func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)
 		d.Tiers = tiers.New(pool)
 		d.Lineup = lineup.New(pool)
 		d.Artists = artists.New(pool)
+		d.APITokens = apitokens.New(pool)
 		store, err := storage.New(storageDir)
 		if err != nil {
 			t.Fatal(err)
