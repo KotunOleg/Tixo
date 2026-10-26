@@ -38,7 +38,6 @@ submit = "Search"
 
 [home.upcoming]
 title = "Upcoming events"
-all = "All events"
 empty_title = "No events yet"
 empty_text = "Organizers are preparing the line-up. Check back soon."
 organizer_cta = "Organizer? Create an event"

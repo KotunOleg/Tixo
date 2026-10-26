@@ -41,6 +41,9 @@ func TestNoSignInLinkWhenGoogleIsNotConfigured(t *testing.T) {
 	if strings.Contains(body, "/auth/google/login") {
 		t.Error("navbar links to a sign-in that answers 404")
 	}
+	if strings.Contains(body, `href="/org"`) {
+		t.Error("page links to the organizer workspace, which needs a sign-in that is switched off")
+	}
 }
 
 func TestSessionOfDeletedUserBecomesAnonymous(t *testing.T) {
@@ -139,31 +142,18 @@ func TestNavbarMarksCurrentSection(t *testing.T) {
 	}
 }
 
-func TestLayoutLinksOnlyToBuiltPages(t *testing.T) {
+func TestPagesLinkOnlyToBuiltPages(t *testing.T) {
 	s := newAuthSite(t)
 	cookie := s.signIn(t)
 	unbuilt := []string{`href="/events"`, `href="/map"`, `href="/organizers"`, `href="/en/events"`, `href="/en/map"`, `href="/en/organizers"`}
 	for _, path := range []string{"/", "/en/"} {
 		for _, c := range []*http.Cookie{nil, cookie} {
 			body := s.request(t, http.MethodGet, path, c).Body.String()
-			layout := between(body, "<nav", "</nav>") + between(body, "<footer", "</footer>")
 			for _, href := range unbuilt {
-				if strings.Contains(layout, href) {
-					t.Errorf("%s (signed in: %v): navbar or footer links to unbuilt page %s", path, c != nil, href)
+				if strings.Contains(body, href) {
+					t.Errorf("%s (signed in: %v): page links to unbuilt page %s", path, c != nil, href)
 				}
 			}
 		}
 	}
-}
-
-func between(s, start, end string) string {
-	i := strings.Index(s, start)
-	if i < 0 {
-		return ""
-	}
-	j := strings.Index(s[i:], end)
-	if j < 0 {
-		return s[i:]
-	}
-	return s[i : i+j]
 }
