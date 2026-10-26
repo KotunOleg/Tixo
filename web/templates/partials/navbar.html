@@ -1,0 +1,22 @@
+{{define "navbar"}}<nav class="navbar navbar-expand-lg sticky-top tixo-navbar">
+  <div class="container">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="{{.URL "/"}}">
+      <img src="/static/img/logo.svg" alt="" width="32" height="32">
+      <span class="tixo-wordmark">{{.T "site.name"}}</span>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav-main" aria-controls="nav-main" aria-expanded="false" aria-label="{{.T "nav.toggle"}}">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="nav-main">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="{{.URL "/events"}}"><i class="bi bi-calendar-event me-1"></i>{{.T "nav.events"}}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{.URL "/map"}}"><i class="bi bi-geo-alt me-1"></i>{{.T "nav.map"}}</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{.URL "/organizers"}}"><i class="bi bi-megaphone me-1"></i>{{.T "nav.organizers"}}</a></li>
+      </ul>
+      <div class="d-flex align-items-center gap-2">
+        <a class="btn btn-sm btn-outline-light" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}" title="{{.T "lang.switch"}}">{{.T "lang.switch_short"}}</a>
+        <a class="btn btn-sm btn-tixo" href="{{.URL "/login"}}"><i class="bi bi-person me-1"></i>{{.T "nav.sign_in"}}</a>
+      </div>
+    </div>
+  </div>
+</nav>{{end}}

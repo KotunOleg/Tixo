@@ -1,0 +1,78 @@
+[site]
+name = "Tixo"
+tagline = "Concerts, talks and meetups near you"
+meta_description = "Tixo — find concerts, talks and meetups on the map or with an AI assistant and get tickets in a minute."
+
+[a11y]
+skip = "Skip to content"
+
+[nav]
+events = "Events"
+map = "Map"
+organizers = "For organizers"
+sign_in = "Sign in"
+toggle = "Open menu"
+
+[lang]
+switch = "Українська"
+switch_short = "UA"
+suggest = "Looks like you prefer English. Switch to the English version?"
+suggest_accept = "Switch to English"
+suggest_dismiss = "Stay here"
+
+[home]
+title = "Tixo — tickets for concerts, talks and meetups"
+
+[home.hero]
+kicker = "Event tickets"
+title = "Find your event for tonight"
+subtitle = "Concerts, talks and meetups on the city map. Filter by genre, date and price — or just ask the AI assistant."
+
+[home.search]
+label = "Search events"
+placeholder = "Jazz in Kyiv this weekend…"
+submit = "Search"
+
+[home.upcoming]
+title = "Upcoming events"
+all = "All events"
+empty_title = "No events yet"
+empty_text = "Organizers are preparing the line-up. Check back soon."
+organizer_cta = "Organizer? Create an event"
+
+[home.how]
+title = "How it works"
+
+[home.how.map]
+title = "Browse the map"
+text = "Every venue in the city with filters by date, genre and price."
+
+[home.how.agent]
+title = "Ask the AI assistant"
+text = "Describe what you want in plain words — the assistant picks events and helps with the ticket."
+
+[home.how.tickets]
+title = "E-ticket"
+text = "After payment you get a PDF with a QR code and a Telegram reminder."
+
+[home.organizers]
+title = "Running events?"
+text = "Publish your line-up, sell tickets and track sales analytics in one place."
+cta = "Start as an organizer"
+
+[footer]
+explore = "Explore"
+language = "Language"
+rights = "© {{.Year}} Tixo. Course project “Web Technologies”."
+
+[errors]
+back_home = "Back to home"
+request_id = "Request ID: {{.ID}}"
+
+[errors.404]
+title = "Page not found"
+text = "The event may have moved or the link is out of date."
+
+[errors.500]
+title = "Something went wrong"
+text = "We already see the error. Please try again in a minute."
