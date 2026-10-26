@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Artist struct {
+	ID             int64
+	Mbid           pgtype.UUID
+	Name           string
+	SortName       string
+	Type           pgtype.Text
+	Country        pgtype.Text
+	Disambiguation string
+	Genres         []string
+	Links          json.RawMessage
+	EnrichedAt     pgtype.Timestamptz
+}
+
 type Event struct {
 	ID          int64
 	OrganizerID int64
@@ -28,6 +41,13 @@ type Event struct {
 	UpdatedAt   time.Time
 }
 
+type EventArtist struct {
+	EventID     int64
+	ArtistID    int64
+	Position    int32
+	IsHeadliner bool
+}
+
 type Membership struct {
 	UserID      int64
 	OrganizerID int64
@@ -42,6 +62,15 @@ type Organizer struct {
 	Contacts  json.RawMessage
 	Plan      string
 	CreatedAt time.Time
+}
+
+type TicketTier struct {
+	ID        int64
+	EventID   int64
+	Name      string
+	Price     int64
+	Quantity  int32
+	Available int32
 }
 
 type User struct {
