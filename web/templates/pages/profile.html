@@ -1,0 +1,64 @@
+{{define "title"}}{{.T "profile.title"}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <h1 class="mb-4">{{.T "profile.title"}}</h1>
+
+  {{if .Data.JustIssued}}
+  <div class="alert tixo-flash mb-4" role="status" tabindex="-1" data-focus-on-load>
+    <h2 class="h6">{{.T "profile.tokens.issued_title"}}</h2>
+    <p>{{.T "profile.tokens.issued_text"}}</p>
+    <div class="mb-2">
+      <label class="form-label" for="profile-issued-token">{{.Data.IssuedName}}</label>
+      <input class="form-control font-monospace" id="profile-issued-token" type="text" value="{{.Data.IssuedRaw}}" readonly onclick="this.select()">
+    </div>
+  </div>
+  {{end}}
+
+  <h2 class="h4">{{.T "profile.tokens.title"}}</h2>
+  <p class="text-body-secondary">{{.T "profile.tokens.help"}}</p>
+
+  {{with .Data.Tokens}}
+  <ul class="list-group mb-4">
+    {{range .}}<li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span class="text-break">
+        <span class="d-block fw-semibold">{{.Name}}</span>
+        <span class="d-block small text-body-secondary">
+          {{$.T "profile.tokens.created_at"}} {{.CreatedAt}} ·
+          {{if .LastUsedAt}}{{$.T "profile.tokens.last_used_at"}} {{.LastUsedAt}}{{else}}{{$.T "profile.tokens.never_used"}}{{end}}
+        </span>
+      </span>
+      <form method="post" action="{{$.URL (printf "/profile/tokens/%d/revoke" .ID)}}">
+        <button class="btn btn-quiet btn-sm" type="submit">{{$.T "profile.tokens.revoke"}}</button>
+      </form>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <div class="tixo-empty p-4 p-lg-5 mb-4">
+    <h3 class="h5">{{.T "profile.tokens.empty_title"}}</h3>
+    <p class="text-body-secondary mb-0">{{.T "profile.tokens.empty_text"}}</p>
+  </div>
+  {{end}}
+
+  <div class="tixo-form">
+    <h2 class="h5">{{.T "profile.tokens.create_title"}}</h2>
+    {{with .Data.Errors}}
+    <div class="tixo-error-summary mb-4" id="profile-token-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="profile-token-errors-title">
+      <h3 class="h6 mb-2" id="profile-token-errors-title">{{$.T "profile.tokens.form.errors_title"}}</h3>
+      <ul class="mb-0">
+        {{with index . "name"}}<li><a href="#profile-token-name">{{$.T .}}</a></li>{{end}}
+      </ul>
+    </div>
+    {{end}}
+    <form method="post" action="{{.URL "/profile/tokens"}}" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="profile-token-name">{{.T "profile.tokens.form.name"}}</label>
+        <input class="form-control{{if index .Data.Errors "name"}} is-invalid{{end}}" id="profile-token-name" name="name" value="{{.Data.Name}}"{{if index .Data.Errors "name"}} aria-invalid="true" aria-describedby="profile-token-name-error"{{end}} required maxlength="100" autocomplete="off">
+        {{with index .Data.Errors "name"}}<div class="invalid-feedback" id="profile-token-name-error">{{$.T .}}</div>{{end}}
+        <div class="form-text">{{.T "profile.tokens.form.name_help"}}</div>
+      </div>
+      <button class="btn btn-tixo" type="submit">{{.T "profile.tokens.form.submit"}}</button>
+    </form>
+  </div>
+</section>
+{{end}}

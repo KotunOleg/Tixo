@@ -95,6 +95,20 @@ func (s *Service) Get(ctx context.Context, organizerID, id int64) (dbgen.Venue, 
 	return v, nil
 }
 
+func (s *Service) GetVisible(ctx context.Context, organizerID, id int64) (dbgen.Venue, error) {
+	v, err := s.q.GetVenue(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dbgen.Venue{}, ErrNotFound
+	}
+	if err != nil {
+		return dbgen.Venue{}, fmt.Errorf("get venue: %w", err)
+	}
+	if v.OrganizerID.Valid && v.OrganizerID.Int64 != organizerID {
+		return dbgen.Venue{}, ErrNotFound
+	}
+	return v, nil
+}
+
 func CheckInput(in Input) error {
 	return validate(normalize(in))
 }

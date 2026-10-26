@@ -14,6 +14,7 @@ organizers = "Організаторам"
 sign_in = "Увійти"
 toggle = "Відкрити меню"
 my_organizers = "Мої організатори"
+profile = "Профіль і API-токени"
 sign_out = "Вийти"
 account = "Акаунт"
 
@@ -330,6 +331,33 @@ folk = "Фолк"
 jazz = "Джаз"
 classical = "Класична"
 metal = "Метал"
+
+[profile]
+title = "Профіль"
+
+[profile.tokens]
+title = "API-токени"
+help = "Токени для REST API (Postman, curl, MCP). Передавайте в заголовку Authorization: Bearer <токен>."
+issued_title = "Токен видано"
+issued_text = "Збережіть значення зараз — повторно ми його не покажемо."
+created_at = "Створено"
+last_used_at = "Востаннє використано"
+never_used = "Ще не використовувався"
+revoke = "Відкликати"
+empty_title = "Токенів поки немає"
+empty_text = "Видайте перший токен нижче, щоб звертатися до API поза браузером."
+create_title = "Видати новий токен"
+revoked = "Токен відкликано."
+
+[profile.tokens.form]
+name = "Назва токена"
+name_help = "Наприклад: «ноутбук», «CI», «Postman»."
+submit = "Видати токен"
+errors_title = "Виправте поля нижче"
+
+[profile.tokens.form.error]
+name_required = "Вкажіть назву токена."
+name_length = "Назва має бути не довшою за 100 символів."
 
 [errors.403]
 title = "Немає доступу"

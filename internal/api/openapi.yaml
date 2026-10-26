@@ -1,0 +1,637 @@
+openapi: 3.0.3
+info:
+  title: Tixo REST API
+  description: JSON CRUD for organizers, venues, events, ticket tiers, lineup and artists (C5, B1).
+  version: "1.0"
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: organizers
+  - name: venues
+  - name: events
+  - name: tiers
+  - name: lineup
+  - name: artists
+
+paths:
+  /organizers:
+    get:
+      tags: [organizers]
+      summary: List organizers the current user is a member of
+      parameters:
+        - $ref: "#/components/parameters/skip"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Organizer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /organizers/{slug}:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+    get:
+      tags: [organizers]
+      summary: Get one organizer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Organizer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [organizers]
+      summary: Update organizer name and contacts (owner only)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrganizerUpdate" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Organizer" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /organizers/{slug}/venues:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+    get:
+      tags: [venues]
+      summary: List venues of an organizer
+      parameters:
+        - $ref: "#/components/parameters/skip"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Venue" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [venues]
+      summary: Create a venue
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VenueInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Venue" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /organizers/{slug}/venues/{id}:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [venues]
+      summary: Get one venue
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Venue" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [venues]
+      summary: Update a venue
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/VenueInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Venue" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [venues]
+      summary: Delete a venue (fails if it still has events)
+      responses:
+        "204": { description: No Content }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizers/{slug}/events:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+    get:
+      tags: [events]
+      summary: List events of an organizer
+      parameters:
+        - $ref: "#/components/parameters/skip"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [events]
+      summary: Create an event (status starts as draft)
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /organizers/{slug}/events/{id}:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [events]
+      summary: Get one event
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [events]
+      summary: Update an event
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [events]
+      summary: Delete an event (fails if it still has ticket tiers)
+      responses:
+        "204": { description: No Content }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizers/{slug}/events/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+      - $ref: "#/components/parameters/id"
+    post:
+      tags: [events]
+      summary: Change event status (draft, published, cancelled)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [draft, published, cancelled] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Event" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /organizers/{slug}/events/{id}/tiers:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [tiers]
+      summary: List ticket tiers of an event
+      parameters:
+        - $ref: "#/components/parameters/skip"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/TicketTier" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [tiers]
+      summary: Create a ticket tier
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketTierInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketTier" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /organizers/{slug}/events/{id}/tiers/{tierID}:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+      - $ref: "#/components/parameters/id"
+      - name: tierID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    patch:
+      tags: [tiers]
+      summary: Update a ticket tier
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketTierInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketTier" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+    delete:
+      tags: [tiers]
+      summary: Delete a ticket tier (fails if tickets were already sold)
+      responses:
+        "204": { description: No Content }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /organizers/{slug}/events/{id}/lineup:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [lineup]
+      summary: List the artist lineup of an event
+      parameters:
+        - $ref: "#/components/parameters/skip"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/LineupEntry" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [lineup]
+      summary: Add an artist to the event lineup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [artistId]
+              properties:
+                artistId: { type: integer, format: int64 }
+                isHeadliner: { type: boolean }
+      responses:
+        "201": { description: Created }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /organizers/{slug}/events/{id}/lineup/{artistID}:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+      - $ref: "#/components/parameters/id"
+      - name: artistID
+        in: path
+        required: true
+        schema: { type: integer, format: int64 }
+    delete:
+      tags: [lineup]
+      summary: Remove an artist from the event lineup
+      responses:
+        "204": { description: No Content }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /artists:
+    get:
+      tags: [artists]
+      summary: Search artists by name (trigram, 2+ characters)
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+        - $ref: "#/components/parameters/skip"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Artist" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [artists]
+      summary: Create a new artist
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Artist" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /artists/{id}:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [artists]
+      summary: Get one artist
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Artist" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'API token from /profile ("Authorization: Bearer <token>")'
+
+  parameters:
+    slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    skip:
+      name: skip
+      in: query
+      schema: { type: integer, format: int32, default: 0, minimum: 0 }
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, format: int32, default: 20, minimum: 0, maximum: 100 }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated but not allowed to perform this action
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found, or the current user has no access to it
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: The change conflicts with existing data
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationFailed:
+      description: Request body failed validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        fields:
+          type: object
+          additionalProperties: { type: string }
+
+    Page:
+      type: object
+      properties:
+        items: { type: array, items: {} }
+        count: { type: integer, format: int64 }
+        skip: { type: integer, format: int32 }
+        limit: { type: integer, format: int32 }
+        nextLink: { type: string, nullable: true }
+
+    Organizer:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        slug: { type: string }
+        name: { type: string }
+        plan: { type: string, enum: [free, premium] }
+        role: { type: string, enum: [owner, editor] }
+        contacts:
+          type: object
+          additionalProperties: { type: string }
+
+    OrganizerUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        contacts:
+          type: object
+          properties:
+            email: { type: string }
+            phone: { type: string }
+            telegram: { type: string }
+
+    Venue:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        organizerId: { type: integer, format: int64 }
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        lat: { type: number, format: double }
+        lng: { type: number, format: double }
+        capacity: { type: integer, format: int32 }
+        shared: { type: boolean }
+
+    VenueInput:
+      type: object
+      required: [name, address, city, lat, lng, capacity]
+      properties:
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        lat: { type: number, format: double }
+        lng: { type: number, format: double }
+        capacity: { type: integer, format: int32 }
+
+    Event:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        organizerId: { type: integer, format: int64 }
+        venueId: { type: integer, format: int64 }
+        slug: { type: string }
+        title: { type: string }
+        description: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        genre: { type: string }
+        priceFrom: { type: integer, format: int64, nullable: true }
+        posterKey: { type: string }
+        status: { type: string, enum: [draft, published, cancelled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    EventInput:
+      type: object
+      required: [venueId, slug, title, startsAt, endsAt, genre]
+      properties:
+        venueId: { type: integer, format: int64 }
+        slug: { type: string }
+        title: { type: string }
+        description: { type: string }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        genre: { type: string }
+        priceFrom: { type: integer, format: int64, nullable: true }
+        posterKey: { type: string }
+
+    TicketTier:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        eventId: { type: integer, format: int64 }
+        name: { type: string }
+        price: { type: integer, format: int64 }
+        quantity: { type: integer, format: int32 }
+        available: { type: integer, format: int32 }
+
+    TicketTierInput:
+      type: object
+      required: [name, price, quantity]
+      properties:
+        name: { type: string }
+        price: { type: integer, format: int64 }
+        quantity: { type: integer, format: int32 }
+
+    LineupEntry:
+      type: object
+      properties:
+        artist: { $ref: "#/components/schemas/Artist" }
+        position: { type: integer, format: int32 }
+        isHeadliner: { type: boolean }
+
+    Artist:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        sortName: { type: string }
+        type: { type: string }
+        country: { type: string }
+        disambiguation: { type: string }
