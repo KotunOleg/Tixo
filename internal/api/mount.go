@@ -26,6 +26,9 @@ type Deps struct {
 }
 
 func Mount(r chi.Router, d Deps) {
+	r.Get("/api/docs", ServeDocs)
+	r.Get("/api/openapi.yaml", ServeOpenAPISpec)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(RequireAPIUser(d.APITokens, d.Logger))
 
