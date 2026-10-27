@@ -5,6 +5,7 @@ package controllers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -67,6 +68,7 @@ func TestUISnapshotServer(t *testing.T) {
 
 	memberID := site.sessionUserID(t, member)
 	site.seedOrders(t, memberID)
+	site.seedAnalytics(t, memberID)
 	for _, name := range []string{"ноутбук", "скрипт резервного копіювання квитків і статистики продажів на дроплеті"} {
 		if _, _, err := site.deps.APITokens.Issue(context.Background(), memberID, name); err != nil {
 			t.Fatal(err)
@@ -268,5 +270,53 @@ func (s *authSite) seedOrders(t *testing.T, userID int64) {
 	}
 	if _, err := s.pool.Exec(ctx, "UPDATE orders SET created_at = now() + interval '1 minute' WHERE event_id = $1", past.Event.ID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func (s *authSite) seedAnalytics(t *testing.T, buyer int64) {
+	t.Helper()
+	ctx := context.Background()
+	s.setPlan(t, "kyiv-philharmonic", "premium")
+	s.setPlan(t, "odesa-jazz", "premium")
+	q := dbgen.New(s.pool)
+	org, err := q.GetOrganizerBySlug(ctx, "kyiv-philharmonic")
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := q.CreateVenue(ctx, dbgen.CreateVenueParams{OrganizerID: org.ID, Name: "Колонний зал", City: "Kyiv", Lat: 50.45, Lng: 30.52, Capacity: 600})
+	if err != nil {
+		t.Fatal(err)
+	}
+	genres := []string{"classical", "jazz", "folk", "electronic", "rock"}
+	titles := []string{
+		"Різдвяний гала-концерт Національного академічного оркестру народних інструментів України",
+		"Jazz Evening", "Фольк-вечір", "Нічний електронний сет", "Рок-симфонія", "Бах і Гендель",
+		"Струнний квартет", "Опера в концерті", "Кіномузика", "Дитячий ранок", "Сучасна музика",
+	}
+	start := time.Date(2030, 4, 1, 19, 0, 0, 0, time.UTC)
+	for i, title := range titles {
+		ev, err := q.CreateEvent(ctx, dbgen.CreateEventParams{
+			OrganizerID: org.ID, VenueID: v.ID, Slug: fmt.Sprintf("kyiv-philharmonic-sale-%02d", i), Title: title,
+			StartsAt: start.AddDate(0, 0, i), EndsAt: start.AddDate(0, 0, i).Add(2 * time.Hour), Genre: genres[i%len(genres)],
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := q.SetEventStatus(ctx, dbgen.SetEventStatusParams{Status: "published", ID: ev.ID, OrganizerID: org.ID}); err != nil {
+			t.Fatal(err)
+		}
+		tier, err := q.CreateTicketTier(ctx, dbgen.CreateTicketTierParams{EventID: ev.ID, OrganizerID: org.ID, Name: "Вхідний", Price: int64(25000 + i*5000), Quantity: 500})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for d := 0; d < 30; d += 1 + i%4 {
+			qty := int32((d+i)%5 + 1)
+			if _, err := s.pool.Exec(ctx, `
+				INSERT INTO orders (user_id, event_id, tier_id, quantity, unit_price, total, idempotency_key, created_at)
+				VALUES ($1, $2, $3, $4::int, $5::bigint, $4::int * $5::bigint, gen_random_uuid(), now() - make_interval(days => $6::int))`,
+				buyer, ev.ID, tier.ID, qty, tier.Price, d); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }

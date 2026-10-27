@@ -91,9 +91,10 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 
 	orgs, ven, evs, trs, lup, arts, tokens := organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), lineup.New(pool), artists.New(pool), apitokens.New(pool)
 	ords := orders.New(pool)
-	stats := analytics.New(pool, features.New(pool))
+	flags := features.New(pool)
+	stats := analytics.New(pool, flags)
 	site := controllers.Deps{
-		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, APITokens: tokens, Storage: posters, Logger: log,
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, Features: flags, Analytics: stats, APITokens: tokens, Storage: posters, Logger: log,
 	}
 	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, Analytics: stats, APITokens: tokens, Logger: log}
 	handler := server.New(server.Deps{

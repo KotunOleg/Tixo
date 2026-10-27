@@ -10,10 +10,12 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/features"
 	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
@@ -37,6 +39,8 @@ type Deps struct {
 	Lineup     *lineup.Service
 	Artists    *artists.Service
 	Orders     *orders.Service
+	Features   *features.Service
+	Analytics  *analytics.Service
 	APITokens  *apitokens.Service
 	Storage    *storage.Store
 	Logger     *slog.Logger
@@ -79,6 +83,9 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Post("/org/{slug}/members", o.AddMember)
 			r.With(o.RequireMember).Get("/org/{slug}/edit", o.Edit)
 			r.With(o.RequireMember).Post("/org/{slug}/edit", o.EditSubmit)
+
+			an := Analytics{View: d.View, Svc: d.Analytics, Log: d.Logger}
+			r.With(o.RequireMember, RequireFeature(d.View, d.Features, d.Logger, features.SalesAnalytics)).Get("/org/{slug}/analytics", an.Show)
 
 			v := Venues{View: d.View, Svc: d.Venues, Log: d.Logger}
 			r.With(o.RequireMember).Get("/org/{slug}/venues", v.List)
