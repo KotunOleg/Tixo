@@ -153,6 +153,37 @@ func TestLineupSearchEndpointReturnsJSONMatches(t *testing.T) {
 	}
 }
 
+func TestLineupSearchEndpointHidesAlreadyAddedArtist(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	s.createOrganizer(t, alice, "Kyiv Live", "kyiv-live")
+	venueID := mustEventVenue(t, s, "kyiv-live", alice)
+	s.postMultipart(t, "/org/kyiv-live/events/new", eventFields(venueID, "big-show"), "", "", nil, alice)
+	id := strconv.FormatInt(mustShowEventID(t, s, "kyiv-live"), 10)
+
+	added, err := dbgen.New(s.pool).CreateArtist(context.Background(), dbgen.CreateArtistParams{Name: "Okean Elzy", SortName: "Okean Elzy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	notAdded, err := dbgen.New(s.pool).CreateArtist(context.Background(), dbgen.CreateArtistParams{Name: "Okean Jazz Trio", SortName: "Okean Jazz Trio"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.postForm(t, "/org/kyiv-live/events/"+id+"/lineup", url.Values{"artist_id": {strconv.FormatInt(added.ID, 10)}}, alice)
+
+	rec := s.request(t, http.MethodGet, "/org/kyiv-live/events/"+id+"/lineup/search?q=Okean", alice)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("search = %d\n%s", rec.Code, rec.Body.String())
+	}
+	var results []artistSearchResult
+	if err := json.Unmarshal(rec.Body.Bytes(), &results); err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].ID != notAdded.ID {
+		t.Errorf("results = %+v, want only the unadded Okean Jazz Trio", results)
+	}
+}
+
 func TestLineupSearchEndpointRejectsShortQuery(t *testing.T) {
 	s := newAuthSite(t)
 	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
