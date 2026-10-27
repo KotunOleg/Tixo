@@ -112,11 +112,16 @@ jobs:
       - name: start server
         run: |
           /tmp/tixo serve &
-          for i in $(seq 1 30); do /tmp/tixo probe >/dev/null 2>&1 && break; sleep 1; done
+          for i in $(seq 1 30); do /tmp/tixo probe >/dev/null 2>&1 && exit 0; sleep 1; done
+          echo "serve not ready after 30s" >&2
+          exit 1
       - name: seed api token
         id: seed
         run: |
-          token=$(/tmp/tixo seed-api-token | grep "^token: " | cut -d" " -f2)
+          seeded=$(/tmp/tixo seed-api-token)
+          token=$(printf "%s\n" "$seeded" | sed -n "s/^token: //p")
+          [ -n "$token" ] || { echo "seed-api-token printed no token" >&2; exit 1; }
+          echo "::add-mask::$token"
           echo "token=$token" >> "$GITHUB_OUTPUT"
       - name: run postman collection
         run: npx --yes newman run tests/postman/tixo.postman_collection.json -e tests/postman/local.json --env-var token=${{ steps.seed.outputs.token }}
