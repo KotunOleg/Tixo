@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
+	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
@@ -22,6 +24,7 @@ type Lineup struct {
 	View     *view.Renderer
 	Sessions *scs.SessionManager
 	Svc      *lineup.Service
+	Events   *events.Service
 	Artists  *artists.Service
 	Log      *slog.Logger
 }
@@ -69,6 +72,54 @@ func (c Lineup) Add(w http.ResponseWriter, r *http.Request) {
 	}
 	c.Log.InfoContext(r.Context(), "artist added to lineup", "artist_id", artistID, "event_id", eventID, "request_id", middleware.GetReqID(r.Context()))
 	c.back(w, r, m.Organizer.Slug, eventID, "lineup.add.saved")
+}
+
+type artistSearchResult struct {
+	ID    int64  `json:"id"`
+	Label string `json:"label"`
+}
+
+func (c Lineup) Search(w http.ResponseWriter, r *http.Request) {
+	m := membershipFrom(r)
+	eventID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		c.View.NotFound(w, r)
+		return
+	}
+	if _, err := c.Events.Get(r.Context(), m.Organizer.ID, eventID); errors.Is(err, events.ErrNotFound) {
+		c.View.NotFound(w, r)
+		return
+	} else if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+
+	inLineup, err := c.Svc.List(r.Context(), m.Organizer.ID, eventID)
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	added := make(map[int64]bool, len(inLineup))
+	for _, row := range inLineup {
+		added[row.Artist.ID] = true
+	}
+
+	found, err := c.Artists.Search(r.Context(), r.URL.Query().Get("q"))
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	results := make([]artistSearchResult, 0, len(found))
+	for _, a := range found {
+		if added[a.ID] {
+			continue
+		}
+		results = append(results, artistSearchResult{ID: a.ID, Label: a.Name})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(results); err != nil {
+		c.Log.ErrorContext(r.Context(), "lineup search encode failed", "error", err, "request_id", middleware.GetReqID(r.Context()))
+	}
 }
 
 func (c Lineup) Remove(w http.ResponseWriter, r *http.Request) {

@@ -93,7 +93,8 @@ func Mount(r chi.Router, d Deps) {
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers/{tierID}", ti.Update)
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/tiers/{tierID}/delete", ti.Delete)
 
-			lu := Lineup{View: d.View, Sessions: d.Sessions, Svc: d.Lineup, Artists: d.Artists, Log: d.Logger}
+			lu := Lineup{View: d.View, Sessions: d.Sessions, Svc: d.Lineup, Events: d.Events, Artists: d.Artists, Log: d.Logger}
+			r.With(o.RequireMember).Get("/org/{slug}/events/{id}/lineup/search", lu.Search)
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/lineup", lu.Add)
 			r.With(o.RequireMember).Post("/org/{slug}/events/{id}/lineup/{artistID}/remove", lu.Remove)
 		})
