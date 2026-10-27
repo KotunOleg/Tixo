@@ -16,6 +16,7 @@ toggle = "Open menu"
 my_organizers = "My organizers"
 profile = "Profile and API tokens"
 sign_out = "Sign out"
+tickets = "My tickets"
 account = "Account"
 
 [lang]
@@ -398,7 +399,7 @@ new_tab = "(opens in a new tab)"
 organizer = "Organizer"
 panel = "Tickets and contacts"
 price_from_label = "Tickets from"
-buy = "Buy a ticket"
+buy_cta = "Buy a ticket"
 
 [landing.cancelled]
 title = "This event is cancelled."
@@ -421,3 +422,48 @@ all_sold_out_text = "There are no tickets left for this event."
 [landing.tickets.left]
 one = "{{.Count}} ticket left"
 other = "{{.Count}} tickets left"
+
+[landing.buy]
+tier = "Ticket type"
+quantity = "Number of tickets"
+quantity_help = "Up to 10 tickets per order."
+submit = "Buy"
+mock_payment = "Test payment: no money is charged, tickets appear right away."
+sign_in = "Sign in to buy"
+sign_in_text = "Sign in with Google to buy a ticket. You will come back to this page afterwards."
+errors_title = "The order could not be placed"
+
+[landing.buy.error]
+expired = "This page is out of date. Check your choice and press Buy again."
+reused = "An order was already placed from this page. Check My tickets or buy again."
+quantity = "Choose between 1 and 10 tickets."
+tier = "Choose a ticket type from the list."
+sold_out = "There are not that many tickets of this type left. Choose another type or fewer tickets."
+not_on_sale = "Sales for this event are closed."
+
+[order]
+title = "Order #{{.ID}}"
+heading = "Your tickets are booked"
+paid = "Paid (test payment)"
+event_cancelled = "This event is cancelled. Refunds are not supported yet — contact the organizer."
+tier = "Ticket type"
+quantity = "Quantity"
+total = "Total"
+codes_title = "Ticket codes"
+codes_help = "Show the code at the entrance. A PDF with a QR code will follow later."
+to_tickets = "All my tickets"
+
+[tickets]
+title = "My tickets"
+past = "event is over"
+cancelled = "event cancelled"
+pages = "Order pages"
+prev = "Newer"
+next = "Older"
+empty_title = "No tickets yet"
+empty_text = "Pick an event on the home page — tickets you buy will show up here."
+empty_cta = "Browse events"
+
+[tickets.count]
+one = "{{.Count}} ticket"
+other = "{{.Count}} tickets"

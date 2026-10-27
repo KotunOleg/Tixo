@@ -15,6 +15,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/lineup"
+	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/tiers"
@@ -35,6 +36,7 @@ type Deps struct {
 	Tiers      *tiers.Service
 	Lineup     *lineup.Service
 	Artists    *artists.Service
+	Orders     *orders.Service
 	APITokens  *apitokens.Service
 	Storage    *storage.Store
 	Logger     *slog.Logger
@@ -46,8 +48,9 @@ func Mount(r chi.Router, d Deps) {
 	r.Group(func(r chi.Router) {
 		r.Use(d.Sessions.LoadAndSave, d.loadUser())
 		r.Get("/", Home{View: d.View, Events: d.Events, Log: d.Logger}.ServeHTTP)
-		pe := PublicEvents{View: d.View, Svc: d.Events, Log: d.Logger}
+		pe := PublicEvents{View: d.View, Svc: d.Events, Orders: d.Orders, Log: d.Logger}
 		r.Get("/events/{slug}", pe.Show)
+		r.Post("/events/{slug}/buy", pe.Buy)
 
 		a := Auth{View: d.View, Sessions: d.Sessions, Google: d.Google, Users: d.Users, Log: d.Logger}
 		r.Get("/auth/google/login", a.Login)
@@ -61,6 +64,10 @@ func Mount(r chi.Router, d Deps) {
 			r.Get("/profile", p.Show)
 			r.Post("/profile/tokens", p.CreateToken)
 			r.Post("/profile/tokens/{id}/revoke", p.RevokeToken)
+
+			ord := Orders{View: d.View, Svc: d.Orders, Log: d.Logger}
+			r.Get("/orders/{id}", ord.Show)
+			r.Get("/tickets", ord.List)
 
 			r.Get("/org", o.List)
 			r.Get("/org/new", o.New)

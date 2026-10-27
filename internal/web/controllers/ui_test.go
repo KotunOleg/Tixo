@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 )
@@ -65,6 +66,7 @@ func TestUISnapshotServer(t *testing.T) {
 	}
 
 	memberID := site.sessionUserID(t, member)
+	site.seedOrders(t, memberID)
 	for _, name := range []string{"ноутбук", "скрипт резервного копіювання квитків і статистики продажів на дроплеті"} {
 		if _, _, err := site.deps.APITokens.Issue(context.Background(), memberID, name); err != nil {
 			t.Fatal(err)
@@ -222,5 +224,49 @@ func (s *authSite) seedLanding(t *testing.T) {
 		if _, err := q.SetEventStatus(ctx, dbgen.SetEventStatusParams{Status: "published", ID: created.ID, OrganizerID: lviv.ID}); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func (s *authSite) seedOrders(t *testing.T, userID int64) {
+	t.Helper()
+	ctx := context.Background()
+	q := dbgen.New(s.pool)
+	ev, err := q.GetPublicEventBySlug(ctx, "kyiv-philharmonic-event-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tiers, err := q.ListTicketTiers(ctx, ev.Event.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range 23 {
+		tier := tiers[i%2]
+		qty := int32(i%3 + 1)
+		key := pgtype.UUID{Bytes: [16]byte{byte(i + 1), 0xc6}, Valid: true}
+		o, err := q.CreateOrder(ctx, dbgen.CreateOrderParams{
+			UserID: userID, EventID: ev.Event.ID, TierID: tier.ID, Quantity: qty, UnitPrice: tier.Price, Total: tier.Price * int64(qty), IdempotencyKey: key,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := q.CreateTickets(ctx, dbgen.CreateTicketsParams{OrderID: o.ID, Quantity: qty}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	past, err := q.GetPublicEventBySlug(ctx, "kyiv-philharmonic-event-c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pastTier, err := q.CreateTicketTier(ctx, dbgen.CreateTicketTierParams{EventID: past.Event.ID, OrganizerID: past.Event.OrganizerID, Name: "Вхідний", Price: 20000, Quantity: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.CreateOrder(ctx, dbgen.CreateOrderParams{
+		UserID: userID, EventID: past.Event.ID, TierID: pastTier.ID, Quantity: 1, UnitPrice: 20000, Total: 20000, IdempotencyKey: pgtype.UUID{Bytes: [16]byte{0xff}, Valid: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.pool.Exec(ctx, "UPDATE orders SET created_at = now() + interval '1 minute' WHERE event_id = $1", past.Event.ID); err != nil {
+		t.Fatal(err)
 	}
 }

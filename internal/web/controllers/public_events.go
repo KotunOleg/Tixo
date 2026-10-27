@@ -5,16 +5,22 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 
+	"github.com/KotunOleg/Tixo/internal/auth"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
+	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
 
@@ -68,14 +74,31 @@ type landingData struct {
 	Tiers         []landingTier
 	PriceFrom     int64
 	Sale          string
+	Buy           buyForm
+}
+
+type buyForm struct {
+	Key      string
+	TierID   int64
+	Quantity int
+	Errors   map[string]string
 }
 
 func (d landingData) OnSale() bool { return d.Sale == saleOpen }
 
+func (d landingData) Quantities() []int {
+	out := make([]int, orders.MaxQuantity)
+	for i := range out {
+		out[i] = i + 1
+	}
+	return out
+}
+
 type PublicEvents struct {
-	View *view.Renderer
-	Svc  *events.Service
-	Log  *slog.Logger
+	View   *view.Renderer
+	Svc    *events.Service
+	Orders *orders.Service
+	Log    *slog.Logger
 }
 
 func (c PublicEvents) Show(w http.ResponseWriter, r *http.Request) {
@@ -85,11 +108,110 @@ func (c PublicEvents) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		c.Log.ErrorContext(r.Context(), "public event page failed", "error", err, "request_id", middleware.GetReqID(r.Context()))
-		c.View.ServerError(w, r)
+		c.serverError(w, r, err)
 		return
 	}
-	c.View.Render(w, r, http.StatusOK, "pages/public_event", landingFrom(pub, time.Now()))
+	d := landingFrom(pub, time.Now())
+	d.Buy = buyForm{Key: uuid.NewString(), TierID: firstAvailable(d.Tiers), Quantity: 1}
+	c.View.Render(w, r, http.StatusOK, "pages/public_event", d)
+}
+
+func (c PublicEvents) Buy(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	lang := i18n.FromContext(r.Context())
+	u, ok := auth.CurrentUser(r.Context())
+	if !ok {
+		redirectLocal(w, i18n.Path(lang, "/auth/google/login")+"?next="+url.QueryEscape(i18n.Path(lang, "/events/"+slug)), http.StatusSeeOther)
+		return
+	}
+	pub, err := c.Svc.PublicBySlug(r.Context(), slug)
+	if errors.Is(err, events.ErrNotFound) {
+		c.View.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
+	if err := r.ParseForm(); err != nil {
+		c.View.NotFound(w, r)
+		return
+	}
+	form := buyForm{Key: r.PostFormValue("idempotency_key"), Errors: map[string]string{}}
+	form.TierID, _ = strconv.ParseInt(r.PostFormValue("tier_id"), 10, 64)
+	qty, qtyErr := strconv.ParseInt(r.PostFormValue("quantity"), 10, 32)
+	form.Quantity = int(qty)
+	key, keyErr := uuid.Parse(form.Key)
+	switch {
+	case keyErr != nil || key == uuid.Nil:
+		form.Key = uuid.NewString()
+		form.Errors[orders.FieldKey] = "landing.buy.error.expired"
+	case qtyErr != nil || qty < orders.MinQuantity || qty > orders.MaxQuantity:
+		form.Errors[orders.FieldQuantity] = "landing.buy.error.quantity"
+	}
+	if len(form.Errors) > 0 {
+		c.renderBuy(w, r, pub, form, http.StatusUnprocessableEntity)
+		return
+	}
+
+	order, replay, err := c.Orders.Purchase(r.Context(), u.ID, orders.Input{EventID: pub.Event.ID, TierID: form.TierID, Quantity: int32(qty), Key: key})
+	var verr *orders.ValidationError
+	switch {
+	case errors.As(err, &verr), errors.Is(err, orders.ErrNotFound):
+		form.Errors[orders.FieldTier] = "landing.buy.error.tier"
+		c.renderBuy(w, r, pub, form, http.StatusUnprocessableEntity)
+		return
+	case errors.Is(err, orders.ErrSoldOut):
+		form.Errors[orders.FieldTier] = "landing.buy.error.sold_out"
+		c.renderFresh(w, r, slug, form)
+		return
+	case errors.Is(err, orders.ErrNotOnSale):
+		form.Errors[orders.FieldTier] = "landing.buy.error.not_on_sale"
+		c.renderFresh(w, r, slug, form)
+		return
+	case errors.Is(err, orders.ErrKeyReused):
+		form.Key = uuid.NewString()
+		form.Errors[orders.FieldKey] = "landing.buy.error.reused"
+		c.renderBuy(w, r, pub, form, http.StatusUnprocessableEntity)
+		return
+	case err != nil:
+		c.serverError(w, r, err)
+		return
+	}
+	if !replay {
+		c.Log.InfoContext(r.Context(), "order created", "order_id", order.ID, "user_id", u.ID, "tier_id", order.TierID, "quantity", order.Quantity, "request_id", middleware.GetReqID(r.Context()))
+	}
+	redirectLocal(w, i18n.Path(lang, "/orders/"+strconv.FormatInt(order.ID, 10)), http.StatusSeeOther)
+}
+
+func (c PublicEvents) renderFresh(w http.ResponseWriter, r *http.Request, slug string, form buyForm) {
+	pub, err := c.Svc.PublicBySlug(r.Context(), slug)
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	c.renderBuy(w, r, pub, form, http.StatusConflict)
+}
+
+func (c PublicEvents) renderBuy(w http.ResponseWriter, r *http.Request, pub events.Public, form buyForm, status int) {
+	d := landingFrom(pub, time.Now())
+	d.Buy = form
+	c.View.Render(w, r, status, "pages/public_event", d)
+}
+
+func (c PublicEvents) serverError(w http.ResponseWriter, r *http.Request, err error) {
+	c.Log.ErrorContext(r.Context(), "public event handler failed", "error", err, "request_id", middleware.GetReqID(r.Context()))
+	c.View.ServerError(w, r)
+}
+
+func firstAvailable(tiers []landingTier) int64 {
+	for _, t := range tiers {
+		if t.Available > 0 {
+			return t.ID
+		}
+	}
+	return 0
 }
 
 func landingFrom(pub events.Public, now time.Time) landingData {
