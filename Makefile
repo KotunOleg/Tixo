@@ -60,9 +60,16 @@ newman: infra
 		bin=$$(mktemp); \
 		go build -o "$$bin" ./cmd/tixo; \
 		"$$bin" migrate up; \
+		if "$$bin" probe >/dev/null 2>&1; then echo "another server already answers the probe; stop it (make down?) before make newman" >&2; exit 1; fi; \
 		"$$bin" serve & \
 		server=$$!; \
 		trap "kill $$server 2>/dev/null; rm -f $$bin" EXIT; \
-		for i in $$(seq 1 30); do "$$bin" probe >/dev/null 2>&1 && break; sleep 1; done; \
+		ready=; \
+		for i in $$(seq 1 30); do \
+			kill -0 $$server 2>/dev/null || { echo "serve exited before becoming ready" >&2; exit 1; }; \
+			"$$bin" probe >/dev/null 2>&1 && { ready=1; break; }; \
+			sleep 1; \
+		done; \
+		[ -n "$$ready" ] || { echo "serve not ready after 30s" >&2; exit 1; }; \
 		token=$$("$$bin" seed-api-token | grep "^token: " | cut -d" " -f2); \
 		npx --yes newman run tests/postman/tixo.postman_collection.json -e tests/postman/local.json --env-var token=$$token'
