@@ -745,8 +745,19 @@ body:has(.tixo-buybar) {
   border-top: 1px solid var(--tixo-border-strong);
 }
 
-.tixo-buybar[hidden] {
+.tixo-buybar[hidden],
+.tixo-buybar .btn[hidden] {
   display: none;
+}
+
+.tixo-bar-contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  font-size: var(--tixo-text-lg);
 }
 
 .tixo-map {
