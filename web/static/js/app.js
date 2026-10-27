@@ -99,4 +99,43 @@ function setupPosterCompression() {
   });
 }
 
+function setupLineupAutocomplete() {
+  const select = document.querySelector(".js-lineup-select");
+  const form = document.querySelector(".js-lineup-select-form");
+  const fallback = document.querySelector(".js-lineup-fallback");
+  if (!select || !form || typeof window.jQuery === "undefined" || typeof window.jQuery.fn.select2 !== "function") {
+    return;
+  }
+  form.classList.remove("d-none");
+  fallback?.classList.add("d-none");
+
+  window.jQuery(select).select2({
+    theme: "bootstrap-5",
+    width: "100%",
+    minimumInputLength: 3,
+    delay: 300,
+    placeholder: select.dataset.placeholder || "",
+    ajax: {
+      url: form.dataset.searchUrl,
+      dataType: "json",
+      data: (params) => ({ q: params.term }),
+      processResults: (data) => ({ results: data.map((item) => ({ id: item.id, text: item.label })) }),
+    },
+  });
+
+  window.jQuery(select).on("select2:select", () => form.submit());
+
+  new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains("select2-results__message")) {
+          node.setAttribute("role", "option");
+          node.setAttribute("aria-disabled", "true");
+        }
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+}
+
 setupPosterCompression();
+setupLineupAutocomplete();

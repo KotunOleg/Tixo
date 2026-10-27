@@ -14,6 +14,7 @@
   <link rel="preload" href="/static/fonts/inter-cyrillic-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/css/app.css">
+  {{block "head_extra" .}}{{end}}
 </head>
 <body class="d-flex flex-column min-vh-100">
   <a class="visually-hidden-focusable skip-link" href="#main">{{.T "a11y.skip"}}</a>
@@ -31,5 +32,6 @@
   {{template "footer" .}}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
   <script src="/static/js/app.js" defer></script>
+  {{block "scripts_extra" .}}{{end}}
 </body>
 </html>{{end}}

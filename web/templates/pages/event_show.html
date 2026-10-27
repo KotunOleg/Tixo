@@ -87,29 +87,40 @@
   <p class="text-muted mb-4">{{.T "event.lineup.empty"}}</p>
   {{end}}
 
-  <form method="get" action="{{.URL (printf "/org/%s/events/%d" .Data.Slug .Data.ID)}}" class="tixo-form mb-4" style="max-width: 32rem">
+  <form method="post" action="{{.URL (printf "/org/%s/events/%d/lineup" .Data.Slug .Data.ID)}}" class="tixo-form mb-4 d-none js-lineup-select-form" data-search-url="{{.URL (printf "/org/%s/events/%d/lineup/search" .Data.Slug .Data.ID)}}" style="max-width: 32rem">
     <div class="mb-3">
-      <label class="form-label" for="lineup-search">{{.T "event.lineup.search"}}</label>
-      <input class="form-control" id="lineup-search" name="q" value="{{.Data.LineupQuery}}" minlength="2" placeholder="{{.T "event.lineup.search_placeholder"}}">
+      <label class="form-label" for="lineup-artist-select">{{.T "event.lineup.search"}}</label>
+      <select class="form-select js-lineup-select" id="lineup-artist-select" name="artist_id" data-placeholder="{{.T "event.lineup.search_placeholder"}}">
+        <option></option>
+      </select>
     </div>
-    <button class="btn btn-quiet" type="submit">{{.T "event.lineup.search_submit"}}</button>
   </form>
 
-  {{if .Data.ArtistHits}}
-  <ul class="list-group mb-4" style="max-width: 32rem">
-    {{range .Data.ArtistHits}}
-    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
-      <span>{{.Label}}</span>
-      <form method="post" action="{{$.URL (printf "/org/%s/events/%d/lineup" $.Data.Slug $.Data.ID)}}">
-        <input type="hidden" name="artist_id" value="{{.ID}}">
-        <button class="btn btn-quiet btn-sm" type="submit">{{$.T "event.lineup.add"}}</button>
-      </form>
-    </li>
+  <div class="js-lineup-fallback">
+    <form method="get" action="{{.URL (printf "/org/%s/events/%d" .Data.Slug .Data.ID)}}" class="tixo-form mb-4" style="max-width: 32rem">
+      <div class="mb-3">
+        <label class="form-label" for="lineup-search">{{.T "event.lineup.search"}}</label>
+        <input class="form-control" id="lineup-search" name="q" value="{{.Data.LineupQuery}}" minlength="3" placeholder="{{.T "event.lineup.search_placeholder"}}">
+      </div>
+      <button class="btn btn-quiet" type="submit">{{.T "event.lineup.search_submit"}}</button>
+    </form>
+
+    {{if .Data.ArtistHits}}
+    <ul class="list-group mb-4" style="max-width: 32rem">
+      {{range .Data.ArtistHits}}
+      <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+        <span>{{.Label}}</span>
+        <form method="post" action="{{$.URL (printf "/org/%s/events/%d/lineup" $.Data.Slug $.Data.ID)}}">
+          <input type="hidden" name="artist_id" value="{{.ID}}">
+          <button class="btn btn-quiet btn-sm" type="submit">{{$.T "event.lineup.add"}}</button>
+        </form>
+      </li>
+      {{end}}
+    </ul>
+    {{else if .Data.LineupQuery}}
+    <p class="text-muted mb-4">{{.T "event.lineup.no_hits"}}</p>
     {{end}}
-  </ul>
-  {{else if .Data.LineupQuery}}
-  <p class="text-muted mb-4">{{.T "event.lineup.no_hits"}}</p>
-  {{end}}
+  </div>
 
   <form method="post" action="{{.URL (printf "/org/%s/events/%d/lineup" .Data.Slug .Data.ID)}}" class="tixo-form mb-5" style="max-width: 32rem">
     <h3 class="h6 mb-3">{{.T "event.lineup.add_new_title"}}</h3>
@@ -124,4 +135,12 @@
     <button class="btn btn-tixo" type="submit">{{.T "event.lineup.add"}}</button>
   </form>
 </section>
+{{end}}
+{{define "head_extra"}}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+{{end}}
+{{define "scripts_extra"}}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 {{end}}
