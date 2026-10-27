@@ -472,3 +472,10 @@ one = "{{.Count}} квиток"
 few = "{{.Count}} квитки"
 many = "{{.Count}} квитків"
 other = "{{.Count}} квитка"
+
+[landing.bar]
+label = "Купівля і контакти організатора"
+buy = "Купити від {{.Price}}"
+email = "Написати організатору: {{.Value}}"
+phone = "Подзвонити організатору: {{.Value}}"
+telegram = "Організатор у Telegram: {{.Value}}"

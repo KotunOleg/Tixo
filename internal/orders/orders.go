@@ -35,6 +35,7 @@ const (
 	uniqueViolation = "23505"
 	keyConstraint   = "orders_user_idempotency_key"
 	eventPublished  = "published"
+	eventDraft      = "draft"
 )
 
 var (
@@ -149,7 +150,7 @@ func (s *Service) reserve(ctx context.Context, userID int64, in Input) (dbgen.Or
 func whyNotReserved(ctx context.Context, q *dbgen.Queries, in Input) error {
 	st, err := q.GetTierSaleState(ctx, in.TierID)
 	switch {
-	case errors.Is(err, pgx.ErrNoRows):
+	case errors.Is(err, pgx.ErrNoRows), err == nil && st.Status == eventDraft:
 		return ErrNotFound
 	case err != nil:
 		return fmt.Errorf("tier sale state: %w", err)

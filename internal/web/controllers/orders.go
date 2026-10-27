@@ -14,10 +14,14 @@ import (
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/orders"
+	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
 
-const ticketsPageSize = 20
+const (
+	ticketsPageSize = 20
+	ticketsMaxPage  = 100_000
+)
 
 type orderView struct {
 	ID         int64
@@ -72,9 +76,14 @@ func (c Orders) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil || page < 1 {
 		page = 1
 	}
+	page = min(page, ticketsMaxPage)
 	list, total, err := c.Svc.List(r.Context(), u.ID, ticketsPageSize, int32((page-1)*ticketsPageSize))
 	if err != nil {
 		c.serverError(w, r, err)
+		return
+	}
+	if len(list) == 0 && total > 0 {
+		redirectLocal(w, ticketsPageURL(r, (int(total)+ticketsPageSize-1)/ticketsPageSize), http.StatusFound)
 		return
 	}
 	data := ticketsData{Page: page}
@@ -89,6 +98,14 @@ func (c Orders) List(w http.ResponseWriter, r *http.Request) {
 		data.NextPage = page + 1
 	}
 	c.View.Render(w, r, http.StatusOK, "pages/tickets", data)
+}
+
+func ticketsPageURL(r *http.Request, page int) string {
+	target := i18n.Path(i18n.FromContext(r.Context()), "/tickets")
+	if page > 1 {
+		target += "?page=" + strconv.Itoa(page)
+	}
+	return target
 }
 
 func orderViewFrom(d orders.Details, now time.Time) orderView {

@@ -155,16 +155,18 @@ setupLineupAutocomplete();
 
 function setupBuyBar() {
   const bar = document.querySelector(".js-buybar");
+  const buy = bar?.querySelector(".js-buybar-buy");
   const tickets = document.getElementById("tickets");
-  if (!bar || !tickets || typeof IntersectionObserver !== "function") {
+  if (!bar || !buy || !tickets || typeof IntersectionObserver !== "function") {
     return;
   }
+  const target = bar.querySelector(".tixo-bar-contact") ? buy : bar;
   new IntersectionObserver((entries) => {
     for (const entry of entries) {
-      if (entry.isIntersecting && bar.contains(document.activeElement)) {
+      if (entry.isIntersecting && target.contains(document.activeElement)) {
         tickets.focus();
       }
-      bar.hidden = entry.isIntersecting;
+      target.hidden = entry.isIntersecting;
     }
   }).observe(tickets);
 }
