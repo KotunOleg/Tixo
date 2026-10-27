@@ -1,7 +1,7 @@
 -- name: SearchArtists :many
 SELECT * FROM artists
 WHERE name ILIKE '%' || replace(replace(replace(@query::text, '\', '\\'), '%', '\%'), '_', '\_') || '%'
-ORDER BY similarity(name, @query::text) DESC, name, id
+ORDER BY name <-> @query::text, name, id
 LIMIT @lim;
 
 -- name: GetArtist :one
