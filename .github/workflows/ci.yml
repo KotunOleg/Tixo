@@ -65,6 +65,62 @@ jobs:
       - name: go test
         run: go test -race -count=1 ./...
 
+  newman:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tixo
+          POSTGRES_PASSWORD: tixo
+          POSTGRES_DB: tixo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tixo -d tixo"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: tixo
+          RABBITMQ_DEFAULT_PASS: tixo
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://tixo:tixo@localhost:5432/tixo?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
+      AMQP_URL: amqp://tixo:tixo@localhost:5672/
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: build tixo
+        run: go build -o /tmp/tixo ./cmd/tixo
+      - name: apply migrations
+        run: /tmp/tixo migrate up
+      - name: start server
+        run: |
+          /tmp/tixo serve &
+          for i in $(seq 1 30); do /tmp/tixo probe >/dev/null 2>&1 && break; sleep 1; done
+      - name: seed api token
+        id: seed
+        run: |
+          token=$(/tmp/tixo seed-api-token | grep "^token: " | cut -d" " -f2)
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: run postman collection
+        run: npx --yes newman run tests/postman/tixo.postman_collection.json -e tests/postman/local.json --env-var token=${{ steps.seed.outputs.token }}
+
   docker:
     runs-on: ubuntu-latest
     steps:
