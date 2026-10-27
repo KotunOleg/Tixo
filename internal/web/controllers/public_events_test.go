@@ -178,3 +178,20 @@ func TestHomeLinksUpcomingEventsToLanding(t *testing.T) {
 		}
 	}
 }
+
+func TestLandingLoadsMapOnlyThereWithTextFallback(t *testing.T) {
+	s := newAuthSite(t)
+	s.publicEvent(t, publicEvent{slug: "map-show", status: events.StatusPublished})
+	landing := s.request(t, http.MethodGet, "/events/map-show", nil).Body.String()
+	for _, want := range []string{"leaflet@1.9.4/dist/leaflet.js", `data-lat="50.4547"`, `data-lng="30.4962"`, "Sichovykh Striltsiv 37-41", "Відкрити в OpenStreetMap"} {
+		if !strings.Contains(landing, want) {
+			t.Errorf("landing: missing %q", want)
+		}
+	}
+	if !strings.Contains(landing, `js-venue-map" hidden`) {
+		t.Error("map container must stay hidden until JS draws the map")
+	}
+	if home := s.request(t, http.MethodGet, "/", nil).Body.String(); strings.Contains(home, "leaflet") {
+		t.Error("home page loads leaflet")
+	}
+}

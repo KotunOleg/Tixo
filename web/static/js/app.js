@@ -169,4 +169,32 @@ function setupBuyBar() {
   }).observe(tickets);
 }
 
+function setupVenueMap() {
+  const el = document.querySelector(".js-venue-map");
+  if (!el || typeof L === "undefined") {
+    return;
+  }
+  const lat = Number(el.dataset.lat);
+  const lng = Number(el.dataset.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return;
+  }
+  el.hidden = false;
+  const map = L.map(el, { scrollWheelZoom: false }).setView([lat, lng], 16);
+  map.attributionControl.setPrefix(false);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: el.dataset.attribution,
+  }).addTo(map);
+  const tokens = getComputedStyle(document.documentElement);
+  L.circleMarker([lat, lng], {
+    radius: 10,
+    weight: 3,
+    color: tokens.getPropertyValue("--tixo-bg").trim(),
+    fillColor: tokens.getPropertyValue("--tixo-accent").trim(),
+    fillOpacity: 1,
+  }).addTo(map);
+}
+
 setupBuyBar();
+setupVenueMap();
