@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -83,6 +84,15 @@ type Input struct {
 	PosterKey   string
 }
 
+type Public struct {
+	Event         dbgen.Event
+	Venue         dbgen.Venue
+	OrganizerName string
+	Contacts      map[string]string
+	Lineup        []dbgen.ListEventArtistsRow
+	Tiers         []dbgen.TicketTier
+}
+
 type Service struct {
 	q *dbgen.Queries
 }
@@ -104,6 +114,35 @@ func (s *Service) Get(ctx context.Context, organizerID, id int64) (dbgen.Event, 
 		return dbgen.Event{}, fmt.Errorf("get event: %w", err)
 	}
 	return e, nil
+}
+
+func (s *Service) PublicBySlug(ctx context.Context, slug string) (Public, error) {
+	row, err := s.q.GetPublicEventBySlug(ctx, slug)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Public{}, ErrNotFound
+	}
+	if err != nil {
+		return Public{}, fmt.Errorf("get public event: %w", err)
+	}
+	lineup, err := s.q.ListEventArtists(ctx, row.Event.ID)
+	if err != nil {
+		return Public{}, fmt.Errorf("list lineup: %w", err)
+	}
+	tiers, err := s.q.ListTicketTiers(ctx, row.Event.ID)
+	if err != nil {
+		return Public{}, fmt.Errorf("list tiers: %w", err)
+	}
+	var contacts map[string]string
+	if err := json.Unmarshal(row.OrganizerContacts, &contacts); err != nil {
+		return Public{}, fmt.Errorf("decode organizer contacts: %w", err)
+	}
+	return Public{
+		Event: row.Event, Venue: row.Venue, OrganizerName: row.OrganizerName, Contacts: contacts, Lineup: lineup, Tiers: tiers,
+	}, nil
+}
+
+func (s *Service) Upcoming(ctx context.Context, now time.Time, limit int32) ([]dbgen.ListUpcomingPublishedEventsRow, error) {
+	return s.q.ListUpcomingPublishedEvents(ctx, dbgen.ListUpcomingPublishedEventsParams{After: now, Lim: limit})
 }
 
 func (s *Service) Create(ctx context.Context, organizerID int64, in Input) (dbgen.Event, error) {

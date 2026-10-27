@@ -36,6 +36,7 @@ type tier struct {
 	name     string
 	price    int64
 	quantity int32
+	sold     int32
 }
 
 type event struct {
@@ -106,8 +107,14 @@ var demoEvents = []event{
 	},
 	{
 		slug: "hardkiss-atlas", organizer: "kyiv-live", venue: "atlas", genre: events.GenreAlternative, status: "published", dayOffset: 10,
-		title: "The Hardkiss + Onuka", description: "Два сети за один вечір.",
-		lineup: []string{"The Hardkiss", "Onuka"}, tiers: standardTiers[:2],
+		title:       "The Hardkiss + Onuka",
+		description: "Два сети за один вечір: The Hardkiss з новою програмою і Onuka з живим оркестром народних інструментів.\n\nДвері відчиняються за годину до початку. Вік 16+.",
+		lineup:      []string{"The Hardkiss", "Onuka"},
+		tiers: []tier{
+			{name: "Танцпол", price: 90000, quantity: 1500, sold: 1490},
+			{name: "Фан-зона", price: 150000, quantity: 300},
+			{name: "VIP", price: 300000, quantity: 50, sold: 50},
+		},
 	},
 	{
 		slug: "go-a-kalush-arena-lviv", organizer: "lviv-sound", venue: "arena-lviv", genre: events.GenreElectronic, status: "published", dayOffset: 60,
@@ -233,7 +240,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) (Report, error)
 			}
 		}
 		for _, t := range e.tiers {
-			err := q.SeedTicketTier(ctx, dbgen.SeedTicketTierParams{EventID: eventID, Name: t.name, Price: t.price, Quantity: t.quantity})
+			err := q.SeedTicketTier(ctx, dbgen.SeedTicketTierParams{EventID: eventID, Name: t.name, Price: t.price, Quantity: t.quantity, Available: t.quantity - t.sold})
 			if err != nil {
 				return Report{}, fmt.Errorf("tier %s/%s: %w", e.slug, t.name, err)
 			}

@@ -1,0 +1,32 @@
+{{define "title"}}{{.T "tickets.title"}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <h1 class="mb-4">{{.T "tickets.title"}}</h1>
+  {{with .Data.Orders}}
+  <ul class="list-group tixo-order-list mb-4">
+    {{range .}}
+    <li class="list-group-item list-group-item-action position-relative{{if .Past}} is-past{{end}}">
+      <div class="d-flex flex-wrap justify-content-between gap-2">
+        <h2 class="h5 mb-1"><a class="stretched-link text-reset text-decoration-none" href="{{$.URL (printf "/orders/%d" .ID)}}">{{.EventTitle}}</a></h2>
+        <span class="fw-semibold text-nowrap">{{$.Money .Total}}</span>
+      </div>
+      <p class="mb-1 small"><time datetime="{{.StartsAt.Format "2006-01-02T15:04:05Z07:00"}}">{{$.DateTime .StartsAt}}</time> · {{.Venue}}</p>
+      <p class="mb-0 small text-body-secondary">{{.TierName}} · {{$.N "tickets.count" .Quantity}}{{if .Cancelled}} · <span class="tixo-status tixo-status-cancelled">{{$.T "tickets.cancelled"}}</span>{{else if .Past}} · {{$.T "tickets.past"}}{{end}}</p>
+    </li>
+    {{end}}
+  </ul>
+  {{if or $.Data.PrevPage $.Data.NextPage}}
+  <nav aria-label="{{$.T "tickets.pages"}}" class="d-flex gap-2">
+    {{if $.Data.PrevPage}}<a class="btn btn-quiet" href="{{$.URL "/tickets"}}?page={{$.Data.PrevPage}}">{{$.T "tickets.prev"}}</a>{{end}}
+    {{if $.Data.NextPage}}<a class="btn btn-quiet" href="{{$.URL "/tickets"}}?page={{$.Data.NextPage}}">{{$.T "tickets.next"}}</a>{{end}}
+  </nav>
+  {{end}}
+  {{else}}
+  <div class="tixo-empty p-4 p-lg-5">
+    <h2 class="h5">{{.T "tickets.empty_title"}}</h2>
+    <p class="text-body-secondary">{{.T "tickets.empty_text"}}</p>
+    <a class="btn btn-quiet" href="{{.URL "/"}}">{{.T "tickets.empty_cta"}}</a>
+  </div>
+  {{end}}
+</section>
+{{end}}

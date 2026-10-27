@@ -1,0 +1,32 @@
+{{define "title"}}{{.T "order.title" "ID" .Data.ID}} · {{.T "site.name"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <nav aria-label="breadcrumb"><ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{.URL "/tickets"}}">{{.T "tickets.title"}}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{.T "order.title" "ID" .Data.ID}}</li>
+  </ol></nav>
+  <p class="tixo-status tixo-status-published mb-2">{{.T "order.paid"}}</p>
+  <h1 class="mb-2">{{.T "order.heading"}}</h1>
+  <p class="text-body-secondary mb-5">{{.T "order.title" "ID" .Data.ID}}</p>
+
+  <div class="tixo-order mb-5">
+    <h2 class="h4 mb-2"><a href="{{.URL (printf "/events/%s" .Data.EventSlug)}}">{{.Data.EventTitle}}</a></h2>
+    <p class="mb-1"><time datetime="{{.Data.StartsAt.Format "2006-01-02T15:04:05Z07:00"}}">{{.DateTime .Data.StartsAt}}</time></p>
+    <p class="text-body-secondary mb-4">{{.Data.Venue}}</p>
+    {{if .Data.Cancelled}}<p class="tixo-field-error mb-4">{{.T "order.event_cancelled"}}</p>{{end}}
+    <dl class="tixo-order-summary mb-0">
+      <dt>{{.T "order.tier"}}</dt><dd>{{.Data.TierName}}</dd>
+      <dt>{{.T "order.quantity"}}</dt><dd>{{.Data.Quantity}} × {{.Money .Data.UnitPrice}}</dd>
+      <dt>{{.T "order.total"}}</dt><dd class="fw-semibold">{{.Money .Data.Total}}</dd>
+    </dl>
+  </div>
+
+  <h2 class="h4 mb-2" id="codes-title">{{.T "order.codes_title"}}</h2>
+  <p class="text-body-secondary mb-3">{{.T "order.codes_help"}}</p>
+  <ol class="tixo-codes mb-5" aria-labelledby="codes-title">
+    {{range .Data.Codes}}<li><code>{{.}}</code></li>{{end}}
+  </ol>
+
+  <a class="btn btn-quiet" href="{{.URL "/tickets"}}">{{.T "order.to_tickets"}}</a>
+</section>
+{{end}}

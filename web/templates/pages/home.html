@@ -23,11 +23,11 @@
   <div class="row g-4">
     {{range .}}
     <div class="col-sm-6 col-lg-4">
-      <a class="card tixo-card h-100 text-decoration-none" href="{{.URL}}">
+      <a class="card tixo-card h-100 text-decoration-none" href="{{$.URL .URL}}">
         {{if .PosterURL}}<img class="card-img-top" src="{{.PosterURL}}" alt="" loading="lazy">{{end}}
         <div class="card-body">
           <h3 class="h5 card-title">{{.Title}}</h3>
-          <p class="card-text small text-body-secondary mb-0">{{.StartsAt}} · {{.Venue}}</p>
+          <p class="card-text small text-body-secondary mb-0"><time datetime="{{.StartsAt.Format "2006-01-02T15:04:05Z07:00"}}">{{$.DateTime .StartsAt}}</time> · {{.Venue}}</p>
         </div>
       </a>
     </div>
