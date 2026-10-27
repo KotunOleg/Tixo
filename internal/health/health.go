@@ -23,16 +23,17 @@ func (c CheckFunc) Name() string                    { return c.CheckerName }
 func (c CheckFunc) Check(ctx context.Context) error { return c.Fn(ctx) }
 
 type response struct {
-	Status string            `json:"status"`
-	Checks map[string]string `json:"checks"`
+	Status  string            `json:"status"`
+	Version string            `json:"version"`
+	Checks  map[string]string `json:"checks"`
 }
 
-func Handler(timeout time.Duration, checkers ...Checker) http.Handler {
+func Handler(version string, timeout time.Duration, checkers ...Checker) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), timeout)
 		defer cancel()
 
-		resp := response{Status: "ok", Checks: make(map[string]string, len(checkers))}
+		resp := response{Status: "ok", Version: version, Checks: make(map[string]string, len(checkers))}
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 		for _, c := range checkers {
