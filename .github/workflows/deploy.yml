@@ -93,7 +93,8 @@ jobs:
           export TIXO_IMAGE_TAG="$1"
           docker compose -f compose.prod.yml pull --quiet
           docker compose -f compose.prod.yml up -d --remove-orphans
-          docker image prune -f
+          docker compose -f compose.prod.yml exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+          docker image prune -af --filter until=168h
           EOF
       - name: wait for new version on healthz
         run: |
