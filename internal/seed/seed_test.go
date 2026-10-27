@@ -161,6 +161,52 @@ func TestAddOwnersGivesRealAccountsTheDemoOrganizers(t *testing.T) {
 	}
 }
 
+func TestEnsureAPIUserCreatesOwnerMembership(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	q := dbgen.New(pool)
+
+	userID, err := EnsureAPIUser(ctx, pool, "ci@example.com", "ci", "qa1-ci", "QA1 CI")
+	if err != nil {
+		t.Fatal(err)
+	}
+	org, err := q.GetOrganizerBySlug(ctx, "qa1-ci")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := q.GetMembership(ctx, dbgen.GetMembershipParams{UserID: userID, OrganizerID: org.ID})
+	if err != nil || m.Role != "owner" {
+		t.Errorf("membership = %+v, %v; want owner", m, err)
+	}
+}
+
+func TestEnsureAPIUserIsIdempotent(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+
+	first, err := EnsureAPIUser(ctx, pool, "ci@example.com", "ci", "qa1-ci", "QA1 CI")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := EnsureAPIUser(ctx, pool, "ci@example.com", "ci", "qa1-ci", "QA1 CI")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Errorf("EnsureAPIUser twice gave different user ids: %d, %d", first, second)
+	}
+	var users, organizers, memberships int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM users WHERE email = 'ci@example.com'").Scan(&users); err != nil || users != 1 {
+		t.Errorf("users = %d, %v; want 1", users, err)
+	}
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM organizers WHERE slug = 'qa1-ci'").Scan(&organizers); err != nil || organizers != 1 {
+		t.Errorf("organizers = %d, %v; want 1", organizers, err)
+	}
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM memberships").Scan(&memberships); err != nil || memberships != 1 {
+		t.Errorf("memberships = %d, %v; want 1", memberships, err)
+	}
+}
+
 func TestAddOwnersNeedsTheDemoDataFirst(t *testing.T) {
 	pool := dbtest.Pool(t)
 	if err := AddOwners(context.Background(), pool, []Owner{{Slug: "kyiv-live", Email: "a@gmail.com"}}); err == nil {
