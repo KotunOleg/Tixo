@@ -231,10 +231,17 @@ h6, .h6 { font-size: var(--tixo-text-sm); }
   box-shadow: var(--tixo-shadow-overlay);
 }
 
-.select2-container--bootstrap-5 .select2-search__field {
+.select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field {
   background-color: var(--tixo-surface);
   border-color: var(--tixo-border-strong);
   color: var(--tixo-text);
+}
+
+.select2-container--bootstrap-5 .select2-dropdown .select2-search .select2-search__field:focus {
+  border-color: var(--tixo-border-strong);
+  box-shadow: none;
+  outline: 2px solid var(--tixo-focus);
+  outline-offset: 2px;
 }
 
 .select2-container--bootstrap-5 .select2-results__option {
