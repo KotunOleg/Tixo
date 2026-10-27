@@ -23,6 +23,7 @@ x-app: &app
 services:
   postgres:
     image: postgres:16-alpine
+    shm_size: 256mb
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-tixo}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
