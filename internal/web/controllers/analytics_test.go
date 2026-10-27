@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -128,5 +130,46 @@ func TestOrganizerPageLinksToAnalyticsForEveryPlan(t *testing.T) {
 	body := s.request(t, http.MethodGet, "/org/lviv-sound", free).Body.String()
 	if !strings.Contains(body, `href="/org/lviv-sound/analytics"`) {
 		t.Error("free organizer page must link to analytics so the premium explanation is discoverable")
+	}
+}
+
+var chartDataBlock = regexp.MustCompile(`(?s)<script type="application/json" id="analytics-data">(.*?)</script>`)
+
+func TestAnalyticsChartDataIsLocalizedJSONThatCannotBreakOutOfItsScriptTag(t *testing.T) {
+	s := newAuthSite(t)
+	owner := s.signInAs(t, "sub-premium", "premium@example.com", "Premium Owner")
+	s.createOrganizer(t, owner, "Kyiv Live", "kyiv-live")
+	s.setPlan(t, "kyiv-live", "premium")
+	hostile := `</script><script>alert("x")</script>`
+	s.addEvent(t, "kyiv-live", hostile)
+	s.sellTickets(t, "kyiv-live", s.sessionUserID(t, owner), 3)
+
+	cases := []struct {
+		path, wantGenre, wantTickets string
+	}{
+		{"/org/kyiv-live/analytics", "Рок", "Квитки"},
+		{"/en/org/kyiv-live/analytics", "Rock", "Tickets"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			body := s.request(t, http.MethodGet, tc.path, owner).Body.String()
+			blocks := chartDataBlock.FindAllStringSubmatch(body, -1)
+			if len(blocks) != 1 {
+				t.Fatalf("found %d chart data blocks, want exactly 1 (a raw </script> in data would split it)", len(blocks))
+			}
+			var got analyticsChart
+			if err := json.Unmarshal([]byte(blocks[0][1]), &got); err != nil {
+				t.Fatalf("chart data is not JSON: %v\n%s", err, blocks[0][1])
+			}
+			if len(got.Days) != 30 || got.Days[29].Tickets != 3 || got.Days[29].Revenue != 360000 {
+				t.Errorf("days = %d points, last %+v; want 30 with today's 3 tickets", len(got.Days), got.Days[len(got.Days)-1])
+			}
+			if len(got.EventsTickets) != 1 || got.EventsTickets[0] != (chartBar{Label: hostile, Value: 3}) {
+				t.Errorf("events = %+v, want the title intact as data", got.EventsTickets)
+			}
+			if len(got.Genres) != 1 || got.Genres[0].Label != tc.wantGenre || got.TicketsLabel != tc.wantTickets {
+				t.Errorf("labels = %+v / %q, want %q / %q", got.Genres, got.TicketsLabel, tc.wantGenre, tc.wantTickets)
+			}
+		})
 	}
 }

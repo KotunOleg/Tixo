@@ -19,6 +19,66 @@ type analyticsPageData struct {
 	Report analytics.Report
 }
 
+type chartDay struct {
+	Date    string `json:"date"`
+	Tickets int64  `json:"tickets"`
+	Revenue int64  `json:"revenue"`
+}
+
+type chartBar struct {
+	Label string `json:"label"`
+	Value int64  `json:"value"`
+}
+
+type analyticsChart struct {
+	Lang          string     `json:"lang"`
+	TicketsLabel  string     `json:"ticketsLabel"`
+	RevenueLabel  string     `json:"revenueLabel"`
+	EventsLabel   string     `json:"eventsLabel"`
+	Days          []chartDay `json:"days"`
+	EventsTickets []chartBar `json:"eventsTickets"`
+	Genres        []chartBar `json:"genres"`
+}
+
+func (d analyticsPageData) Chart(p *view.Page) (analyticsChart, error) {
+	c := analyticsChart{
+		Lang:          string(p.Lang),
+		Days:          make([]chartDay, len(d.Report.ByDay)),
+		EventsTickets: make([]chartBar, len(d.Report.ByEvent)),
+		Genres:        make([]chartBar, len(d.Report.ByGenre)),
+	}
+	var err error
+	if c.TicketsLabel, err = p.T("org.analytics.col_tickets"); err != nil {
+		return c, err
+	}
+	if c.RevenueLabel, err = p.T("org.analytics.col_revenue"); err != nil {
+		return c, err
+	}
+	if c.EventsLabel, err = p.T("org.analytics.col_events"); err != nil {
+		return c, err
+	}
+	for i, day := range d.Report.ByDay {
+		c.Days[i] = chartDay{Date: day.Date.Format("2006-01-02"), Tickets: day.Tickets, Revenue: day.Revenue}
+	}
+	for i, e := range d.Report.ByEvent {
+		label := e.Title
+		if e.IsOthers() {
+			if label, err = p.N("org.analytics.others", e.OthersCount); err != nil {
+				return c, err
+			}
+		}
+		c.EventsTickets[i] = chartBar{Label: label, Value: e.Tickets}
+	}
+	for i, g := range d.Report.ByGenre {
+		label, err := p.T("genre." + g.Genre)
+		if err != nil {
+			return c, err
+		}
+		c.Genres[i] = chartBar{Label: label, Value: g.Events}
+	}
+	return c, nil
+}
+
 type analyticsLockedData struct {
 	Name      string
 	Slug      string
