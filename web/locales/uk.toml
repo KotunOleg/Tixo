@@ -363,3 +363,61 @@ name_length = "Назва має бути не довшою за 100 симво�
 [errors.403]
 title = "Немає доступу"
 text = "Цю дію може виконати лише власник організатора."
+
+[date]
+day = "{{.Day}} {{.Month}} {{.Year}}"
+at = "{{.Date}}, {{.Time}}"
+
+[date.month]
+jan = "січня"
+feb = "лютого"
+mar = "березня"
+apr = "квітня"
+may = "травня"
+jun = "червня"
+jul = "липня"
+aug = "серпня"
+sep = "вересня"
+oct = "жовтня"
+nov = "листопада"
+dec = "грудня"
+
+[money]
+free = "Безкоштовно"
+
+[landing]
+poster_alt = "Постер події «{{.Title}}»"
+about = "Про подію"
+lineup = "Лайнап"
+headliner = "хедлайнер"
+venue = "Місце"
+open_map = "Відкрити в OpenStreetMap"
+new_tab = "(відкриється в новій вкладці)"
+organizer = "Організатор"
+panel = "Квитки й контакти"
+price_from_label = "Квитки від"
+buy = "Купити квиток"
+
+[landing.cancelled]
+title = "Подію скасовано."
+text = "Квитки на неї більше не продаються."
+
+[landing.contact]
+email = "Email"
+phone = "Телефон"
+telegram = "Telegram"
+
+[landing.tickets]
+title = "Квитки"
+cancelled = "Подію скасовано, продаж закрито."
+ended = "Продаж завершено"
+none = "Квитки ще не в продажу"
+sold_out = "Розпродано"
+all_sold_out = "Усе розпродано"
+all_sold_out_text = "Вільних квитків на цю подію не лишилося."
+
+[landing.tickets.left]
+one = "Лишився {{.Count}} квиток"
+few = "Лишилося {{.Count}} квитки"
+many = "Лишилося {{.Count}} квитків"
+other = "Лишилося {{.Count}} квитка"

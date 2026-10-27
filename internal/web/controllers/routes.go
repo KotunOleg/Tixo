@@ -45,7 +45,9 @@ func Mount(r chi.Router, d Deps) {
 	r.Get("/media/{key}", mediaFiles(d.View, d.Storage))
 	r.Group(func(r chi.Router) {
 		r.Use(d.Sessions.LoadAndSave, d.loadUser())
-		r.Get("/", Home{View: d.View}.ServeHTTP)
+		r.Get("/", Home{View: d.View, Events: d.Events, Log: d.Logger}.ServeHTTP)
+		pe := PublicEvents{View: d.View, Svc: d.Events, Log: d.Logger}
+		r.Get("/events/{slug}", pe.Show)
 
 		a := Auth{View: d.View, Sessions: d.Sessions, Google: d.Google, Users: d.Users, Log: d.Logger}
 		r.Get("/auth/google/login", a.Login)
