@@ -388,6 +388,7 @@ free = "Free"
 
 [landing]
 poster_alt = "Poster for {{.Title}}"
+meta_fallback = "{{.Title}} — {{.Date}}, {{.Venue}}, {{.City}}. Tickets on Tixo."
 about = "About"
 lineup = "Lineup"
 headliner = "headliner"

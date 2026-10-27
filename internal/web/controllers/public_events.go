@@ -75,6 +75,14 @@ type landingData struct {
 	PriceFrom     int64
 	Sale          string
 	Buy           buyForm
+	SEO           landingSEO
+}
+
+type landingSEO struct {
+	Description string
+	PageURL     string
+	ImageURL    string
+	Event       ldEvent
 }
 
 type buyForm struct {
@@ -111,7 +119,7 @@ func (c PublicEvents) Show(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
-	d := landingFrom(pub, time.Now())
+	d := c.landing(r, pub)
 	d.Buy = buyForm{Key: uuid.NewString(), TierID: firstAvailable(d.Tiers), Quantity: 1}
 	c.View.Render(w, r, http.StatusOK, "pages/public_event", d)
 }
@@ -195,9 +203,20 @@ func (c PublicEvents) renderFresh(w http.ResponseWriter, r *http.Request, slug s
 }
 
 func (c PublicEvents) renderBuy(w http.ResponseWriter, r *http.Request, pub events.Public, form buyForm, status int) {
-	d := landingFrom(pub, time.Now())
+	d := c.landing(r, pub)
 	d.Buy = form
 	c.View.Render(w, r, status, "pages/public_event", d)
+}
+
+func (c PublicEvents) landing(r *http.Request, pub events.Public) landingData {
+	d := landingFrom(pub, time.Now())
+	d.SEO.PageURL = c.View.Absolute(i18n.Path(i18n.FromContext(r.Context()), "/events/"+d.Slug))
+	if d.PosterURL != "" {
+		d.SEO.ImageURL = c.View.Absolute(d.PosterURL)
+	}
+	d.SEO.Description = metaDescription(d.Description)
+	d.SEO.Event = eventLD(d, pub, d.SEO.PageURL, d.SEO.ImageURL)
+	return d
 }
 
 func (c PublicEvents) serverError(w http.ResponseWriter, r *http.Request, err error) {

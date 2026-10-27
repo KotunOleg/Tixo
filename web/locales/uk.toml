@@ -388,6 +388,7 @@ free = "Безкоштовно"
 
 [landing]
 poster_alt = "Постер події «{{.Title}}»"
+meta_fallback = "{{.Title}} — {{.Date}}, {{.Venue}}, {{.City}}. Квитки на Tixo."
 about = "Про подію"
 lineup = "Лайнап"
 headliner = "хедлайнер"
