@@ -12,11 +12,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/features"
 	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
@@ -35,6 +37,7 @@ type testSite struct {
 	artists *artists.Service
 	tokens  *apitokens.Service
 	orders  *orders.Service
+	flags   *features.Service
 }
 
 func newTestSite(t *testing.T) testSite {
@@ -43,12 +46,12 @@ func newTestSite(t *testing.T) testSite {
 	s := testSite{
 		pool: pool, orgs: organizers.New(pool), venues: venues.New(pool), events: events.New(pool), tiers: tiers.New(pool),
 		lineup: lineup.New(pool), artists: artists.New(pool), tokens: apitokens.New(pool),
-		orders: orders.New(pool),
+		orders: orders.New(pool), flags: features.New(pool),
 	}
 	r := chi.NewRouter()
 	Mount(r, Deps{
 		Organizers: s.orgs, Venues: s.venues, Events: s.events, Tiers: s.tiers, Lineup: s.lineup, Artists: s.artists, Orders: s.orders,
-		APITokens: s.tokens, Logger: discardLog(),
+		Analytics: analytics.New(pool, s.flags), APITokens: s.tokens, Logger: discardLog(),
 	})
 	s.h = r
 	return s
