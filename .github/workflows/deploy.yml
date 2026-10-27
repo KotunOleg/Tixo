@@ -1,0 +1,110 @@
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: commit SHA, tag or branch to deploy
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/kotunoleg/tixo
+
+jobs:
+  build:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      sha: ${{ steps.rev.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || inputs.ref }}
+      - id: rev
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          build-args: VERSION=${{ steps.rev.outputs.sha }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.rev.outputs.sha }}
+            ${{ env.IMAGE }}:latest
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.DEPLOY_DOMAIN }}
+    env:
+      SHA: ${{ needs.build.outputs.sha }}
+      DOMAIN: ${{ vars.DEPLOY_DOMAIN }}
+      TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.build.outputs.sha }}
+          sparse-checkout: deploy
+      - name: configure ssh
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "unexpected sha: $SHA"; exit 1; }
+          [ -n "$DOMAIN" ] || { echo "DEPLOY_DOMAIN variable is not set"; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: upload compose files
+        run: scp -o BatchMode=yes deploy/compose.prod.yml deploy/Caddyfile "$TARGET:/opt/tixo/"
+      - name: roll out
+        run: |
+          ssh -o BatchMode=yes "$TARGET" bash -s -- "$SHA" <<'EOF'
+          set -euo pipefail
+          cd /opt/tixo
+          export TIXO_IMAGE_TAG="$1"
+          docker compose -f compose.prod.yml pull --quiet
+          docker compose -f compose.prod.yml up -d --remove-orphans
+          docker image prune -f
+          EOF
+      - name: wait for new version on healthz
+        run: |
+          for _ in $(seq 1 24); do
+            body=$(curl -fsS --max-time 5 "https://$DOMAIN/healthz" || true)
+            if [ "$(jq -r '.version + " " + .status' <<<"$body" 2>/dev/null)" = "$SHA ok" ]; then
+              echo "$body"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "healthz did not report $SHA with status ok: ${body:-no response}"
+          ssh -o BatchMode=yes "$TARGET" "cd /opt/tixo && docker compose -f compose.prod.yml ps -a && docker compose -f compose.prod.yml logs --tail 50 migrate serve"
+          exit 1

@@ -93,7 +93,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, APITokens: tokens, Logger: log}
 	handler := server.New(server.Deps{
 		Logger: log,
-		Health: health.Handler(healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
+		Health: health.Handler(version, healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
 		Routes: func(r chi.Router) {
 			controllers.Mount(r, site)
 			api.Mount(r, apiDeps)

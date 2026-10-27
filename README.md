@@ -9,7 +9,7 @@
 ## Стек
 
 Go 1.26 · chi · html/template + Bootstrap 5 · PostgreSQL 16 (pgx, sqlc, goose, pg_trgm) · Redis 8 ·
-RabbitMQ 4 · Docker Compose · GitHub Actions.
+RabbitMQ 4 · Docker Compose · Caddy · AWS Lightsail · GitHub Actions.
 
 ## Швидкий старт
 
@@ -109,6 +109,92 @@ make seed OWNERS="kyiv-live=you@gmail.com lviv-sound=friend@gmail.com"
 Акаунт стає власником вказаного демо-організатора. Під час першого входу через Google з цим email
 (email має бути підтверджений) обліковий запис прив'язується автоматично.
 
+## Деплой
+
+Прод працює на AWS Lightsail у Docker Compose: [`deploy/compose.prod.yml`](deploy/compose.prod.yml) піднімає `postgres`, `redis`,
+`rabbitmq`, `migrate`, `serve` і `caddy`. Caddy приймає 80/443, сам отримує й поновлює сертифікат Let's Encrypt
+і проксує на `serve:8080`. Решта сервісів назовні не відкрита.
+
+Кожен зелений `ci` на `main` запускає workflow [`deploy`](.github/workflows/deploy.yml):
+
+1. збирає образ `ghcr.io/kotunoleg/tixo` з тегами `<sha>` і `latest`;
+2. копіює `compose.prod.yml` і `Caddyfile` у `/opt/tixo` на сервері;
+3. по ssh робить `docker compose pull` і `up -d` з `TIXO_IMAGE_TAG=<sha>`;
+4. чекає до 2 хвилин, поки `https://<домен>/healthz` поверне `"status":"ok"` і `"version":"<sha>"`, інакше job червоний.
+
+Деплої йдуть по черзі, історію видно в **Environments → production**. На сервері немає git-чекауту: там лише
+файли compose, `Caddyfile` і `.env` із секретами, який CI не бачить і не перезаписує.
+
+### Перше налаштування
+
+**AWS Lightsail** (особистий акаунт, регіон Frankfurt):
+
+1. Create instance: Linux/Unix → OS Only → Ubuntu 24.04 LTS, network type Dual-stack (раннери GitHub Actions
+   ходять лише по IPv4), план $12 (2 GB RAM, 2 vCPU, 60 GB SSD).
+2. Networking → Create static IP → прив'язати до інстансу (поки прив'язаний, безкоштовний).
+3. Інстанс → Networking → IPv4 і IPv6 Firewall: SSH 22, HTTP 80, HTTPS 443 (TCP) і UDP 443 з будь-якої адреси.
+4. Billing → Budgets: місячний бюджет $15 з алертом на пошту. Автоматичні snapshots не вмикати — вони платні.
+
+**Домен:** на [duckdns.org](https://www.duckdns.org) створити піддомен і вписати в нього static IP.
+
+**Сервер** (`ssh ubuntu@<static-ip>` своїм ключем):
+
+```sh
+sudo apt-get update && sudo apt-get -y upgrade
+sudo apt-get install -y fail2ban
+curl -fsSL https://get.docker.com | sudo sh
+
+sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n' \
+  | sudo tee /etc/ssh/sshd_config.d/10-tixo.conf
+sudo systemctl reload ssh
+
+sudo adduser --disabled-password --gecos "" deploy
+sudo usermod -aG docker deploy
+sudo install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+sudo install -d -m 750 -o deploy -g deploy /opt/tixo
+```
+
+Ключ для CI генерується локально, окремий від адмінського:
+
+```sh
+ssh-keygen -t ed25519 -N "" -C tixo-deploy -f tixo-deploy
+```
+
+Вміст `tixo-deploy.pub` покласти на сервері в `/home/deploy/.ssh/authorized_keys` (власник `deploy`, права `600`).
+Перевірити: `ssh -i tixo-deploy deploy@<static-ip> docker ps`.
+
+Файл `/opt/tixo/.env` (власник `deploy`, права `600`) — за зразком [`deploy/prod.env.example`](deploy/prod.env.example):
+`DOMAIN` — піддомен DuckDNS, `POSTGRES_PASSWORD`, `RABBITMQ_PASSWORD` і `SESSION_SECRET` — кожен з
+`openssl rand -hex 32`, `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — з Google Console (нижче). Без них
+`migrate` і `serve` у prod не стартують і називають змінну в лозі.
+
+**Google OAuth:** у тому ж client (або окремому для проду) додати Authorized JavaScript origin `https://<домен>` і
+redirect URI `https://<домен>/auth/google/callback`. Поки застосунок у статусі Testing, входять лише Test users.
+
+**GitHub** → Settings → Secrets and variables → Actions:
+
+| Тип | Назва | Значення |
+|---|---|---|
+| Secret | `DEPLOY_HOST` | static IP |
+| Secret | `DEPLOY_USER` | `deploy` |
+| Secret | `DEPLOY_SSH_KEY` | вміст приватного `tixo-deploy` |
+| Secret | `DEPLOY_KNOWN_HOSTS` | вивід `ssh-keyscan -t ed25519 <static-ip>`; відбиток звірити з `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` на сервері |
+| Variable | `DEPLOY_DOMAIN` | піддомен DuckDNS, без `https://` |
+
+**Перший запуск:** Actions → deploy → Run workflow (`ref` = `main`). Новий пакет у GHCR приватний, тому перший
+`pull` на сервері впаде. Тоді: профіль GitHub → Packages → `tixo` → Package settings → Change visibility → Public,
+і в run — **Re-run failed jobs**.
+
+### Відкат і діагностика
+
+- Відкат: Actions → deploy → Run workflow, `ref` = SHA попереднього робочого коміту.
+- Що зараз на проді: `curl https://<домен>/healthz` — поле `version`.
+- Логи: `ssh deploy@<static-ip>`, далі `cd /opt/tixo && docker compose -f compose.prod.yml logs -f serve`.
+- Міграції лише вперед: `migrate down` і `reset` при `APP_ENV=prod` заборонені.
+
 ## Структура
 
 ```
@@ -124,7 +210,7 @@ internal/db/           міграції, SQL-запити, згенерован�
 internal/platform/     клієнти Postgres, Redis, RabbitMQ, логер
 internal/repolint/     перевірка правил репо (у коді немає коментарів)
 web/                   шаблони, статика, переклади (вбудовуються в бінарник)
-deploy/                ініціалізація БД для compose
+deploy/                prod compose і Caddyfile, ініціалізація тестової БД для dev compose
 docs/requirements/     докази виконання вимог курсу
 ```
 

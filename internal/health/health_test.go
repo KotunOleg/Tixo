@@ -29,8 +29,9 @@ func (f fakeChecker) Check(ctx context.Context) error {
 }
 
 type body struct {
-	Status string            `json:"status"`
-	Checks map[string]string `json:"checks"`
+	Status  string            `json:"status"`
+	Version string            `json:"version"`
+	Checks  map[string]string `json:"checks"`
 }
 
 func get(t *testing.T, h http.Handler) (int, body) {
@@ -86,7 +87,7 @@ func TestHealthStatus(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			start := time.Now()
-			code, b := get(t, Handler(50*time.Millisecond, tc.checkers...))
+			code, b := get(t, Handler("dev", 50*time.Millisecond, tc.checkers...))
 			if elapsed := time.Since(start); elapsed > time.Second {
 				t.Errorf("probe took %v, timeout not applied", elapsed)
 			}
@@ -108,9 +109,27 @@ func TestHealthStatus(t *testing.T) {
 func TestHealthDoesNotLeakErrorDetails(t *testing.T) {
 	secret := "password authentication failed for user tixo at 10.0.0.5"
 	rec := httptest.NewRecorder()
-	Handler(time.Second, fakeChecker{name: "postgres", err: errors.New(secret)}).
+	Handler("dev", time.Second, fakeChecker{name: "postgres", err: errors.New(secret)}).
 		ServeHTTP(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/healthz", nil))
 	if got := rec.Body.String(); strings.Contains(got, "10.0.0.5") {
 		t.Errorf("public health response exposes dependency error: %s", got)
+	}
+}
+
+func TestHealthReportsBuildVersionSoDeployCanConfirmRollout(t *testing.T) {
+	cases := []struct {
+		name     string
+		checkers []Checker
+	}{
+		{name: "healthy", checkers: []Checker{fakeChecker{name: "postgres"}}},
+		{name: "degraded", checkers: []Checker{fakeChecker{name: "postgres", err: errors.New("down")}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, b := get(t, Handler("4a56e3a1", time.Second, tc.checkers...))
+			if b.Version != "4a56e3a1" {
+				t.Errorf("version = %q, want 4a56e3a1", b.Version)
+			}
+		})
 	}
 }
