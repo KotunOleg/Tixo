@@ -66,6 +66,7 @@
           {{else if eq .Data.Sale "sold_out"}}
           <p class="text-body-secondary">{{.T "landing.tickets.all_sold_out_text"}}</p>
           {{end}}
+          {{template "landing_buy_errors" .}}
           {{if and .Data.OnSale .Viewer}}
           {{template "landing_buy_form" .}}
           {{else if .Data.Tiers}}
@@ -80,7 +81,7 @@
           </ul>
           {{if and .Data.OnSale .SignIn}}
           <p class="mt-4 mb-2 text-body-secondary">{{.T "landing.buy.sign_in_text"}}</p>
-          <a class="btn btn-tixo btn-lg" href="{{.URL "/auth/google/login"}}?next={{.URL (printf "/events/%s" .Data.Slug)}}">{{.T "landing.buy.sign_in"}}</a>
+          <a class="btn btn-tixo btn-lg" href="{{.URL "/auth/google/login"}}?next={{printf "/events/%s" .Data.Slug}}">{{.T "landing.buy.sign_in"}}</a>
           {{end}}
           {{end}}
         </section>
@@ -128,19 +129,24 @@
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 {{end}}
 
+{{define "landing_buy_errors"}}
+{{$errs := .Data.Buy.Errors}}
+{{$form := and .Data.OnSale .Viewer}}
+{{if $errs}}
+<div class="tixo-error-summary mb-4" id="buy-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="buy-errors-title">
+  <h3 class="h6 mb-2" id="buy-errors-title">{{.T "landing.buy.errors_title"}}</h3>
+  <ul class="mb-0">
+    {{with index $errs "idempotency_key"}}<li>{{$.T .}}</li>{{end}}
+    {{with index $errs "tier_id"}}<li>{{if $form}}<a href="#buy-tiers">{{$.T .}}</a>{{else}}{{$.T .}}{{end}}</li>{{end}}
+    {{with index $errs "quantity"}}<li>{{if $form}}<a href="#buy-quantity">{{$.T .}}</a>{{else}}{{$.T .}}{{end}}</li>{{end}}
+  </ul>
+</div>
+{{end}}
+{{end}}
+
 {{define "landing_buy_form"}}
 {{$errs := .Data.Buy.Errors}}
 <form method="post" action="{{.URL (printf "/events/%s/buy" .Data.Slug)}}" novalidate>
-  {{if $errs}}
-  <div class="tixo-error-summary mb-4" id="buy-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="buy-errors-title">
-    <h3 class="h6 mb-2" id="buy-errors-title">{{.T "landing.buy.errors_title"}}</h3>
-    <ul class="mb-0">
-      {{with index $errs "idempotency_key"}}<li>{{$.T .}}</li>{{end}}
-      {{with index $errs "tier_id"}}<li><a href="#buy-tiers">{{$.T .}}</a></li>{{end}}
-      {{with index $errs "quantity"}}<li><a href="#buy-quantity">{{$.T .}}</a></li>{{end}}
-    </ul>
-  </div>
-  {{end}}
   <input type="hidden" name="idempotency_key" value="{{.Data.Buy.Key}}">
   <fieldset id="buy-tiers" class="mb-4"{{if index $errs "tier_id"}} aria-describedby="buy-tier-error"{{end}}>
     <legend class="visually-hidden">{{.T "landing.buy.tier"}}</legend>

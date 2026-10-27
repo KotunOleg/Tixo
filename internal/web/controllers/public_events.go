@@ -129,7 +129,7 @@ func (c PublicEvents) Buy(w http.ResponseWriter, r *http.Request) {
 	lang := i18n.FromContext(r.Context())
 	u, ok := auth.CurrentUser(r.Context())
 	if !ok {
-		redirectLocal(w, i18n.Path(lang, "/auth/google/login")+"?next="+url.QueryEscape(i18n.Path(lang, "/events/"+slug)), http.StatusSeeOther)
+		redirectLocal(w, i18n.Path(lang, "/auth/google/login")+"?next="+url.QueryEscape("/events/"+slug), http.StatusSeeOther)
 		return
 	}
 	pub, err := c.Svc.PublicBySlug(r.Context(), slug)

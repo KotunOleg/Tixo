@@ -241,7 +241,7 @@ func TestPurchaseRejectsWhatIsNotForSale(t *testing.T) {
 		in    Input
 		check func(error) bool
 	}{
-		{"draft event", Input{TierID: draftTier.ID, Quantity: 1}, func(err error) bool { return errors.Is(err, ErrNotOnSale) }},
+		{"draft event is hidden", Input{TierID: draftTier.ID, Quantity: 1}, func(err error) bool { return errors.Is(err, ErrNotFound) }},
 		{"cancelled event", Input{TierID: cancelledTier.ID, Quantity: 1}, func(err error) bool { return errors.Is(err, ErrNotOnSale) }},
 		{"event already started", Input{TierID: startedTier.ID, Quantity: 1}, func(err error) bool { return errors.Is(err, ErrNotOnSale) }},
 		{"more seats than left", Input{TierID: f.tier.ID, Quantity: 3}, func(err error) bool { return errors.Is(err, ErrSoldOut) }},
