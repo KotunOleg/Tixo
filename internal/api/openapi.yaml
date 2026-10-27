@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tixo REST API
-  description: JSON CRUD for organizers, venues, events, ticket tiers, lineup and artists (C5, B1).
+  description: JSON CRUD for organizers, venues, events, ticket tiers, lineup and artists, plus ticket orders (C5, B1).
   version: "1.0"
 servers:
   - url: /api/v1
@@ -14,6 +14,7 @@ tags:
   - name: tiers
   - name: lineup
   - name: artists
+  - name: orders
 
 paths:
   /organizers:
@@ -450,6 +451,85 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /orders:
+    get:
+      tags: [orders]
+      summary: List orders of the current user, newest first
+      parameters:
+        - $ref: "#/components/parameters/skip"
+        - $ref: "#/components/parameters/limit"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/Order" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [orders]
+      summary: Buy tickets (mock payment, the order is paid at once)
+      description: >
+        Seats are taken atomically, so a tier never sells more than it has. Retrying with the same
+        Idempotency-Key returns the existing order with 200 instead of buying again; the same key with a
+        different body is rejected with 422 idempotency_key_reused. Keys are scoped to the current user.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrderInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "200":
+          description: Replay of an earlier request with the same Idempotency-Key
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "error is sold_out (not enough seats left) or not_on_sale (event not published, cancelled or already started)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: "validation failed (fields tier_id, quantity) or idempotency_key_reused"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /orders/{id}:
+    parameters:
+      - $ref: "#/components/parameters/id"
+    get:
+      tags: [orders]
+      summary: Get one order of the current user with its ticket codes
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -478,6 +558,11 @@ components:
       schema: { type: integer, format: int32, default: 20, minimum: 0, maximum: 100 }
 
   responses:
+    BadRequest:
+      description: Malformed request (body, pagination or headers)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     Unauthorized:
       description: Missing or invalid bearer token
       content:
@@ -635,3 +720,38 @@ components:
         type: { type: string }
         country: { type: string }
         disambiguation: { type: string }
+
+    OrderInput:
+      type: object
+      required: [tierId, quantity]
+      properties:
+        tierId: { type: integer, format: int64 }
+        quantity: { type: integer, format: int32, minimum: 1, maximum: 10 }
+
+    Ticket:
+      type: object
+      properties:
+        code: { type: string, format: uuid }
+        issuedAt: { type: string, format: date-time }
+
+    Order:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        eventId: { type: integer, format: int64 }
+        eventSlug: { type: string }
+        eventTitle: { type: string }
+        eventStartsAt: { type: string, format: date-time }
+        venueName: { type: string }
+        venueCity: { type: string }
+        tierId: { type: integer, format: int64 }
+        tierName: { type: string }
+        quantity: { type: integer, format: int32 }
+        unitPrice: { type: integer, format: int64, description: price in kopecks at the time of purchase }
+        total: { type: integer, format: int64 }
+        status: { type: string, enum: [pending, paid, fulfilled, cancelled] }
+        createdAt: { type: string, format: date-time }
+        tickets:
+          type: array
+          description: present on create and on GET /orders/{id}
+          items: { $ref: "#/components/schemas/Ticket" }
