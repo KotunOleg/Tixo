@@ -3,6 +3,7 @@ package seed
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -168,5 +169,32 @@ func TestAddOwnersNeedsTheDemoDataFirst(t *testing.T) {
 	var users int
 	if err := pool.QueryRow(context.Background(), "SELECT count(*) FROM users").Scan(&users); err != nil || users != 0 {
 		t.Errorf("users after failed AddOwners = %d, %v; want 0", users, err)
+	}
+}
+
+func TestSeedHasLandingDemoWithSoldOutAndLowStockTiers(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	if _, err := Run(ctx, pool, seedNow); err != nil {
+		t.Fatal(err)
+	}
+	q := dbgen.New(pool)
+	pub, err := q.GetPublicEventBySlug(ctx, "hardkiss-atlas")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tiers, err := q.ListTicketTiers(ctx, pub.Event.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	left := map[string]int32{}
+	for _, tier := range tiers {
+		left[tier.Name] = tier.Available
+	}
+	if left["VIP"] != 0 || left["Танцпол"] != 10 || left["Фан-зона"] != 300 {
+		t.Errorf("hardkiss-atlas seats left = %v, want VIP sold out, 10 on the dance floor, fan zone untouched", left)
+	}
+	if !strings.Contains(pub.Event.Description, "\n\n") || string(pub.OrganizerContacts) == "{}" {
+		t.Error("landing demo needs a multi-paragraph description and organizer contacts")
 	}
 }
