@@ -13,8 +13,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/google/uuid"
+
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/orders"
 )
 
 type organizer struct {
@@ -148,13 +151,69 @@ var demoEvents = []event{
 	},
 }
 
+type demoBuyer struct {
+	email, name string
+}
+
+type salesTarget struct {
+	event string
+	tiers []string
+}
+
+const (
+	salesDays      = 30
+	salesNamespace = "tixo-seed-sale"
+)
+
+var demoBuyers = []demoBuyer{
+	{email: "fan1@demo.tixo.example", name: "Ірина Бондар"},
+	{email: "fan2@demo.tixo.example", name: "Максим Ткачук"},
+	{email: "fan3@demo.tixo.example", name: "Sofia Kravets"},
+	{email: "fan4@demo.tixo.example", name: "Тарас Гнатюк"},
+}
+
+var salesTargets = []salesTarget{
+	{event: "okean-elzy-palats-sportu", tiers: []string{"Фан-зона", "Танцпол", "VIP"}},
+	{event: "boombox-rooftop", tiers: []string{"Вхідний", "VIP"}},
+	{event: "brit-night-palats-sportu", tiers: []string{"Танцпол", "Фан-зона"}},
+}
+
+type demoSale struct {
+	daysAgo, n int
+	buyer      demoBuyer
+	event      string
+	tier       string
+	quantity   int32
+}
+
+func (d demoSale) idempotency() uuid.UUID {
+	return uuid.NewSHA1(uuid.NameSpaceURL, fmt.Appendf(nil, "%s/%s/%d/%d", salesNamespace, d.event, d.daysAgo, d.n))
+}
+
+func demoSales() []demoSale {
+	var out []demoSale
+	for d := range salesDays {
+		for n := range 1 + (d*7)%3 {
+			target := salesTargets[(d+n)%len(salesTargets)]
+			out = append(out, demoSale{
+				daysAgo: d, n: n,
+				buyer:    demoBuyers[(d+n)%len(demoBuyers)],
+				event:    target.event,
+				tier:     target.tiers[(d+n)%len(target.tiers)],
+				quantity: int32(1 + (d*3+n)%4),
+			})
+		}
+	}
+	return out
+}
+
 type Report struct {
-	Organizers, Users, Venues, Events, Artists, Tiers, Lineup int64
+	Organizers, Users, Venues, Events, Artists, Tiers, Lineup, Orders int64
 }
 
 func (r Report) String() string {
-	return fmt.Sprintf("organizers %d, users %d, venues %d, events %d, artists %d, ticket tiers %d, lineup rows %d",
-		r.Organizers, r.Users, r.Venues, r.Events, r.Artists, r.Tiers, r.Lineup)
+	return fmt.Sprintf("organizers %d, users %d, venues %d, events %d, artists %d, ticket tiers %d, lineup rows %d, orders %d",
+		r.Organizers, r.Users, r.Venues, r.Events, r.Artists, r.Tiers, r.Lineup, r.Orders)
 }
 
 func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) (Report, error) {
@@ -247,11 +306,48 @@ func Run(ctx context.Context, pool *pgxpool.Pool, now time.Time) (Report, error)
 		}
 	}
 
-	rep, err := count(ctx, tx)
-	if err != nil {
+	buyerIDs := make(map[string]int64, len(demoBuyers))
+	for _, b := range demoBuyers {
+		id, err := q.SeedUser(ctx, dbgen.SeedUserParams{Email: b.email, Name: b.name})
+		if err != nil {
+			return Report{}, fmt.Errorf("buyer %s: %w", b.email, err)
+		}
+		buyerIDs[b.email] = id
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return Report{}, err
 	}
-	return rep, tx.Commit(ctx)
+
+	if err := seedSales(ctx, pool, now, buyerIDs); err != nil {
+		return Report{}, err
+	}
+	return count(ctx, pool)
+}
+
+func seedSales(ctx context.Context, pool *pgxpool.Pool, now time.Time, buyerIDs map[string]int64) error {
+	q := dbgen.New(pool)
+	svc := orders.New(pool)
+	for _, sale := range demoSales() {
+		tierID, err := q.SeedTierID(ctx, dbgen.SeedTierIDParams{EventSlug: sale.event, TierName: sale.tier})
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("sale tier %s/%s: %w", sale.event, sale.tier, err)
+		}
+		order, _, err := svc.Purchase(ctx, buyerIDs[sale.buyer.email], orders.Input{TierID: tierID, Quantity: sale.quantity, Key: sale.idempotency()})
+		if errors.Is(err, orders.ErrNotOnSale) || errors.Is(err, orders.ErrSoldOut) || errors.Is(err, orders.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("sale %s day -%d #%d: %w", sale.event, sale.daysAgo, sale.n, err)
+		}
+		at := now.Add(-time.Duration(sale.daysAgo)*24*time.Hour - time.Duration(1+sale.n*3)*time.Hour)
+		if err := q.SeedOrderCreatedAt(ctx, dbgen.SeedOrderCreatedAtParams{ID: order.ID, CreatedAt: at}); err != nil {
+			return fmt.Errorf("sale %d created_at: %w", order.ID, err)
+		}
+	}
+	return nil
 }
 
 func minPrice(tiers []tier) int64 {
@@ -262,14 +358,14 @@ func minPrice(tiers []tier) int64 {
 	return lowest
 }
 
-func count(ctx context.Context, tx pgx.Tx) (Report, error) {
+func count(ctx context.Context, db dbgen.DBTX) (Report, error) {
 	var r Report
 	tables := []struct {
 		name string
 		dst  *int64
 	}{
 		{"organizers", &r.Organizers}, {"users", &r.Users}, {"venues", &r.Venues}, {"events", &r.Events},
-		{"artists", &r.Artists}, {"ticket_tiers", &r.Tiers}, {"event_artists", &r.Lineup},
+		{"artists", &r.Artists}, {"ticket_tiers", &r.Tiers}, {"event_artists", &r.Lineup}, {"orders", &r.Orders},
 	}
 	parts := make([]string, len(tables))
 	dsts := make([]any, len(tables))
@@ -277,7 +373,7 @@ func count(ctx context.Context, tx pgx.Tx) (Report, error) {
 		parts[i] = "(SELECT count(*) FROM " + t.name + ")"
 		dsts[i] = t.dst
 	}
-	err := tx.QueryRow(ctx, "SELECT "+strings.Join(parts, ", ")).Scan(dsts...)
+	err := db.QueryRow(ctx, "SELECT "+strings.Join(parts, ", ")).Scan(dsts...)
 	return r, err
 }
 

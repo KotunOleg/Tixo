@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
@@ -25,8 +26,8 @@ func TestSeedTwiceGivesTheSameCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Report{
-		Organizers: int64(len(organizers)), Users: int64(len(organizers)), Venues: int64(len(venues)),
-		Events: int64(len(demoEvents)), Artists: int64(len(artists)),
+		Organizers: int64(len(organizers)), Users: int64(len(organizers) + len(demoBuyers)), Venues: int64(len(venues)),
+		Events: int64(len(demoEvents)), Artists: int64(len(artists)), Orders: first.Orders,
 	}
 	for _, e := range demoEvents {
 		want.Tiers += int64(len(e.tiers))
@@ -242,5 +243,72 @@ func TestSeedHasLandingDemoWithSoldOutAndLowStockTiers(t *testing.T) {
 	}
 	if !strings.Contains(pub.Event.Description, "\n\n") || string(pub.OrganizerContacts) == "{}" {
 		t.Error("landing demo needs a multi-paragraph description and organizer contacts")
+	}
+}
+
+func seatsLeft(t *testing.T, pool *pgxpool.Pool) int64 {
+	t.Helper()
+	var n int64
+	if err := pool.QueryRow(context.Background(), "SELECT sum(available) FROM ticket_tiers").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestSeedSalesAreIdempotentAndKeepSeatCountsConsistent(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	now := time.Now()
+
+	first, err := Run(ctx, pool, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Orders != int64(len(demoSales())) {
+		t.Fatalf("orders after first seed = %d, want %d planned sales", first.Orders, len(demoSales()))
+	}
+	leftAfterFirst := seatsLeft(t, pool)
+
+	second, err := Run(ctx, pool, now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Orders != first.Orders {
+		t.Errorf("orders after second seed = %d, want %d: a reseed must replay, not buy again", second.Orders, first.Orders)
+	}
+	if left := seatsLeft(t, pool); left != leftAfterFirst {
+		t.Errorf("seats left after second seed = %d, want %d", left, leftAfterFirst)
+	}
+
+	var sold, written int64
+	if err := pool.QueryRow(ctx, `
+		SELECT
+			(SELECT coalesce(sum(o.quantity), 0) FROM orders o),
+			(SELECT coalesce(sum(t.quantity - t.available), 0) FROM ticket_tiers t JOIN events e ON e.id = t.event_id JOIN organizers g ON g.id = e.organizer_id WHERE g.slug = 'kyiv-live' AND e.slug <> 'hardkiss-atlas')`).Scan(&sold, &written); err != nil {
+		t.Fatal(err)
+	}
+	if sold != written {
+		t.Errorf("tickets in orders = %d, seats taken from kyiv-live tiers = %d: seed sales must go through the atomic reservation", sold, written)
+	}
+}
+
+func TestSeedSalesSpreadOverTheAnalyticsWindowForThePremiumOrganizer(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	if _, err := Run(ctx, pool, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	var days, organizers int
+	var premium bool
+	if err := pool.QueryRow(ctx, `
+		SELECT count(DISTINCT (o.created_at AT TIME ZONE 'Europe/Kyiv')::date),
+		       count(DISTINCT e.organizer_id),
+		       bool_and(g.plan = 'premium')
+		FROM orders o JOIN events e ON e.id = o.event_id JOIN organizers g ON g.id = e.organizer_id
+		WHERE o.created_at > now() - interval '30 days'`).Scan(&days, &organizers, &premium); err != nil {
+		t.Fatal(err)
+	}
+	if days < 25 || organizers != 1 || !premium {
+		t.Errorf("seed sales cover %d Kyiv days across %d organizers (premium only: %v); want ≥ 25 days on the premium organizer only", days, organizers, premium)
 	}
 }

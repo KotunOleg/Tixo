@@ -106,6 +106,20 @@ func (q *Queries) SeedMembership(ctx context.Context, arg SeedMembershipParams) 
 	return err
 }
 
+const seedOrderCreatedAt = `-- name: SeedOrderCreatedAt :exec
+UPDATE orders SET created_at = $1 WHERE id = $2
+`
+
+type SeedOrderCreatedAtParams struct {
+	CreatedAt time.Time
+	ID        int64
+}
+
+func (q *Queries) SeedOrderCreatedAt(ctx context.Context, arg SeedOrderCreatedAtParams) error {
+	_, err := q.db.Exec(ctx, seedOrderCreatedAt, arg.CreatedAt, arg.ID)
+	return err
+}
+
 const seedOrganizer = `-- name: SeedOrganizer :one
 INSERT INTO organizers (slug, name, contacts, plan)
 VALUES ($1, $2, $3, $4)
@@ -171,6 +185,24 @@ func (q *Queries) SeedTicketTier(ctx context.Context, arg SeedTicketTierParams) 
 		arg.Available,
 	)
 	return err
+}
+
+const seedTierID = `-- name: SeedTierID :one
+SELECT t.id FROM ticket_tiers t
+JOIN events e ON e.id = t.event_id
+WHERE e.slug = $1 AND t.name = $2
+`
+
+type SeedTierIDParams struct {
+	EventSlug string
+	TierName  string
+}
+
+func (q *Queries) SeedTierID(ctx context.Context, arg SeedTierIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, seedTierID, arg.EventSlug, arg.TierName)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const seedUser = `-- name: SeedUser :one

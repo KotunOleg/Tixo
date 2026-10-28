@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Tixo REST API
-  description: JSON CRUD for organizers, venues, events, ticket tiers, lineup and artists, plus ticket orders (C5, B1).
+  description: JSON CRUD for organizers, venues, events, ticket tiers, lineup and artists, plus ticket orders (C5, B1) and premium sales analytics (B6).
   version: "1.0"
 servers:
   - url: /api/v1
@@ -15,6 +15,7 @@ tags:
   - name: lineup
   - name: artists
   - name: orders
+  - name: analytics
 
 paths:
   /organizers:
@@ -70,6 +71,32 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationFailed" }
+
+  /organizers/{slug}/analytics:
+    parameters:
+      - $ref: "#/components/parameters/slug"
+    get:
+      tags: [analytics]
+      summary: Sales analytics for the organizer (requires the sales_analytics feature, on by default for the premium plan)
+      parameters:
+        - name: days
+          in: query
+          description: Window length ending today (Europe/Kyiv days)
+          schema: { type: integer, default: 30, minimum: 1, maximum: 90 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Analytics" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403":
+          description: The organizer does not have the sales_analytics feature (error is "feature_not_enabled")
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /organizers/{slug}/venues:
     parameters:
@@ -606,6 +633,49 @@ components:
         skip: { type: integer, format: int32 }
         limit: { type: integer, format: int32 }
         nextLink: { type: string, nullable: true }
+
+    Analytics:
+      type: object
+      properties:
+        days: { type: integer }
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        totals:
+          type: object
+          properties:
+            tickets: { type: integer, format: int64 }
+            revenue: { type: integer, format: int64, description: Minor units (kopiyky) }
+            published_events: { type: integer, format: int64 }
+        by_day:
+          type: array
+          description: One entry per day of the window, zero when nothing was sold
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              tickets: { type: integer, format: int64 }
+              revenue: { type: integer, format: int64 }
+        by_event:
+          type: array
+          description: Top 10 events by tickets sold in the window; the rest are folded into one "others" row
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [event, others] }
+              id: { type: integer, format: int64 }
+              slug: { type: string }
+              title: { type: string }
+              others_count: { type: integer }
+              tickets: { type: integer, format: int64 }
+              revenue: { type: integer, format: int64 }
+        by_genre:
+          type: array
+          description: Events per genre, cancelled events excluded
+          items:
+            type: object
+            properties:
+              genre: { type: string }
+              events: { type: integer, format: int64 }
 
     Organizer:
       type: object

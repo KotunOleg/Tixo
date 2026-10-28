@@ -200,3 +200,150 @@ function setupVenueMap() {
 
 setupBuyBar();
 setupVenueMap();
+
+function truncateLabel(label, max) {
+  const chars = Array.from(label);
+  return chars.length > max ? chars.slice(0, max - 1).join("") + "…" : label;
+}
+
+function setupAnalyticsCharts() {
+  const source = document.getElementById("analytics-data");
+  const canvases = document.querySelectorAll(".js-analytics-chart");
+  if (!source || !canvases.length || typeof Chart === "undefined") {
+    return;
+  }
+  let data;
+  try {
+    data = JSON.parse(source.textContent);
+  } catch {
+    return;
+  }
+  const tokens = getComputedStyle(document.documentElement);
+  const token = (name) => tokens.getPropertyValue(name).trim();
+  const accent = token("--tixo-accent");
+  const grid = token("--tixo-border");
+  const muted = token("--tixo-text-muted");
+  const surface = token("--tixo-surface-2");
+  const text = token("--tixo-text");
+  const locale = data.lang === "uk" ? "uk-UA" : "en-GB";
+  const integer = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
+  const money = new Intl.NumberFormat(locale, { style: "currency", currency: "UAH", currencyDisplay: "narrowSymbol", minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const shortDate = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" });
+  const longDate = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  Chart.defaults.font.family = token("--tixo-font-body") || "Inter, sans-serif";
+  Chart.defaults.font.size = 13;
+  Chart.defaults.color = muted;
+
+  const tooltip = {
+    backgroundColor: surface,
+    borderColor: token("--tixo-border-strong"),
+    borderWidth: 1,
+    titleColor: text,
+    bodyColor: text,
+    footerColor: muted,
+    padding: 10,
+    displayColors: false,
+  };
+  const valueAxis = {
+    beginAtZero: true,
+    grid: { color: grid },
+    border: { display: false },
+    ticks: { precision: 0, callback: (v) => integer.format(v) },
+  };
+  const categoryAxis = { grid: { display: false }, border: { color: grid } };
+  const base = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: reduceMotion ? false : { duration: 250 },
+    plugins: { legend: { display: false }, tooltip },
+  };
+
+  const builders = {
+    by_day: () => {
+      const dates = data.days.map((d) => new Date(d.date + "T00:00:00Z"));
+      return {
+        type: "line",
+        data: {
+          labels: dates.map((d) => shortDate.format(d)),
+          datasets: [{ label: data.ticketsLabel, data: data.days.map((d) => d.tickets), borderColor: accent, backgroundColor: accent, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHitRadius: 12, tension: 0 }],
+        },
+        options: {
+          ...base,
+          interaction: { mode: "index", intersect: false },
+          scales: { x: { ...categoryAxis, ticks: { maxRotation: 0, autoSkipPadding: 12 } }, y: valueAxis },
+          plugins: {
+            ...base.plugins,
+            tooltip: {
+              ...tooltip,
+              callbacks: {
+                title: (items) => longDate.format(dates[items[0].dataIndex]),
+                label: (item) => `${data.ticketsLabel}: ${integer.format(item.parsed.y)}`,
+                footer: (items) => `${data.revenueLabel}: ${money.format(data.days[items[0].dataIndex].revenue / 100)}`,
+              },
+            },
+          },
+        },
+      };
+    },
+    by_event: () => ({
+      type: "bar",
+      data: {
+        labels: data.eventsTickets.map((e) => e.label),
+        datasets: [{ label: data.ticketsLabel, data: data.eventsTickets.map((e) => e.value), backgroundColor: accent, borderRadius: 4, borderSkipped: "start", maxBarThickness: 24 }],
+      },
+      options: {
+        ...base,
+        indexAxis: "y",
+        scales: {
+          x: valueAxis,
+          y: { ...categoryAxis, ticks: { autoSkip: false, callback(value) { return truncateLabel(this.getLabelForValue(value), window.innerWidth < 576 ? 14 : 28); } } },
+        },
+        plugins: {
+          ...base.plugins,
+          tooltip: { ...tooltip, callbacks: { label: (item) => `${data.ticketsLabel}: ${integer.format(item.parsed.x)}` } },
+        },
+      },
+    }),
+    by_genre: () => ({
+      type: "bar",
+      data: {
+        labels: data.genres.map((g) => g.label),
+        datasets: [{ label: data.eventsLabel, data: data.genres.map((g) => g.value), backgroundColor: accent, borderRadius: 4, borderSkipped: "start", maxBarThickness: 48 }],
+      },
+      options: {
+        ...base,
+        scales: { x: { ...categoryAxis, ticks: { autoSkip: false, maxRotation: 45 } }, y: valueAxis },
+        plugins: {
+          ...base.plugins,
+          tooltip: { ...tooltip, callbacks: { label: (item) => `${data.eventsLabel}: ${integer.format(item.parsed.y)}` } },
+        },
+      },
+    }),
+  };
+
+  canvases.forEach((canvas) => {
+    const build = builders[canvas.dataset.chart];
+    const wrapper = canvas.parentElement;
+    if (!build || !wrapper) {
+      return;
+    }
+    if (canvas.dataset.chart === "by_event") {
+      wrapper.style.height = `${Math.max(10, data.eventsTickets.length * 2.25 + 3)}rem`;
+    }
+    wrapper.hidden = false;
+    try {
+      new Chart(canvas, build());
+    } catch {
+      wrapper.hidden = true;
+      return;
+    }
+    const details = wrapper.parentElement.querySelector(".tixo-chart-data");
+    if (details) {
+      details.open = false;
+    }
+  });
+}
+
+setupAnalyticsCharts();

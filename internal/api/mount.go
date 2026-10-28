@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/events"
@@ -23,6 +24,7 @@ type Deps struct {
 	Lineup     *lineup.Service
 	Artists    *artists.Service
 	Orders     *orders.Service
+	Analytics  *analytics.Service
 	APITokens  *apitokens.Service
 	Logger     *slog.Logger
 }
@@ -52,6 +54,9 @@ func Mount(r chi.Router, d Deps) {
 			r.Use(requireMember(d.Organizers))
 			r.Get("/", o.Show)
 			r.Patch("/", o.Update)
+
+			an := Analytics{Svc: d.Analytics, Log: d.Logger}
+			r.Get("/analytics", an.Show)
 
 			r.Get("/venues", v.List)
 			r.Post("/venues", v.Create)

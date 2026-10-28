@@ -57,6 +57,18 @@ type EventArtist struct {
 	IsHeadliner bool
 }
 
+type FeatureFlag struct {
+	Name          string
+	EnabledForAll bool
+	Plans         []string
+}
+
+type FeatureFlagOrganizer struct {
+	Name        string
+	OrganizerID int64
+	CreatedAt   time.Time
+}
+
 type Membership struct {
 	UserID      int64
 	OrganizerID int64

@@ -11,12 +11,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/api"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/config"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/features"
 	"github.com/KotunOleg/Tixo/internal/health"
 	"github.com/KotunOleg/Tixo/internal/lineup"
 	"github.com/KotunOleg/Tixo/internal/orders"
@@ -89,10 +91,12 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 
 	orgs, ven, evs, trs, lup, arts, tokens := organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), lineup.New(pool), artists.New(pool), apitokens.New(pool)
 	ords := orders.New(pool)
+	flags := features.New(pool)
+	stats := analytics.New(pool, flags)
 	site := controllers.Deps{
-		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, APITokens: tokens, Storage: posters, Logger: log,
+		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, Features: flags, Analytics: stats, APITokens: tokens, Storage: posters, Logger: log,
 	}
-	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, APITokens: tokens, Logger: log}
+	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, Analytics: stats, APITokens: tokens, Logger: log}
 	handler := server.New(server.Deps{
 		Logger: log,
 		Health: health.Handler(version, healthTimeout, postgres.Checker(pool), redisclient.Checker(rdb), rabbitmq.Checker(cfg.AMQPURL)),
