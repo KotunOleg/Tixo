@@ -2,6 +2,7 @@ package view
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"testing/fstest"
 
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
+	"github.com/KotunOleg/Tixo/web"
 )
 
 const locale = "[ok]\nother = \"fine\"\n"
@@ -59,6 +61,105 @@ func TestRenderErrorSendsNoPartialPage(t *testing.T) {
 func TestBrokenTemplateFailsAtStartup(t *testing.T) {
 	if _, err := newRenderer(t, `{{define "content"}}{{if}}{{end}}`, &bytes.Buffer{}); err == nil {
 		t.Error("syntax error in a page template was not reported at startup")
+	}
+}
+
+func TestPagePurchasePopsOnce(t *testing.T) {
+	calls := 0
+	p := &Page{popPurchase: func(orderID int64) (string, bool) {
+		calls++
+		return fmt.Sprintf(`{"transaction_id":"%d"}`, orderID), true
+	}}
+	if got := string(p.Purchase(42)); got != `{"transaction_id":"42"}` {
+		t.Errorf("Purchase(42) = %q, want the payload", got)
+	}
+	if got := string(p.Purchase(42)); got != `{"transaction_id":"42"}` {
+		t.Errorf("second Purchase(42) on the same Page = %q, want the cached payload", got)
+	}
+	if calls != 1 {
+		t.Errorf("popPurchase called %d times, want 1: a page render must pop the session value at most once", calls)
+	}
+}
+
+func TestPurchaseIsScopedToTheRequestedOrder(t *testing.T) {
+	popped := map[int64]bool{}
+	p := &Page{popPurchase: func(orderID int64) (string, bool) {
+		popped[orderID] = true
+		if orderID != 7 {
+			return "", false
+		}
+		return `{"transaction_id":"7"}`, true
+	}}
+	if got := p.Purchase(5); got != nil {
+		t.Errorf("Purchase(5) = %q, want nil: payload belongs to order 7, not 5", got)
+	}
+	if !popped[5] {
+		t.Error("Purchase(5) did not even look up order 5's own session key")
+	}
+	if popped[7] {
+		t.Error("Purchase(5) popped order 7's payload: a view of order 5 must not consume order 7's pending event")
+	}
+}
+
+func TestRenderExposesGA4IDAndPurchasePayloadOnlyWhenPresent(t *testing.T) {
+	fsys := fixture(`{{define "content"}}GA4=[{{.GA4ID}}] {{with .Purchase 1}}<script type="application/json" id="p">{{.}}</script>{{end}}{{end}}`)
+	tr, err := i18n.New(fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := New(fsys, tr, Config{BaseURL: url.URL{Scheme: "http", Host: "x"}, Logger: slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), GA4ID: "G-TEST"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := WithPurchase(t.Context(), func(orderID int64) (string, bool) {
+		if orderID != 1 {
+			return "", false
+		}
+		return `{"transaction_id":"1"}`, true
+	})
+	rec := httptest.NewRecorder()
+	v.Render(rec, httptest.NewRequestWithContext(ctx, http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
+	if body := rec.Body.String(); !strings.Contains(body, "GA4=[G-TEST]") || !strings.Contains(body, `id="p">{"transaction_id":"1"}</script>`) {
+		t.Errorf("body = %q, want GA4ID and the unescaped purchase JSON inside the script tag", body)
+	}
+
+	rec = httptest.NewRecorder()
+	v.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
+	if body := rec.Body.String(); strings.Contains(body, "ga-purchase") || strings.Contains(body, `id="p"`) {
+		t.Errorf("body = %q, want no purchase script without WithPurchase in context", body)
+	}
+}
+
+func TestGA4ScriptLoadsOnlyWithMeasurementID(t *testing.T) {
+	tr, err := i18n.New(web.FS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name  string
+		ga4ID string
+		want  bool
+	}{
+		{"disabled by default", "", false},
+		{"enabled with an id", "G-TEST123", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := New(web.FS, tr, Config{BaseURL: url.URL{Scheme: "http", Host: "x"}, Logger: slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), GA4ID: tc.ga4ID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rec := httptest.NewRecorder()
+			v.NotFound(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/no-such-page", nil))
+			body := rec.Body.String()
+			hasScript := strings.Contains(body, "googletagmanager.com/gtag/js")
+			if hasScript != tc.want {
+				t.Errorf("gtag script present = %v, want %v\n%s", hasScript, tc.want, body)
+			}
+			if tc.want && !strings.Contains(body, `gtag("config","G-TEST123")`) {
+				t.Errorf("gtag not configured with the measurement id:\n%s", body)
+			}
+		})
 	}
 }
 

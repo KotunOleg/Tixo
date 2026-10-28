@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -20,6 +21,7 @@ const (
 	keyNext     = "oauth.next"
 	keyUserID   = "user_id"
 	keyFlash    = "flash"
+	keyPurchase = "ga4.purchase"
 )
 
 var ErrBadState = errors.New("oauth state is missing or does not match")
@@ -81,6 +83,19 @@ func SetFlash(ctx context.Context, sm *scs.SessionManager, messageID string) {
 
 func PopFlash(ctx context.Context, sm *scs.SessionManager) string {
 	return sm.PopString(ctx, keyFlash)
+}
+
+func SetPurchase(ctx context.Context, sm *scs.SessionManager, orderID int64, payloadJSON string) {
+	sm.Put(ctx, purchaseKey(orderID), payloadJSON)
+}
+
+func PopPurchase(ctx context.Context, sm *scs.SessionManager, orderID int64) (string, bool) {
+	payload := sm.PopString(ctx, purchaseKey(orderID))
+	return payload, payload != ""
+}
+
+func purchaseKey(orderID int64) string {
+	return fmt.Sprintf("%s.%d", keyPurchase, orderID)
 }
 
 func SafeNext(raw string) string {

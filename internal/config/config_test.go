@@ -100,6 +100,28 @@ func TestLoadAcceptsValidProd(t *testing.T) {
 	}
 }
 
+func TestGA4DisabledWithoutMeasurementID(t *testing.T) {
+	cfg, err := LoadFrom(validEnv())
+	if err != nil {
+		t.Fatalf("valid env rejected: %v", err)
+	}
+	if cfg.GA4Enabled() {
+		t.Error("GA4Enabled() = true without GA4_MEASUREMENT_ID")
+	}
+}
+
+func TestGA4EnabledWithMeasurementID(t *testing.T) {
+	env := validEnv()
+	env["GA4_MEASUREMENT_ID"] = "G-TESTID123"
+	cfg, err := LoadFrom(env)
+	if err != nil {
+		t.Fatalf("valid env rejected: %v", err)
+	}
+	if !cfg.GA4Enabled() {
+		t.Error("GA4Enabled() = false with GA4_MEASUREMENT_ID set")
+	}
+}
+
 func TestDevStartsWithoutGoogleSignIn(t *testing.T) {
 	cfg, err := LoadFrom(validEnv())
 	if err != nil {

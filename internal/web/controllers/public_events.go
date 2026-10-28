@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
@@ -115,10 +117,46 @@ func (d landingData) Quantities() []int {
 }
 
 type PublicEvents struct {
-	View   *view.Renderer
-	Svc    *events.Service
-	Orders *orders.Service
-	Log    *slog.Logger
+	View     *view.Renderer
+	Sessions *scs.SessionManager
+	Svc      *events.Service
+	Orders   *orders.Service
+	Log      *slog.Logger
+}
+
+type ga4PurchaseItem struct {
+	ItemID   string  `json:"item_id"`
+	ItemName string  `json:"item_name"`
+	Price    float64 `json:"price"`
+	Quantity int32   `json:"quantity"`
+}
+
+type ga4Purchase struct {
+	TransactionID string            `json:"transaction_id"`
+	Value         float64           `json:"value"`
+	Currency      string            `json:"currency"`
+	Items         []ga4PurchaseItem `json:"items"`
+}
+
+func kopecksToUAH(kopecks int64) float64 { return float64(kopecks) / 100 }
+
+func setGA4Purchase(r *http.Request, sm *scs.SessionManager, order orders.Details) {
+	payload := ga4Purchase{
+		TransactionID: strconv.FormatInt(order.ID, 10),
+		Value:         kopecksToUAH(order.Total),
+		Currency:      "UAH",
+		Items: []ga4PurchaseItem{{
+			ItemID:   strconv.FormatInt(order.TierID, 10),
+			ItemName: order.EventTitle + " — " + order.TierName,
+			Price:    kopecksToUAH(order.UnitPrice),
+			Quantity: order.Quantity,
+		}},
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return
+	}
+	auth.SetPurchase(r.Context(), sm, order.ID, string(raw))
 }
 
 func (c PublicEvents) Show(w http.ResponseWriter, r *http.Request) {
@@ -201,6 +239,7 @@ func (c PublicEvents) Buy(w http.ResponseWriter, r *http.Request) {
 	}
 	if !replay {
 		c.Log.InfoContext(r.Context(), "order created", "order_id", order.ID, "user_id", u.ID, "tier_id", order.TierID, "quantity", order.Quantity, "request_id", middleware.GetReqID(r.Context()))
+		setGA4Purchase(r, c.Sessions, order)
 	}
 	redirectLocal(w, i18n.Path(lang, "/orders/"+strconv.FormatInt(order.ID, 10)), http.StatusSeeOther)
 }

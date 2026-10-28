@@ -59,7 +59,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	if err != nil {
 		return err
 	}
-	pages, err := view.New(web.FS, tr, view.Config{BaseURL: cfg.BaseURL, Logger: log, SignIn: cfg.GoogleEnabled()})
+	pages, err := view.New(web.FS, tr, view.Config{BaseURL: cfg.BaseURL, Logger: log, SignIn: cfg.GoogleEnabled(), GA4ID: cfg.GA4MeasurementID})
 	if err != nil {
 		return err
 	}
@@ -87,6 +87,9 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		google = auth.NewGoogle(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.BaseURL)
 	} else {
 		log.Warn("google sign-in disabled: GOOGLE_CLIENT_ID is not set")
+	}
+	if !cfg.GA4Enabled() {
+		log.Warn("ga4 analytics disabled: GA4_MEASUREMENT_ID is not set")
 	}
 
 	orgs, ven, evs, trs, lup, arts, tokens := organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), lineup.New(pool), artists.New(pool), apitokens.New(pool)

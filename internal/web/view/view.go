@@ -3,6 +3,7 @@ package view
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -22,6 +23,7 @@ type Config struct {
 	BaseURL url.URL
 	Logger  *slog.Logger
 	SignIn  bool
+	GA4ID   string
 }
 
 type Viewer struct {
@@ -33,12 +35,18 @@ type viewerKey struct{}
 
 type flashKey struct{}
 
+type purchaseKey struct{}
+
 func WithViewer(ctx context.Context, v Viewer) context.Context {
 	return context.WithValue(ctx, viewerKey{}, &v)
 }
 
 func WithFlash(ctx context.Context, pop func() string) context.Context {
 	return context.WithValue(ctx, flashKey{}, pop)
+}
+
+func WithPurchase(ctx context.Context, pop func(orderID int64) (string, bool)) context.Context {
+	return context.WithValue(ctx, purchaseKey{}, pop)
 }
 
 type Renderer struct {
@@ -130,10 +138,13 @@ func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 	lang := i18n.FromContext(r.Context())
 	viewer, _ := r.Context().Value(viewerKey{}).(*Viewer)
 	pop, _ := r.Context().Value(flashKey{}).(func() string)
+	popPurchase, _ := r.Context().Value(purchaseKey{}).(func(orderID int64) (string, bool))
 	return &Page{
 		Viewer:         viewer,
 		SignIn:         v.cfg.SignIn,
+		GA4ID:          v.cfg.GA4ID,
 		popFlash:       pop,
+		popPurchase:    popPurchase,
 		Name:           name,
 		Lang:           lang,
 		Path:           cleanPath(r.URL.Path),
@@ -150,6 +161,7 @@ func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 type Page struct {
 	Viewer         *Viewer
 	SignIn         bool
+	GA4ID          string
 	Name           string
 	Lang           i18n.Lang
 	Path           string
@@ -161,6 +173,8 @@ type Page struct {
 	base           url.URL
 	popFlash       func() string
 	flash          *string
+	popPurchase    func(orderID int64) (string, bool)
+	purchase       *string
 	query          string
 }
 
@@ -173,6 +187,20 @@ func (p *Page) Flash() string {
 		p.flash = &msg
 	}
 	return *p.flash
+}
+
+func (p *Page) Purchase(orderID int64) json.RawMessage {
+	if p.purchase == nil {
+		var payload string
+		if p.popPurchase != nil {
+			payload, _ = p.popPurchase(orderID)
+		}
+		p.purchase = &payload
+	}
+	if *p.purchase == "" {
+		return nil
+	}
+	return json.RawMessage(*p.purchase)
 }
 
 type Alternate struct {
