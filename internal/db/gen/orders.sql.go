@@ -102,6 +102,48 @@ func (q *Queries) CreateTickets(ctx context.Context, arg CreateTicketsParams) ([
 	return items, nil
 }
 
+const getOrderByID = `-- name: GetOrderByID :one
+SELECT o.id, o.user_id, o.event_id, o.tier_id, o.quantity, o.unit_price, o.total, o.status, o.idempotency_key, o.created_at, e.title AS event_title, e.starts_at AS event_starts_at,
+       t.name AS tier_name, v.name AS venue_name, v.city AS venue_city
+FROM orders o
+JOIN events e ON e.id = o.event_id
+JOIN ticket_tiers t ON t.id = o.tier_id
+JOIN venues v ON v.id = e.venue_id
+WHERE o.id = $1
+`
+
+type GetOrderByIDRow struct {
+	Order         Order
+	EventTitle    string
+	EventStartsAt time.Time
+	TierName      string
+	VenueName     string
+	VenueCity     string
+}
+
+func (q *Queries) GetOrderByID(ctx context.Context, id int64) (GetOrderByIDRow, error) {
+	row := q.db.QueryRow(ctx, getOrderByID, id)
+	var i GetOrderByIDRow
+	err := row.Scan(
+		&i.Order.ID,
+		&i.Order.UserID,
+		&i.Order.EventID,
+		&i.Order.TierID,
+		&i.Order.Quantity,
+		&i.Order.UnitPrice,
+		&i.Order.Total,
+		&i.Order.Status,
+		&i.Order.IdempotencyKey,
+		&i.Order.CreatedAt,
+		&i.EventTitle,
+		&i.EventStartsAt,
+		&i.TierName,
+		&i.VenueName,
+		&i.VenueCity,
+	)
+	return i, err
+}
+
 const getOrderByKey = `-- name: GetOrderByKey :one
 SELECT id, user_id, event_id, tier_id, quantity, unit_price, total, status, idempotency_key, created_at FROM orders WHERE user_id = $1 AND idempotency_key = $2
 `
@@ -303,6 +345,15 @@ func (q *Queries) ListTicketsForOrder(ctx context.Context, orderID int64) ([]Tic
 	return items, nil
 }
 
+const markOrderFulfilled = `-- name: MarkOrderFulfilled :exec
+UPDATE orders SET status = 'fulfilled' WHERE id = $1 AND status <> 'fulfilled'
+`
+
+func (q *Queries) MarkOrderFulfilled(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, markOrderFulfilled, id)
+	return err
+}
+
 const reserveSeats = `-- name: ReserveSeats :one
 UPDATE ticket_tiers t
 SET available = t.available - $1::integer
@@ -334,4 +385,18 @@ func (q *Queries) ReserveSeats(ctx context.Context, arg ReserveSeatsParams) (Tic
 		&i.Available,
 	)
 	return i, err
+}
+
+const updateTicketPDFKey = `-- name: UpdateTicketPDFKey :exec
+UPDATE tickets SET pdf_key = $1 WHERE id = $2 AND pdf_key IS NULL
+`
+
+type UpdateTicketPDFKeyParams struct {
+	PdfKey pgtype.Text
+	ID     int64
+}
+
+func (q *Queries) UpdateTicketPDFKey(ctx context.Context, arg UpdateTicketPDFKeyParams) error {
+	_, err := q.db.Exec(ctx, updateTicketPDFKey, arg.PdfKey, arg.ID)
+	return err
 }
