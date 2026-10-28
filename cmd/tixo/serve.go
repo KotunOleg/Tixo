@@ -59,7 +59,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	if err != nil {
 		return err
 	}
-	pages, err := view.New(web.FS, tr, view.Config{BaseURL: cfg.BaseURL, Logger: log, SignIn: cfg.GoogleEnabled()})
+	pages, err := view.New(web.FS, tr, view.Config{BaseURL: cfg.BaseURL, Logger: log, SignIn: cfg.GoogleEnabled(), GA4ID: cfg.GA4MeasurementID})
 	if err != nil {
 		return err
 	}

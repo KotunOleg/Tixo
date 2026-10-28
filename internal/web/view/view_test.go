@@ -62,6 +62,48 @@ func TestBrokenTemplateFailsAtStartup(t *testing.T) {
 	}
 }
 
+func TestPagePurchasePopsOnce(t *testing.T) {
+	calls := 0
+	p := &Page{popPurchase: func() (string, bool) {
+		calls++
+		return `{"transaction_id":"1"}`, true
+	}}
+	if got := p.Purchase(); got != `{"transaction_id":"1"}` {
+		t.Errorf("Purchase() = %q, want the payload", got)
+	}
+	if got := p.Purchase(); got != `{"transaction_id":"1"}` {
+		t.Errorf("second Purchase() on the same Page = %q, want the cached payload", got)
+	}
+	if calls != 1 {
+		t.Errorf("popPurchase called %d times, want 1: a page render must pop the session value at most once", calls)
+	}
+}
+
+func TestRenderExposesGA4IDAndPurchasePayloadOnlyWhenPresent(t *testing.T) {
+	fsys := fixture(`{{define "content"}}GA4=[{{.GA4ID}}] <script type="application/json" id="p">{{.Purchase}}</script>{{end}}`)
+	tr, err := i18n.New(fsys)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := New(fsys, tr, Config{BaseURL: url.URL{Scheme: "http", Host: "x"}, Logger: slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), GA4ID: "G-TEST"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := WithPurchase(t.Context(), func() (string, bool) { return `{"transaction_id":"1"}`, true })
+	rec := httptest.NewRecorder()
+	v.Render(rec, httptest.NewRequestWithContext(ctx, http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
+	if body := rec.Body.String(); !strings.Contains(body, "GA4=[G-TEST]") || !strings.Contains(body, `id="p">{"transaction_id":"1"}</script>`) {
+		t.Errorf("body = %q, want GA4ID and the unescaped purchase JSON inside the script tag", body)
+	}
+
+	rec = httptest.NewRecorder()
+	v.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
+	if body := rec.Body.String(); !strings.Contains(body, `id="p"></script>`) {
+		t.Errorf("body = %q, want an empty purchase script without WithPurchase in context", body)
+	}
+}
+
 func TestURLStaysInsideSite(t *testing.T) {
 	p := &Page{Lang: i18n.EN}
 	cases := map[string]string{
