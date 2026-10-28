@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -84,13 +85,17 @@ func PopFlash(ctx context.Context, sm *scs.SessionManager) string {
 	return sm.PopString(ctx, keyFlash)
 }
 
-func SetPurchase(ctx context.Context, sm *scs.SessionManager, payloadJSON string) {
-	sm.Put(ctx, keyPurchase, payloadJSON)
+func SetPurchase(ctx context.Context, sm *scs.SessionManager, orderID int64, payloadJSON string) {
+	sm.Put(ctx, purchaseKey(orderID), payloadJSON)
 }
 
-func PopPurchase(ctx context.Context, sm *scs.SessionManager) (string, bool) {
-	payload := sm.PopString(ctx, keyPurchase)
+func PopPurchase(ctx context.Context, sm *scs.SessionManager, orderID int64) (string, bool) {
+	payload := sm.PopString(ctx, purchaseKey(orderID))
 	return payload, payload != ""
+}
+
+func purchaseKey(orderID int64) string {
+	return fmt.Sprintf("%s.%d", keyPurchase, orderID)
 }
 
 func SafeNext(raw string) string {

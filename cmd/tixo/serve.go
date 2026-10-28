@@ -88,6 +88,9 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	} else {
 		log.Warn("google sign-in disabled: GOOGLE_CLIENT_ID is not set")
 	}
+	if !cfg.GA4Enabled() {
+		log.Warn("ga4 analytics disabled: GA4_MEASUREMENT_ID is not set")
+	}
 
 	orgs, ven, evs, trs, lup, arts, tokens := organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), lineup.New(pool), artists.New(pool), apitokens.New(pool)
 	ords := orders.New(pool)

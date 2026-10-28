@@ -156,7 +156,7 @@ func setGA4Purchase(r *http.Request, sm *scs.SessionManager, order orders.Detail
 	if err != nil {
 		return
 	}
-	auth.SetPurchase(r.Context(), sm, string(raw))
+	auth.SetPurchase(r.Context(), sm, order.ID, string(raw))
 }
 
 func (c PublicEvents) Show(w http.ResponseWriter, r *http.Request) {
