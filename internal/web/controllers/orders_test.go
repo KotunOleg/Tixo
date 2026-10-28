@@ -142,6 +142,32 @@ func TestBuyFromLandingAndResubmitBuysOnce(t *testing.T) {
 	}
 }
 
+func TestBuyEmitsGA4PurchaseOnceNotOnRevisit(t *testing.T) {
+	s := newAuthSite(t)
+	id := s.publicEvent(t, publicEvent{slug: "ga4-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 5}}})
+	tier := s.tierIDs(t, id)[0]
+	buyer := s.signInAs(t, "sub-ga4", "ga4@example.com", "Buyer")
+
+	bought := s.postForm(t, "/events/ga4-show/buy", buyValues(tier, "2", uuid.NewString()), buyer)
+	loc := bought.Header().Get("Location")
+	if bought.Code != http.StatusSeeOther || !orderPath.MatchString(loc) {
+		t.Fatalf("buy = %d → %q", bought.Code, loc)
+	}
+
+	first := s.request(t, http.MethodGet, loc, buyer).Body.String()
+	if !strings.Contains(first, `id="ga-purchase">{"transaction_id"`) {
+		t.Errorf("first order page has no ga-purchase payload:\n%s", first)
+	}
+	if !strings.Contains(first, `"value":600`) || !strings.Contains(first, `"currency":"UAH"`) || !strings.Contains(first, `"quantity":2`) {
+		t.Errorf("ga-purchase payload missing expected fields:\n%s", first)
+	}
+
+	second := s.request(t, http.MethodGet, loc, buyer).Body.String()
+	if strings.Contains(second, "ga-purchase") {
+		t.Error("second visit to the order page re-sent the ga4 purchase payload: it must fire once")
+	}
+}
+
 func TestBuyFormErrorsKeepInput(t *testing.T) {
 	s := newAuthSite(t)
 	id := s.publicEvent(t, publicEvent{slug: "form-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 2}, {Name: "VIP", Price: 90000, Quantity: 2}}})
