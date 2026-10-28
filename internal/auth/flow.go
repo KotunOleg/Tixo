@@ -20,6 +20,7 @@ const (
 	keyNext     = "oauth.next"
 	keyUserID   = "user_id"
 	keyFlash    = "flash"
+	keyPurchase = "ga4.purchase"
 )
 
 var ErrBadState = errors.New("oauth state is missing or does not match")
@@ -81,6 +82,15 @@ func SetFlash(ctx context.Context, sm *scs.SessionManager, messageID string) {
 
 func PopFlash(ctx context.Context, sm *scs.SessionManager) string {
 	return sm.PopString(ctx, keyFlash)
+}
+
+func SetPurchase(ctx context.Context, sm *scs.SessionManager, payloadJSON string) {
+	sm.Put(ctx, keyPurchase, payloadJSON)
+}
+
+func PopPurchase(ctx context.Context, sm *scs.SessionManager) (string, bool) {
+	payload := sm.PopString(ctx, keyPurchase)
+	return payload, payload != ""
 }
 
 func SafeNext(raw string) string {
