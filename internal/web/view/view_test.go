@@ -11,6 +11,7 @@ import (
 	"testing/fstest"
 
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
+	"github.com/KotunOleg/Tixo/web"
 )
 
 const locale = "[ok]\nother = \"fine\"\n"
@@ -101,6 +102,38 @@ func TestRenderExposesGA4IDAndPurchasePayloadOnlyWhenPresent(t *testing.T) {
 	v.Render(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil), http.StatusOK, "pages/page", nil)
 	if body := rec.Body.String(); !strings.Contains(body, `id="p"></script>`) {
 		t.Errorf("body = %q, want an empty purchase script without WithPurchase in context", body)
+	}
+}
+
+func TestGA4ScriptLoadsOnlyWithMeasurementID(t *testing.T) {
+	tr, err := i18n.New(web.FS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name  string
+		ga4ID string
+		want  bool
+	}{
+		{"disabled by default", "", false},
+		{"enabled with an id", "G-TEST123", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v, err := New(web.FS, tr, Config{BaseURL: url.URL{Scheme: "http", Host: "x"}, Logger: slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil)), GA4ID: tc.ga4ID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rec := httptest.NewRecorder()
+			v.NotFound(rec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/no-such-page", nil))
+			body := rec.Body.String()
+			hasScript := strings.Contains(body, "googletagmanager.com/gtag/js")
+			if hasScript != tc.want {
+				t.Errorf("gtag script present = %v, want %v\n%s", hasScript, tc.want, body)
+			}
+			if tc.want && !strings.Contains(body, `gtag("config","G-TEST123")`) {
+				t.Errorf("gtag not configured with the measurement id:\n%s", body)
+			}
+		})
 	}
 }
 
