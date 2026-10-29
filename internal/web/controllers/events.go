@@ -132,7 +132,7 @@ type Events struct {
 	Tiers   *tiers.Service
 	Lineup  *lineup.Service
 	Artists *artists.Service
-	Storage *storage.Store
+	Storage storage.Store
 	Log     *slog.Logger
 }
 
