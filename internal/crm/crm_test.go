@@ -13,15 +13,15 @@ import (
 
 func TestHubSpotClientUpsertContact(t *testing.T) {
 	var gotMethod, gotPath, gotAuth string
-	var gotBody hubspotUpsertBody
+	var gotBody hubspotBatchUpsertBody
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
-		gotPath = r.URL.Path + "?" + r.URL.RawQuery
+		gotPath = r.URL.Path
 		gotAuth = r.Header.Get("Authorization")
 		body, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(body, &gotBody)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusCreated)
 	}))
 	defer srv.Close()
 
@@ -31,17 +31,24 @@ func TestHubSpotClientUpsertContact(t *testing.T) {
 		t.Fatalf("UpsertContact() error = %v", err)
 	}
 
-	if gotMethod != http.MethodPatch {
-		t.Errorf("method = %q, want PATCH", gotMethod)
+	if gotMethod != http.MethodPost {
+		t.Errorf("method = %q, want POST", gotMethod)
 	}
-	if !strings.Contains(gotPath, "/crm/v3/objects/contacts/buyer@example.com") || !strings.Contains(gotPath, "idProperty=email") {
-		t.Errorf("path = %q", gotPath)
+	if gotPath != "/crm/v3/objects/contacts/batch/upsert" {
+		t.Errorf("path = %q, want the batch upsert endpoint", gotPath)
 	}
 	if gotAuth != "Bearer test-token" {
 		t.Errorf("Authorization = %q, want Bearer test-token", gotAuth)
 	}
-	if gotBody.Properties.Email != "buyer@example.com" || gotBody.Properties.FirstName != "Buyer" || gotBody.Properties.TixoRole != RoleBuyer {
-		t.Errorf("body properties = %+v", gotBody.Properties)
+	if len(gotBody.Inputs) != 1 {
+		t.Fatalf("inputs = %d, want 1", len(gotBody.Inputs))
+	}
+	in := gotBody.Inputs[0]
+	if in.IDProperty != "email" || in.ID != "buyer@example.com" {
+		t.Errorf("input id = %+v, want idProperty=email id=buyer@example.com", in)
+	}
+	if in.Properties.Email != "buyer@example.com" || in.Properties.FirstName != "Buyer" || in.Properties.TixoRole != RoleBuyer {
+		t.Errorf("body properties = %+v", in.Properties)
 	}
 }
 
@@ -54,6 +61,23 @@ func TestHubSpotClientUpsertContactErrorStatus(t *testing.T) {
 	c := NewHubSpotClientWith("test-token", srv.URL, srv.Client())
 	if err := c.UpsertContact(context.Background(), Contact{Email: "buyer@example.com", Role: RoleBuyer}); err == nil {
 		t.Fatal("expected error on 429 response, got nil")
+	}
+}
+
+func TestHubSpotClientUpsertContactCreatesBrandNewContact(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/crm/v3/objects/contacts/batch/upsert" {
+			t.Errorf("a non-existent contact must go through the batch upsert endpoint, not single-object PATCH: got %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer srv.Close()
+
+	c := NewHubSpotClientWith("test-token", srv.URL, srv.Client())
+	if err := c.UpsertContact(context.Background(), Contact{Email: "brand-new@example.com", Role: RoleBuyer}); err != nil {
+		t.Fatalf("UpsertContact() for a contact with no existing HubSpot record: error = %v, want success", err)
 	}
 }
 

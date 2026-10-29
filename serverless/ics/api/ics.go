@@ -60,7 +60,7 @@ func (p eventParams) uid() string {
 }
 
 func escapeText(s string) string {
-	replacer := strings.NewReplacer(`\`, `\\`, `;`, `\;`, `,`, `\,`, "\r\n", `\n`, "\n", `\n`)
+	replacer := strings.NewReplacer(`\`, `\\`, `;`, `\;`, `,`, `\,`, "\r\n", `\n`, "\n", `\n`, "\r", `\n`)
 	return replacer.Replace(s)
 }
 
