@@ -170,6 +170,7 @@ func (c Events) Update(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.eventsCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "event updated via api", "event_id", e.ID, "request_id", middleware.GetReqID(r.Context()))
 	httpx.WriteJSON(w, http.StatusOK, eventFrom(e))
 }
@@ -200,6 +201,7 @@ func (c Events) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.eventsCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "event status changed via api", "event_id", e.ID, "status", e.Status, "request_id", middleware.GetReqID(r.Context()))
 	httpx.WriteJSON(w, http.StatusOK, eventFrom(e))
 }
@@ -223,6 +225,7 @@ func (c Events) Delete(w http.ResponseWriter, r *http.Request) {
 		c.serverError(w, r, err)
 		return
 	}
+	c.Cache.Bump(r.Context(), c.eventsCacheNS(m.Organizer.ID))
 	c.Log.InfoContext(r.Context(), "event deleted via api", "event_id", id, "request_id", middleware.GetReqID(r.Context()))
 	w.WriteHeader(http.StatusNoContent)
 }
