@@ -37,6 +37,9 @@ type Config struct {
 	GoogleClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
 
 	GA4MeasurementID string `env:"GA4_MEASUREMENT_ID"`
+
+	HubSpotAccessToken string `env:"HUBSPOT_ACCESS_TOKEN"`
+	CRMDryRun          bool   `env:"CRM_DRY_RUN" envDefault:"true"`
 }
 
 func (c *Config) IsProd() bool { return c.AppEnv == EnvProd }
@@ -88,6 +91,10 @@ func (c *Config) validate() error {
 		return errors.New("GOOGLE_CLIENT_SECRET must be set together with GOOGLE_CLIENT_ID")
 	case c.GoogleClientID == "" && c.GoogleClientSecret != "":
 		return errors.New("GOOGLE_CLIENT_ID must be set together with GOOGLE_CLIENT_SECRET")
+	}
+
+	if !c.CRMDryRun && c.HubSpotAccessToken == "" {
+		return errors.New("HUBSPOT_ACCESS_TOKEN must be set when CRM_DRY_RUN=false")
 	}
 
 	if c.IsProd() {
