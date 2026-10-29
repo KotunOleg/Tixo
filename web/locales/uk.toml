@@ -486,8 +486,10 @@ event_cancelled = "Подію скасовано. Повернення кошт�
 tier = "Категорія"
 quantity = "Кількість"
 total = "Разом"
-codes_title = "Коди квитків"
-codes_help = "Покажіть код на вході. PDF із QR-кодом з'явиться згодом."
+codes_title = "Квитки"
+codes_help = "Покажіть код на вході або завантажте PDF із QR-кодом нижче."
+download_pdf = "Завантажити PDF"
+pdf_generating = "PDF генерується…"
 to_tickets = "Усі мої квитки"
 
 [tickets]
@@ -500,6 +502,8 @@ next = "Старіші"
 empty_title = "Квитків поки немає"
 empty_text = "Оберіть подію на головній — придбані квитки з'являться тут."
 empty_cta = "До подій"
+pdf_ready = "Квитки готові"
+pdf_generating = "Квитки генеруються"
 
 [tickets.count]
 one = "{{.Count}} квиток"

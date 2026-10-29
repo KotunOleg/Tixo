@@ -9,7 +9,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 )
 
-func newMediaSite(t *testing.T) (http.Handler, *storage.Store) {
+func newMediaSite(t *testing.T) (http.Handler, storage.Store) {
 	t.Helper()
 	store, err := storage.New(t.TempDir())
 	if err != nil {
