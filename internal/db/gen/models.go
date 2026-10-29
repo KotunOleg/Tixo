@@ -98,6 +98,14 @@ type Organizer struct {
 	CreatedAt time.Time
 }
 
+type Outbox struct {
+	ID          int64
+	Topic       string
+	Payload     json.RawMessage
+	CreatedAt   time.Time
+	PublishedAt pgtype.Timestamptz
+}
+
 type Ticket struct {
 	ID       int64
 	OrderID  int64
