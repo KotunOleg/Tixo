@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -14,6 +16,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/orders"
+	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
@@ -22,6 +25,12 @@ const (
 	ticketsPageSize = 20
 	ticketsMaxPage  = 100_000
 )
+
+type ticketView struct {
+	ID    int64
+	Code  string
+	Ready bool
+}
 
 type orderView struct {
 	ID         int64
@@ -35,7 +44,8 @@ type orderView struct {
 	Total      int64
 	Past       bool
 	Cancelled  bool
-	Codes      []string
+	PDFReady   bool
+	Tickets    []ticketView
 }
 
 type ticketsData struct {
@@ -46,9 +56,10 @@ type ticketsData struct {
 }
 
 type Orders struct {
-	View *view.Renderer
-	Svc  *orders.Service
-	Log  *slog.Logger
+	View    *view.Renderer
+	Svc     *orders.Service
+	Storage storage.Store
+	Log     *slog.Logger
 }
 
 func (c Orders) Show(w http.ResponseWriter, r *http.Request) {
@@ -113,11 +124,60 @@ func orderViewFrom(d orders.Details, now time.Time) orderView {
 		ID: d.ID, EventSlug: d.EventSlug, EventTitle: d.EventTitle, StartsAt: d.EventStartsAt,
 		Venue: d.VenueName + ", " + d.VenueCity, TierName: d.TierName, Quantity: int(d.Quantity),
 		UnitPrice: d.UnitPrice, Total: d.Total, Past: !d.EventStartsAt.After(now), Cancelled: d.EventStatus == events.StatusCancelled,
+		PDFReady: d.PDFReady,
 	}
 	for _, t := range d.Tickets {
-		v.Codes = append(v.Codes, uuid.UUID(t.Code.Bytes).String())
+		v.Tickets = append(v.Tickets, ticketView{ID: t.ID, Code: uuid.UUID(t.Code.Bytes).String(), Ready: t.PdfKey.Valid})
 	}
 	return v
+}
+
+func (c Orders) DownloadPDF(w http.ResponseWriter, r *http.Request) {
+	u, _ := auth.CurrentUser(r.Context())
+	orderID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		c.View.NotFound(w, r)
+		return
+	}
+	ticketID, err := strconv.ParseInt(chi.URLParam(r, "ticketID"), 10, 64)
+	if err != nil {
+		c.View.NotFound(w, r)
+		return
+	}
+	d, err := c.Svc.Get(r.Context(), u.ID, orderID)
+	if errors.Is(err, orders.ErrNotFound) {
+		c.View.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	var pdfKey string
+	for _, t := range d.Tickets {
+		if t.ID == ticketID && t.PdfKey.Valid {
+			pdfKey = t.PdfKey.String
+		}
+	}
+	if pdfKey == "" {
+		c.View.NotFound(w, r)
+		return
+	}
+	f, err := c.Storage.Open(pdfKey)
+	if errors.Is(err, storage.ErrNotFound) {
+		c.View.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		c.serverError(w, r, err)
+		return
+	}
+	defer func() { _ = f.Close() }()
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="ticket-%d.pdf"`, ticketID))
+	if _, err := io.Copy(w, f); err != nil {
+		c.Log.ErrorContext(r.Context(), "stream ticket pdf failed", "error", err, "request_id", middleware.GetReqID(r.Context()))
+	}
 }
 
 func (c Orders) serverError(w http.ResponseWriter, r *http.Request, err error) {

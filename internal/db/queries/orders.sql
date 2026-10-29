@@ -40,7 +40,8 @@ WHERE o.id = @id AND o.user_id = @user_id;
 
 -- name: ListOrdersForUser :many
 SELECT sqlc.embed(o), e.slug AS event_slug, e.title AS event_title, e.starts_at AS event_starts_at,
-       e.status AS event_status, t.name AS tier_name, v.name AS venue_name, v.city AS venue_city
+       e.status AS event_status, t.name AS tier_name, v.name AS venue_name, v.city AS venue_city,
+       NOT EXISTS (SELECT 1 FROM tickets tk WHERE tk.order_id = o.id AND tk.pdf_key IS NULL) AS pdf_ready
 FROM orders o
 JOIN events e ON e.id = o.event_id
 JOIN ticket_tiers t ON t.id = o.tier_id
