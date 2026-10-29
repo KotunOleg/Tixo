@@ -5,16 +5,19 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
+	"github.com/KotunOleg/Tixo/internal/cache"
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
@@ -40,6 +43,27 @@ type testSite struct {
 	flags   *features.Service
 }
 
+func testCache(t *testing.T) *cache.Store {
+	t.Helper()
+	url := os.Getenv("TEST_REDIS_URL")
+	if url == "" {
+		t.Skip("TEST_REDIS_URL not set; start redis from compose to run integration tests")
+	}
+	opts, err := redis.ParseURL(url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rdb := redis.NewClient(opts)
+	ctx := context.Background()
+	if keys, err := rdb.Keys(ctx, "cache:org:*").Result(); err == nil && len(keys) > 0 {
+		if err := rdb.Del(ctx, keys...).Err(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { _ = rdb.Close() })
+	return cache.New(rdb, discardLog())
+}
+
 func newTestSite(t *testing.T) testSite {
 	t.Helper()
 	pool := dbtest.Pool(t)
@@ -51,7 +75,7 @@ func newTestSite(t *testing.T) testSite {
 	r := chi.NewRouter()
 	Mount(r, Deps{
 		Organizers: s.orgs, Venues: s.venues, Events: s.events, Tiers: s.tiers, Lineup: s.lineup, Artists: s.artists, Orders: s.orders,
-		Analytics: analytics.New(pool, s.flags), APITokens: s.tokens, Logger: discardLog(),
+		Analytics: analytics.New(pool, s.flags), APITokens: s.tokens, Cache: testCache(t), Logger: discardLog(),
 	})
 	s.h = r
 	return s
