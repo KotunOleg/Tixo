@@ -219,4 +219,7 @@
   {{end}}
 </dl>
 {{end}}
+{{with .Data.ICSHref}}
+<a class="btn btn-quiet btn-sm mt-3" href="{{.}}" download>{{$.T "landing.add_to_calendar"}}</a>
+{{end}}
 {{end}}

@@ -3,13 +3,16 @@ package controllers
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/tiers"
 	"github.com/KotunOleg/Tixo/internal/venues"
@@ -217,6 +220,69 @@ func TestMobileBarKeepsOrganizerContactsOnScreen(t *testing.T) {
 		if got := strings.Contains(m[1], "Купити від 500 ₴"); got != wantBuy {
 			t.Errorf("%s: buy in bar = %v, want %v", path, got, wantBuy)
 		}
+	}
+}
+
+func TestLandingHidesAddToCalendarLinkWithoutICSFunctionURL(t *testing.T) {
+	s := newAuthSite(t)
+	s.publicEvent(t, publicEvent{slug: "no-ics", status: events.StatusPublished})
+	if body := s.request(t, http.MethodGet, "/events/no-ics", nil).Body.String(); strings.Contains(body, "Додати в календар") {
+		t.Error("add-to-calendar link rendered without ICS_FUNCTION_URL configured")
+	}
+}
+
+func TestLandingShowsAddToCalendarLinkWithEventParams(t *testing.T) {
+	pool := dbtest.Pool(t)
+	h, _ := buildSite(t, func(d *Deps) {
+		d.Organizers, d.Venues, d.Events, d.Tiers, d.Orders = organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), orders.New(pool)
+		d.ICSFunctionURL = "https://tixo-ics.vercel.app/api/ics"
+	}, nil)
+
+	ctx := context.Background()
+	u, err := dbgen.New(pool).CreateUser(ctx, dbgen.CreateUserParams{Email: "owner@example.com", Name: "Owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	org, err := organizers.New(pool).Create(ctx, u.ID, organizers.CreateInput{Name: "Kyiv Live", Slug: "kyiv-live"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := venues.New(pool).Create(ctx, org.ID, venues.Input{Name: "Atlas", Address: "1 Test St", City: "Kyiv", Lat: 50.45, Lng: 30.52, Capacity: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now().Add(30 * 24 * time.Hour).Truncate(time.Minute)
+	ev, err := events.New(pool).Create(ctx, org.ID, events.Input{
+		VenueID: v.ID, Slug: "ics-show", Title: "ICS Show", Genre: events.GenreRock, StartsAt: start, EndsAt: start.Add(2 * time.Hour),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := events.New(pool).SetStatus(ctx, org.ID, ev.ID, events.StatusPublished); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/events/ics-show", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	body := rec.Body.String()
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /events/ics-show = %d", rec.Code)
+	}
+	for _, want := range []string{
+		`href="https://tixo-ics.vercel.app/api/ics?`, "title=ICS&#43;Show", "location=Atlas%2C&#43;Kyiv", "Додати в календар",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q in body:\n%s", want, body)
+		}
+	}
+
+	enReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/en/events/ics-show", nil)
+	enRec := httptest.NewRecorder()
+	h.ServeHTTP(enRec, enReq)
+	if enBody := enRec.Body.String(); !strings.Contains(enBody, "Add to calendar") || !strings.Contains(enBody, "tixo-ics.vercel.app/api/ics") {
+		t.Errorf("en: missing add-to-calendar link in body:\n%s", enBody)
 	}
 }
 

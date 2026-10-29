@@ -78,6 +78,7 @@ type landingData struct {
 	Tiers         []landingTier
 	PriceFrom     int64
 	Sale          string
+	ICSHref       string
 	Buy           buyForm
 	SEO           landingSEO
 }
@@ -117,11 +118,12 @@ func (d landingData) Quantities() []int {
 }
 
 type PublicEvents struct {
-	View     *view.Renderer
-	Sessions *scs.SessionManager
-	Svc      *events.Service
-	Orders   *orders.Service
-	Log      *slog.Logger
+	View           *view.Renderer
+	Sessions       *scs.SessionManager
+	Svc            *events.Service
+	Orders         *orders.Service
+	Log            *slog.Logger
+	ICSFunctionURL string
 }
 
 type ga4PurchaseItem struct {
@@ -267,7 +269,22 @@ func (c PublicEvents) landing(r *http.Request, pub events.Public) landingData {
 	}
 	d.SEO.Description = metaDescription(d.Description)
 	d.SEO.Event = eventLD(d, pub, d.SEO.PageURL, d.SEO.ImageURL)
+	d.ICSHref = icsHref(c.ICSFunctionURL, d)
 	return d
+}
+
+func icsHref(baseURL string, d landingData) string {
+	if baseURL == "" {
+		return ""
+	}
+	q := url.Values{
+		"title":    {d.Title},
+		"start":    {d.StartsAt.Format(time.RFC3339)},
+		"end":      {d.EndsAt.Format(time.RFC3339)},
+		"location": {d.VenueName + ", " + d.VenueCity},
+		"url":      {d.SEO.PageURL},
+	}
+	return baseURL + "?" + q.Encode()
 }
 
 func (c PublicEvents) serverError(w http.ResponseWriter, r *http.Request, err error) {

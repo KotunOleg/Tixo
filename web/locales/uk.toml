@@ -435,6 +435,7 @@ organizer = "Організатор"
 panel = "Квитки й контакти"
 price_from_label = "Квитки від"
 buy_cta = "Купити квиток"
+add_to_calendar = "Додати в календар"
 
 [landing.cancelled]
 title = "Подію скасовано."
