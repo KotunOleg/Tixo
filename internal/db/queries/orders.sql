@@ -54,3 +54,18 @@ SELECT count(*)::integer FROM orders WHERE user_id = @user_id;
 
 -- name: ListTicketsForOrder :many
 SELECT * FROM tickets WHERE order_id = @order_id ORDER BY id;
+
+-- name: GetOrderByID :one
+SELECT sqlc.embed(o), e.title AS event_title, e.starts_at AS event_starts_at,
+       t.name AS tier_name, v.name AS venue_name, v.city AS venue_city
+FROM orders o
+JOIN events e ON e.id = o.event_id
+JOIN ticket_tiers t ON t.id = o.tier_id
+JOIN venues v ON v.id = e.venue_id
+WHERE o.id = @id;
+
+-- name: UpdateTicketPDFKey :exec
+UPDATE tickets SET pdf_key = @pdf_key WHERE id = @id AND pdf_key IS NULL;
+
+-- name: MarkOrderFulfilled :exec
+UPDATE orders SET status = 'fulfilled' WHERE id = @id AND status <> 'fulfilled';
