@@ -18,6 +18,8 @@ x-app: &app
     GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     STORAGE_DIR: /data/uploads
+    HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
+    CRM_DRY_RUN: ${CRM_DRY_RUN:-true}
 
 services:
   postgres:
@@ -103,6 +105,18 @@ services:
     command: ["worker"]
     volumes:
       - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  worker-crm:
+    <<: *app
+    command: ["worker", "--queue=crm.contact"]
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,0 +1,61 @@
+name: deploy-ics
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - serverless/ics/**
+      - .github/workflows/deploy-ics.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-ics
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production-ics
+    defaults:
+      run:
+        working-directory: serverless/ics
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: install vercel cli
+        run: npm install --global vercel@latest
+      - name: pull vercel project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: build
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: deploy
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: smoke test production function
+        env:
+          ICS_FUNCTION_URL: ${{ vars.ICS_FUNCTION_URL }}
+        run: |
+          test -n "$ICS_FUNCTION_URL" || { echo "repository variable ICS_FUNCTION_URL is not set" >&2; exit 1; }
+          code=""
+          for i in $(seq 1 10); do
+            code=$(curl -s -o smoke.ics -D smoke.headers -w '%{http_code}' "$ICS_FUNCTION_URL?title=CI%20smoke&start=2030-01-01T19:00:00Z&end=2030-01-01T22:00:00Z" || true)
+            [ "$code" = "200" ] && break
+            sleep 6
+          done
+          [ "$code" = "200" ] || { echo "expected 200, got $code" >&2; cat smoke.ics >&2; exit 1; }
+          grep -qi '^content-type: text/calendar' smoke.headers || { echo "content-type is not text/calendar" >&2; cat smoke.headers >&2; exit 1; }
+          grep -q 'BEGIN:VCALENDAR' smoke.ics || { echo "body has no VCALENDAR" >&2; exit 1; }
+          grep -q 'BEGIN:VEVENT' smoke.ics || { echo "body has no VEVENT" >&2; exit 1; }
+          bad=$(curl -s -o /dev/null -w '%{http_code}' "$ICS_FUNCTION_URL")
+          [ "$bad" = "400" ] || { echo "request without params: expected 400, got $bad" >&2; exit 1; }

@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/KotunOleg/Tixo/internal/crm"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 )
 
@@ -129,6 +130,13 @@ func (s *Service) Create(ctx context.Context, userID int64, in CreateInput) (dbg
 	}
 	if _, err := q.AddMembership(ctx, dbgen.AddMembershipParams{UserID: userID, OrganizerID: org.ID, Role: RoleOwner}); err != nil {
 		return dbgen.Organizer{}, fmt.Errorf("add owner: %w", err)
+	}
+	payload, err := json.Marshal(crm.ContactEvent{UserID: userID, Kind: crm.RoleOrganizer})
+	if err != nil {
+		return dbgen.Organizer{}, fmt.Errorf("marshal crm contact event: %w", err)
+	}
+	if _, err := q.InsertOutbox(ctx, dbgen.InsertOutboxParams{Topic: crm.TopicCRMContact, Payload: payload}); err != nil {
+		return dbgen.Organizer{}, fmt.Errorf("insert crm contact outbox row: %w", err)
 	}
 	return org, tx.Commit(ctx)
 }
