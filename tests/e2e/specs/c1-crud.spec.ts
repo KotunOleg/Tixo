@@ -23,7 +23,7 @@ test("organizer creates, edits and deletes a venue and an event (C1 CRUD)", asyn
   await page.goto(`/org/${e2eOrg}/events/new`);
   await page.locator("#event-title").fill(eventTitle);
   await page.locator("#event-slug").fill(eventSlug);
-  await page.locator("#event-venue").selectOption({ label: venueName });
+  await page.locator("#event-venue").selectOption({ label: `${venueName} — Kyiv` });
   await page.locator("#event-starts-at").fill(datetimeLocal(365));
   await page.locator("#event-ends-at").fill(datetimeLocal(366));
   await page.locator("#event-genre").selectOption("rock");
@@ -39,6 +39,7 @@ test("organizer creates, edits and deletes a venue and an event (C1 CRUD)", asyn
   await expect(page).toHaveURL(/\/org\/.+\/events\/\d+$/);
   await expect(page.getByRole("heading", { name: editedTitle })).toBeVisible();
 
+  await page.getByRole("link", { name: "Редагувати" }).click();
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Видалити подію" }).click();
   await expect(page).toHaveURL(new RegExp(`/org/${e2eOrg}/events$`));

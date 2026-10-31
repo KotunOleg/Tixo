@@ -169,7 +169,7 @@ jobs:
       - name: install playwright
         working-directory: tests/e2e
         run: |
-          npm install
+          npm ci
           npx playwright install --with-deps chromium
       - name: build tixo with coverage instrumentation
         run: |
@@ -196,8 +196,10 @@ jobs:
       - name: stop server and report coverage
         run: |
           pkill -f '/tmp/tixo serve' || true
-          sleep 1
+          for i in $(seq 1 30); do pgrep -f '/tmp/tixo serve' >/dev/null || break; sleep 0.5; done
           go tool covdata percent -i=/tmp/tixo-cov
+          go tool covdata textfmt -i=/tmp/tixo-cov -o /tmp/e2e-cover.txt
+          go tool cover -func=/tmp/e2e-cover.txt | tail -1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
