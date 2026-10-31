@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -20,6 +21,8 @@ import (
 
 const (
 	StatusPaid = "paid"
+
+	TopicTicketsIssue = "tickets.issue"
 
 	FieldTier     = "tier_id"
 	FieldQuantity = "quantity"
@@ -58,6 +61,10 @@ func (e *ValidationError) Error() string {
 	return "invalid order: " + strings.Join(parts, ", ")
 }
 
+type outboxPayload struct {
+	OrderID int64 `json:"order_id"`
+}
+
 type Input struct {
 	EventID  int64
 	TierID   int64
@@ -74,6 +81,7 @@ type Details struct {
 	TierName      string
 	VenueName     string
 	VenueCity     string
+	PDFReady      bool
 	Tickets       []dbgen.Ticket
 }
 
@@ -143,6 +151,13 @@ func (s *Service) reserve(ctx context.Context, userID int64, in Input) (dbgen.Or
 	}
 	if _, err := q.CreateTickets(ctx, dbgen.CreateTicketsParams{OrderID: order.ID, Quantity: in.Quantity}); err != nil {
 		return dbgen.Order{}, fmt.Errorf("create tickets: %w", err)
+	}
+	payload, err := json.Marshal(outboxPayload{OrderID: order.ID})
+	if err != nil {
+		return dbgen.Order{}, fmt.Errorf("marshal outbox payload: %w", err)
+	}
+	if _, err := q.InsertOutbox(ctx, dbgen.InsertOutboxParams{Topic: TopicTicketsIssue, Payload: payload}); err != nil {
+		return dbgen.Order{}, fmt.Errorf("insert outbox: %w", err)
 	}
 	return order, tx.Commit(ctx)
 }
@@ -215,6 +230,7 @@ func (s *Service) List(ctx context.Context, userID int64, limit, offset int32) (
 		out[i] = Details{
 			Order: r.Order, EventSlug: r.EventSlug, EventTitle: r.EventTitle, EventStartsAt: r.EventStartsAt,
 			EventStatus: r.EventStatus, TierName: r.TierName, VenueName: r.VenueName, VenueCity: r.VenueCity,
+			PDFReady: r.PdfReady,
 		}
 	}
 	return out, total, nil

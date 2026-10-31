@@ -716,11 +716,22 @@ body:has(.tixo-buybar) {
   overflow-wrap: anywhere;
 }
 
-.tixo-codes {
-  padding-inline-start: 1.5rem;
+.tixo-tickets {
+  max-width: 42rem;
+  padding-inline-start: 0;
+  list-style: none;
 }
 
-.tixo-codes code {
+.tixo-ticket-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--tixo-border);
+}
+
+.tixo-ticket-row code {
   font-size: var(--tixo-text-base);
   color: var(--tixo-text);
   overflow-wrap: anywhere;

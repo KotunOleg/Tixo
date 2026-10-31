@@ -482,8 +482,10 @@ event_cancelled = "This event is cancelled. Refunds are not supported yet — co
 tier = "Ticket type"
 quantity = "Quantity"
 total = "Total"
-codes_title = "Ticket codes"
-codes_help = "Show the code at the entrance. A PDF with a QR code will follow later."
+codes_title = "Tickets"
+codes_help = "Show the code at the entrance, or download the PDF with a QR code below."
+download_pdf = "Download PDF"
+pdf_generating = "Generating…"
 to_tickets = "All my tickets"
 
 [tickets]
@@ -496,6 +498,8 @@ next = "Older"
 empty_title = "No tickets yet"
 empty_text = "Pick an event on the home page — tickets you buy will show up here."
 empty_cta = "Browse events"
+pdf_ready = "Tickets ready"
+pdf_generating = "Tickets generating"
 
 [tickets.count]
 one = "{{.Count}} ticket"

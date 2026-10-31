@@ -2,6 +2,7 @@ package orders
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -110,6 +111,34 @@ func TestPurchaseFixesPriceAndIssuesOneTicketPerSeat(t *testing.T) {
 	}
 	if n := f.available(t); n != 7 {
 		t.Errorf("available = %d, want 7", n)
+	}
+}
+
+func TestPurchaseWritesOneUnpublishedOutboxRowForTheOrder(t *testing.T) {
+	f := newFixture(t, 10)
+	buyer := mustUser(t, f.pool, "alice")
+
+	got, _, err := f.svc.Purchase(context.Background(), buyer, Input{TierID: f.tier.ID, Quantity: 1, Key: uuid.New()})
+	if err != nil {
+		t.Fatalf("Purchase: %v", err)
+	}
+
+	rows, err := dbgen.New(f.pool).ClaimOutboxBatch(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("ClaimOutboxBatch: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("outbox rows = %d, want 1", len(rows))
+	}
+	if rows[0].Topic != TopicTicketsIssue {
+		t.Errorf("topic = %q, want %q", rows[0].Topic, TopicTicketsIssue)
+	}
+	var payload outboxPayload
+	if err := json.Unmarshal(rows[0].Payload, &payload); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if payload.OrderID != got.ID {
+		t.Errorf("payload order_id = %d, want %d", payload.OrderID, got.ID)
 	}
 }
 
@@ -322,6 +351,51 @@ func TestListShowsNewestFirstWithTotal(t *testing.T) {
 	}
 	if total != 3 || len(page) != 2 || page[0].ID != ids[2] || page[1].ID != ids[1] {
 		t.Errorf("List(2,0) = %v total %d; want [%d %d] total 3", orderIDs(page), total, ids[2], ids[1])
+	}
+}
+
+func TestListReportsPDFReadyFromTicketPDFKeys(t *testing.T) {
+	f := newFixture(t, 10)
+	ctx := context.Background()
+	alice := mustUser(t, f.pool, "alice")
+
+	d, _, err := f.svc.Purchase(ctx, alice, Input{TierID: f.tier.ID, Quantity: 2, Key: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	page, _, err := f.svc.List(ctx, alice, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page) != 1 || page[0].PDFReady {
+		t.Fatalf("PDFReady before any pdf_key is set = %v, want false", page[0].PDFReady)
+	}
+
+	tickets, err := f.svc.q.ListTicketsForOrder(ctx, d.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, "UPDATE tickets SET pdf_key = 'deadbeefdeadbeefdeadbeefdeadbeef.pdf' WHERE id = $1", tickets[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	page, _, err = f.svc.List(ctx, alice, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page[0].PDFReady {
+		t.Fatal("PDFReady = true with one ticket still missing a pdf_key")
+	}
+
+	if _, err := f.pool.Exec(ctx, "UPDATE tickets SET pdf_key = 'deadbeefdeadbeefdeadbeefdeadbeef.pdf' WHERE order_id = $1", d.ID); err != nil {
+		t.Fatal(err)
+	}
+	page, _, err = f.svc.List(ctx, alice, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !page[0].PDFReady {
+		t.Fatal("PDFReady = false once every ticket has a pdf_key")
 	}
 }
 

@@ -23,9 +23,18 @@
 
   <h2 class="h4 mb-2" id="codes-title">{{.T "order.codes_title"}}</h2>
   <p class="text-body-secondary mb-3">{{.T "order.codes_help"}}</p>
-  <ol class="tixo-codes mb-5" aria-labelledby="codes-title">
-    {{range .Data.Codes}}<li><code>{{.}}</code></li>{{end}}
-  </ol>
+  <ul class="tixo-tickets mb-5" aria-labelledby="codes-title">
+    {{range .Data.Tickets}}
+    <li class="tixo-ticket-row">
+      <code>{{.Code}}</code>
+      {{if .Ready}}
+      <a class="btn btn-quiet btn-sm" href="{{$.URL (printf "/orders/%d/tickets/%d/pdf" $.Data.ID .ID)}}">{{$.T "order.download_pdf"}}</a>
+      {{else}}
+      <span class="tixo-badge">{{$.T "order.pdf_generating"}}</span>
+      {{end}}
+    </li>
+    {{end}}
+  </ul>
 
   <a class="btn btn-quiet" href="{{.URL "/tickets"}}">{{.T "order.to_tickets"}}</a>
 </section>
