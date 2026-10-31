@@ -142,7 +142,7 @@ func TestVenueMapPageKeepsFiltersAndShowsEmptyState(t *testing.T) {
 	if strings.Contains(body, "rock-show") {
 		t.Error("filtered page lists an event that does not match the genre")
 	}
-	if unfiltered := s.request(t, http.MethodGet, "/map", nil).Body.String(); strings.Contains(unfiltered, "Скинути фільтри") {
+	if unfiltered := s.request(t, http.MethodGet, "/map", nil).Body.String(); !strings.Contains(unfiltered, `js-map-reset" href="/map" hidden>`) {
 		t.Error("reset link shown without any filter")
 	}
 }
@@ -165,7 +165,7 @@ func TestVenueMapPageShowsFieldErrors(t *testing.T) {
 			t.Errorf("missing %q", want)
 		}
 	}
-	if strings.Contains(body, "rock-show") || strings.Contains(body, "Nothing found") {
+	if strings.Contains(body, "rock-show") || strings.Contains(body, `class="tixo-empty`) {
 		t.Error("invalid filters must show the errors only, not results or the empty state")
 	}
 }
@@ -173,7 +173,51 @@ func TestVenueMapPageShowsFieldErrors(t *testing.T) {
 func TestVenueMapEmptyStateHasASingleResetLink(t *testing.T) {
 	s := newAuthSite(t)
 	body := s.request(t, http.MethodGet, "/map?genre=jazz", nil).Body.String()
-	if n := strings.Count(body, "Скинути фільтри"); n != 1 {
-		t.Errorf("reset links on an empty filtered result = %d, want 1 in the empty state", n)
+	if !strings.Contains(body, `js-map-reset" href="/map" hidden>`) || !strings.Contains(body, `<a class="btn btn-quiet mt-3" href="/map">Скинути фільтри</a>`) {
+		t.Error("on an empty filtered result the only visible reset link must be the one in the empty state")
+	}
+}
+
+func TestVenueMapJSONCarriesTheSameLocalizedLabelsAsThePage(t *testing.T) {
+	s := newAuthSite(t)
+	s.publicEvent(t, publicEvent{slug: "rock-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "Standard", Price: 50000, Quantity: 10}}})
+
+	for _, tc := range []struct{ prefix, summary, facts string }{
+		{"", "Знайдено 1 майданчик", "Рок · від 500 ₴"},
+		{"/en", "1 venue found", "Rock · from ₴500"},
+	} {
+		got := decodeMap(t, s.request(t, http.MethodGet, tc.prefix+"/map/venues.json", nil).Body.String())
+		if got.Summary != tc.summary || len(got.Venues) != 1 {
+			t.Fatalf("%s summary = %q, venues = %d; want %q", tc.prefix, got.Summary, len(got.Venues), tc.summary)
+		}
+		e := got.Venues[0].Events[0]
+		if e.Facts != tc.facts || e.When == "" || got.Venues[0].Place != "Kyiv · Sichovykh Striltsiv 37-41" {
+			t.Errorf("%s event labels = %+v, place = %q", tc.prefix, e, got.Venues[0].Place)
+		}
+		page := s.request(t, http.MethodGet, tc.prefix+"/map", nil).Body.String()
+		for _, want := range []string{tc.summary, e.When, tc.facts} {
+			if !strings.Contains(page, want) {
+				t.Errorf("%s/map does not render %q from the json labels", tc.prefix, want)
+			}
+		}
+	}
+}
+
+func TestVenueMapPageDataCannotBreakOutOfItsScriptTag(t *testing.T) {
+	s := newAuthSite(t)
+	s.publicEvent(t, publicEvent{slug: "xss-show", title: `</script><script>alert(1)</script>`, status: events.StatusPublished})
+
+	body := s.request(t, http.MethodGet, "/map", nil).Body.String()
+	if strings.Contains(body, "<script>alert(1)") {
+		t.Error("event title closed the embedded json script and injected a script")
+	}
+	start := strings.Index(body, `<script type="application/json" id="map-data">`)
+	end := strings.Index(body[start:], "</script>")
+	var data mapJSON
+	if err := json.Unmarshal([]byte(body[start+len(`<script type="application/json" id="map-data">`):start+end]), &data); err != nil || len(data.Venues) != 1 {
+		t.Fatalf("embedded map data = %+v, %v; want valid json with one venue", data, err)
+	}
+	if data.Venues[0].Events[0].Title != `</script><script>alert(1)</script>` {
+		t.Errorf("title after decoding = %q", data.Venues[0].Events[0].Title)
 	}
 }
