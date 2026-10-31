@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/ics.go": {
+      "maxDuration": 5
+    }
+  }
+}
