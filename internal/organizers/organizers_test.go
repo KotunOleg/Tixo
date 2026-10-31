@@ -2,6 +2,7 @@ package organizers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/KotunOleg/Tixo/internal/crm"
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 )
@@ -38,6 +40,34 @@ func TestCreateMakesTheUserOwner(t *testing.T) {
 	m, err := svc.ForMember(context.Background(), alice, "kyiv-live")
 	if err != nil || m.Role != RoleOwner || m.Organizer.ID != org.ID {
 		t.Errorf("creator membership = %+v, %v; want owner", m, err)
+	}
+}
+
+func TestCreateWritesAnUnpublishedCRMContactOutboxRow(t *testing.T) {
+	pool := dbtest.Pool(t)
+	svc := New(pool)
+	alice := mustUser(t, pool, "alice@example.com")
+
+	if _, err := svc.Create(context.Background(), alice, CreateInput{Name: "Kyiv Live", Slug: "kyiv-live"}); err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := dbgen.New(pool).ClaimOutboxBatch(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("ClaimOutboxBatch: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("outbox rows = %d, want 1", len(rows))
+	}
+	if rows[0].Topic != crm.TopicCRMContact {
+		t.Errorf("topic = %q, want %q", rows[0].Topic, crm.TopicCRMContact)
+	}
+	var event crm.ContactEvent
+	if err := json.Unmarshal(rows[0].Payload, &event); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if event.UserID != alice || event.Kind != crm.RoleOrganizer {
+		t.Errorf("payload = %+v, want user_id=%d kind=%q", event, alice, crm.RoleOrganizer)
 	}
 }
 
