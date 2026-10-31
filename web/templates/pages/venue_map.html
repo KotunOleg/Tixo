@@ -1,0 +1,84 @@
+{{define "title"}}{{.T "map.title"}} · {{.T "site.name"}}{{end}}
+{{define "description"}}{{.T "map.meta_description"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <h1 class="mb-2">{{.T "map.heading"}}</h1>
+  <p class="text-body-secondary mb-4 tixo-map-lead">{{.T "map.lead"}}</p>
+  <div class="row g-4">
+    <div class="col-lg-3">
+      {{with .Data.Errors}}
+      <div class="tixo-error-summary mb-4" id="map-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="map-errors-title">
+        <h2 class="h6 mb-2" id="map-errors-title">{{$.T "map.errors_title"}}</h2>
+        <ul class="mb-0">
+          {{with index . "from"}}<li><a href="#map-from">{{$.T .}}</a></li>{{end}}
+          {{with index . "to"}}<li><a href="#map-to">{{$.T .}}</a></li>{{end}}
+          {{with index . "genre"}}<li><a href="#map-genre">{{$.T .}}</a></li>{{end}}
+          {{with index . "max_price"}}<li><a href="#map-max-price">{{$.T .}}</a></li>{{end}}
+        </ul>
+      </div>
+      {{end}}
+      <form class="tixo-map-filters" id="map-filters" method="get" action="{{.URL "/map"}}" aria-labelledby="map-filters-title" novalidate>
+        <h2 class="h5 mb-3" id="map-filters-title">{{.T "map.filters.title"}}</h2>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6 col-lg-12">
+            <label class="form-label" for="map-from">{{.T "map.filters.from"}}</label>
+            <input class="form-control{{if index .Data.Errors "from"}} is-invalid{{end}}" type="date" id="map-from" name="from" value="{{.Data.Query.From}}"{{if index .Data.Errors "from"}} aria-invalid="true" aria-describedby="map-from-error"{{end}}>
+            {{with index .Data.Errors "from"}}<div class="invalid-feedback" id="map-from-error">{{$.T .}}</div>{{end}}
+          </div>
+          <div class="col-sm-6 col-lg-12">
+            <label class="form-label" for="map-to">{{.T "map.filters.to"}}</label>
+            <input class="form-control{{if index .Data.Errors "to"}} is-invalid{{end}}" type="date" id="map-to" name="to" value="{{.Data.Query.To}}"{{if index .Data.Errors "to"}} aria-invalid="true" aria-describedby="map-to-error"{{end}}>
+            {{with index .Data.Errors "to"}}<div class="invalid-feedback" id="map-to-error">{{$.T .}}</div>{{end}}
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="map-genre">{{.T "map.filters.genre"}}</label>
+          <select class="form-select{{if index .Data.Errors "genre"}} is-invalid{{end}}" id="map-genre" name="genre"{{if index .Data.Errors "genre"}} aria-invalid="true" aria-describedby="map-genre-error"{{end}}>
+            <option value="">{{.T "map.filters.genre_any"}}</option>
+            {{range .Data.Genres}}<option value="{{.Value}}"{{if .Selected}} selected{{end}}>{{$.T .Label}}</option>{{end}}
+          </select>
+          {{with index .Data.Errors "genre"}}<div class="invalid-feedback" id="map-genre-error">{{$.T .}}</div>{{end}}
+        </div>
+        <div class="mb-4">
+          <label class="form-label" for="map-max-price">{{.T "map.filters.max_price"}}</label>
+          <input class="form-control{{if index .Data.Errors "max_price"}} is-invalid{{end}}" type="number" min="0" step="1" inputmode="numeric" id="map-max-price" name="max_price" value="{{.Data.Query.MaxPrice}}" aria-describedby="map-max-price-help{{if index .Data.Errors "max_price"}} map-max-price-error{{end}}"{{if index .Data.Errors "max_price"}} aria-invalid="true"{{end}}>
+          <div class="form-text" id="map-max-price-help">{{.T "map.filters.max_price_help"}}</div>
+          {{with index .Data.Errors "max_price"}}<div class="invalid-feedback d-block" id="map-max-price-error">{{$.T .}}</div>{{end}}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-tixo" type="submit">{{.T "map.filters.submit"}}</button>
+          {{if and .Data.Filtered (or .Data.Venues .Data.Errors)}}<a class="btn btn-quiet" href="{{.URL "/map"}}">{{.T "map.filters.reset"}}</a>{{end}}
+        </div>
+      </form>
+    </div>
+    <div class="col-lg-9">
+      <h2 class="h5 mb-3" id="map-results-title" aria-live="polite">{{if not .Data.Errors}}{{.N "map.results.count" (len .Data.Venues)}}{{end}}</h2>
+      {{if .Data.Venues}}
+      <ol class="tixo-venue-results list-unstyled mb-0" aria-labelledby="map-results-title">
+        {{range .Data.Venues}}
+        <li class="tixo-venue-result">
+          <h3 class="h5 mb-1">{{.Name}}</h3>
+          <p class="small text-body-secondary mb-2">{{.City}}{{with .Address}} · {{.}}{{end}}</p>
+          <ul class="tixo-venue-events list-unstyled mb-0">
+            {{range .Events}}
+            <li>
+              <a href="{{$.URL (printf "/events/%s" .Slug)}}">{{.Title}}</a>
+              <span class="d-block small text-body-secondary"><time datetime="{{.StartsAt.Format "2006-01-02T15:04:05Z07:00"}}">{{$.DateTime .StartsAt}}</time> · {{$.T (printf "genre.%s" .Genre)}}{{if .HasPrice}} · {{if eq .Price 0}}{{$.Money .Price}}{{else}}{{$.T "map.results.price_from" "Price" ($.Money .Price)}}{{end}}{{end}}</span>
+            </li>
+            {{end}}
+          </ul>
+          {{if .More}}<p class="small text-body-secondary mt-2 mb-0">{{$.N "map.results.more" .More}}</p>{{end}}
+        </li>
+        {{end}}
+      </ol>
+      {{else if not .Data.Errors}}
+      <div class="tixo-empty p-4">
+        <h3 class="h5">{{.T "map.empty.title"}}</h3>
+        <p class="text-body-secondary mb-0">{{.T "map.empty.text"}}</p>
+        {{if .Data.Filtered}}<a class="btn btn-quiet mt-3" href="{{.URL "/map"}}">{{.T "map.filters.reset"}}</a>{{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}

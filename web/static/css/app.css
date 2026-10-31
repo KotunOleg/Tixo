@@ -888,3 +888,22 @@ body:has(.tixo-buybar) {
     scroll-behavior: auto !important;
   }
 }
+
+.tixo-map-lead {
+  max-width: 42rem;
+}
+
+.tixo-venue-result {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--tixo-border);
+  overflow-wrap: break-word;
+}
+
+.tixo-venue-result:first-child {
+  padding-top: 0;
+}
+
+.tixo-venue-events {
+  display: grid;
+  gap: 0.5rem;
+}

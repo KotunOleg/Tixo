@@ -48,6 +48,74 @@ func mapQueryFrom(r *http.Request) events.MapQuery {
 	return events.MapQuery{From: q.Get(events.FieldFrom), To: q.Get(events.FieldTo), Genre: q.Get(events.FieldGenre), MaxPrice: q.Get(events.FieldMaxPrice)}
 }
 
+type mapEventView struct {
+	Title    string
+	Slug     string
+	StartsAt time.Time
+	Genre    string
+	Price    int64
+	HasPrice bool
+}
+
+type mapVenueView struct {
+	Name    string
+	City    string
+	Address string
+	Events  []mapEventView
+	More    int
+}
+
+type venueMapPage struct {
+	Query    events.MapQuery
+	Genres   []eventGenreOption
+	Errors   map[string]string
+	Venues   []mapVenueView
+	Filtered bool
+}
+
+func mapVenueViews(found []events.MapVenue) []mapVenueView {
+	out := make([]mapVenueView, 0, len(found))
+	for _, v := range found {
+		mv := mapVenueView{Name: v.Name, City: v.City, Address: v.Address, More: v.More}
+		for _, e := range v.Events {
+			ev := mapEventView{Title: e.Title, Slug: e.Slug, StartsAt: e.StartsAt, Genre: e.Genre}
+			if e.PriceFrom != nil {
+				ev.Price, ev.HasPrice = *e.PriceFrom, true
+			}
+			mv.Events = append(mv.Events, ev)
+		}
+		out = append(out, mv)
+	}
+	return out
+}
+
+func mapErrorKeys(fields map[string]string) map[string]string {
+	keys := make(map[string]string, len(fields))
+	for field, code := range fields {
+		keys[field] = "map.error." + field + "_" + code
+	}
+	return keys
+}
+
+func (c VenueMap) Page(w http.ResponseWriter, r *http.Request) {
+	q := mapQueryFrom(r)
+	data := venueMapPage{Query: q, Genres: genreOptions(q.Genre), Filtered: q != events.MapQuery{}}
+	found, err := c.Svc.Map(r.Context(), time.Now(), q)
+	var verr *events.ValidationError
+	switch {
+	case errors.As(err, &verr):
+		data.Errors = mapErrorKeys(verr.Fields)
+		c.View.Render(w, r, http.StatusBadRequest, "pages/venue_map", data)
+		return
+	case err != nil:
+		c.Log.ErrorContext(r.Context(), "venue map query failed", "error", err, "request_id", middleware.GetReqID(r.Context()))
+		c.View.ServerError(w, r)
+		return
+	}
+	data.Venues = mapVenueViews(found)
+	c.View.Render(w, r, http.StatusOK, "pages/venue_map", data)
+}
+
 func (c VenueMap) JSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	found, err := c.Svc.Map(r.Context(), time.Now(), mapQueryFrom(r))
