@@ -310,6 +310,14 @@ function showMapFieldErrors(fields, texts) {
   });
 }
 
+function keepQueryInLanguageLinks(query) {
+  document.querySelectorAll("a[hreflang]").forEach((link) => {
+    const url = new URL(link.href);
+    url.search = query;
+    link.href = url.pathname + url.search;
+  });
+}
+
 function setupVenueFilterMap() {
   const el = document.querySelector(".js-filter-map");
   const form = document.getElementById("map-filters");
@@ -322,10 +330,14 @@ function setupVenueFilterMap() {
   const title = document.getElementById("map-results-title");
   const status = document.querySelector(".js-map-status");
   const reset = form.querySelector(".js-map-reset");
+  const skip = document.querySelector(".js-map-skip");
   const tokens = getComputedStyle(document.documentElement);
   const ukraine = L.latLngBounds([44.4, 22.1], [52.4, 40.2]);
 
   el.hidden = false;
+  if (skip) {
+    skip.hidden = false;
+  }
   const map = L.map(el, { scrollWheelZoom: false, keyboard: true }).fitBounds(ukraine);
   map.attributionControl.setPrefix(false);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: el.dataset.attribution }).addTo(map);
@@ -389,6 +401,10 @@ function setupVenueFilterMap() {
       if (response.status === 400 && body.fields) {
         showMapFieldErrors(body.fields, texts);
         status.textContent = texts.errors_title;
+        title.textContent = "";
+        results.replaceChildren();
+        reset.hidden = false;
+        drawMarkers([]);
         return;
       }
       if (!response.ok) {
@@ -397,6 +413,7 @@ function setupVenueFilterMap() {
       status.textContent = "";
       render(body, params);
       history.replaceState(null, "", location.pathname + (query ? "?" + query : ""));
+      keepQueryInLanguageLinks(query);
     } catch (error) {
       if (error.name === "AbortError" || request !== latest) {
         return;

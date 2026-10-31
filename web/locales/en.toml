@@ -520,6 +520,7 @@ heading = "Events on the map"
 lead = "Venues with upcoming events. Narrow them down by date, genre and price."
 errors_title = "Check the filters"
 map_label = "Venue map"
+skip_to_results = "Skip the map and go to the list"
 network_error = "Couldn't update the map. Showing the previous results."
 
 [map.filters]
