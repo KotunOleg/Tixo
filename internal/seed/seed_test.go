@@ -20,8 +20,9 @@ var seedNow = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
 func TestSeedTwiceGivesTheSameCounts(t *testing.T) {
 	pool := dbtest.Pool(t)
 	ctx := context.Background()
+	now := time.Now()
 
-	first, err := Run(ctx, pool, seedNow)
+	first, err := Run(ctx, pool, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +38,7 @@ func TestSeedTwiceGivesTheSameCounts(t *testing.T) {
 		t.Errorf("first run = %v, want %v", first, want)
 	}
 
-	second, err := Run(ctx, pool, seedNow.Add(48*time.Hour))
+	second, err := Run(ctx, pool, now.Add(48*time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
