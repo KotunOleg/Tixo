@@ -52,7 +52,7 @@ func runScheduler(ctx context.Context, _ []string, _ io.Writer) error {
 		return err
 	}
 
-	relay := &worker.Relay{Queries: dbgen.New(pool), Channel: ch, Log: log}
+	relay := &worker.Relay{Pool: pool, Queries: dbgen.New(pool), Channel: ch, Log: log}
 	log.Info("outbox scheduler starting", "interval", outboxTickInterval.String())
 
 	ticker := time.NewTicker(outboxTickInterval)

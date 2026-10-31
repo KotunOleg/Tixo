@@ -239,6 +239,17 @@ func TestHandleParksMessageAfterMaxAttempts(t *testing.T) {
 	}
 }
 
+func TestParkReturnsErrorWhenPublishFails(t *testing.T) {
+	w, ch, _, _ := newWorkerFixture(t)
+	if err := ch.Close(); err != nil {
+		t.Fatalf("close channel: %v", err)
+	}
+
+	if err := w.park(amqp.Delivery{Body: []byte(`{"order_id":-1}`)}); err == nil {
+		t.Fatal("park must report the publish failure instead of swallowing it")
+	}
+}
+
 func TestHandleRetriesBeforeMaxAttempts(t *testing.T) {
 	w, ch, queue, _ := newWorkerFixture(t)
 

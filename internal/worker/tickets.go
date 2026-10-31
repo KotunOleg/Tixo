@@ -66,7 +66,14 @@ func (w *TicketWorker) handle(ctx context.Context, msg amqp.Delivery) {
 	if err := w.issue(ctx, payload.OrderID); err != nil {
 		attempt := deathCount(msg, w.Queue) + 1
 		if attempt >= maxAttempts {
-			w.park(msg)
+			if parkErr := w.park(msg); parkErr != nil {
+				w.Log.Error("worker: parking tickets.issue failed, retrying instead of dropping it",
+					"order_id", payload.OrderID, "attempt", attempt, "error", parkErr)
+				if nackErr := msg.Nack(false, false); nackErr != nil {
+					w.Log.Error("worker: nack message that failed to park", "error", nackErr)
+				}
+				return
+			}
 			w.Log.Error("worker: parked tickets.issue after max attempts",
 				"order_id", payload.OrderID, "attempt", attempt, "error", err)
 			if ackErr := msg.Ack(false); ackErr != nil {
@@ -131,10 +138,8 @@ func (w *TicketWorker) issue(ctx context.Context, orderID int64) error {
 	return nil
 }
 
-func (w *TicketWorker) park(msg amqp.Delivery) {
-	if err := rabbitmq.Publish(context.Background(), w.Channel, rabbitmq.Exchange, w.Queue+".parking", msg.Body); err != nil {
-		w.Log.Error("worker: publish to parking queue", "error", err)
-	}
+func (w *TicketWorker) park(msg amqp.Delivery) error {
+	return rabbitmq.Publish(context.Background(), w.Channel, rabbitmq.Exchange, w.Queue+".parking", msg.Body)
 }
 
 func deathCount(msg amqp.Delivery, queue string) int {

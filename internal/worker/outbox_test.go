@@ -32,8 +32,9 @@ func newRelayFixture(t *testing.T) (*Relay, *amqp.Channel, *dbgen.Queries, strin
 		}
 	})
 
-	q := dbgen.New(dbtest.Pool(t))
-	return &Relay{Queries: q, Channel: ch, Log: testLogger()}, ch, q, topic
+	pool := dbtest.Pool(t)
+	q := dbgen.New(pool)
+	return &Relay{Pool: pool, Queries: q, Channel: ch, Log: testLogger()}, ch, q, topic
 }
 
 func TestTickPublishesAndMarksAnOutboxRow(t *testing.T) {
