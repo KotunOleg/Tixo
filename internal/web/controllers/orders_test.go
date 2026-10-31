@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/KotunOleg/Tixo/internal/events"
+	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/tiers"
 )
 
@@ -236,6 +237,130 @@ func TestBuyFormErrorsKeepInput(t *testing.T) {
 	if s.available(t, ids[0]) != 2 || s.available(t, vip) != 2 {
 		t.Error("rejected purchases changed seat counts")
 	}
+}
+
+func (s *authSite) ticketIDs(t *testing.T, orderID int64) []int64 {
+	t.Helper()
+	rows, err := s.pool.Query(context.Background(), "SELECT id FROM tickets WHERE order_id = $1 ORDER BY id", orderID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (s *authSite) markTicketPDFReady(t *testing.T, ticketID int64, content string) string {
+	t.Helper()
+	store, err := storage.New(s.storageDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := store.Save(strings.NewReader(content), "pdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.pool.Exec(context.Background(), "UPDATE tickets SET pdf_key = $1 WHERE id = $2", key, ticketID); err != nil {
+		t.Fatal(err)
+	}
+	return key
+}
+
+func TestOrderPageShowsDownloadOnlyOncePDFIsReady(t *testing.T) {
+	s := newAuthSite(t)
+	id := s.publicEvent(t, publicEvent{slug: "pdf-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 5}}})
+	buyer := s.signInAs(t, "sub-buyer", "buyer@example.com", "Buyer")
+	loc := s.postForm(t, "/events/pdf-show/buy", buyValues(s.tierIDs(t, id)[0], "1", uuid.NewString()), buyer).Header().Get("Location")
+	orderID := regexp.MustCompile(`/orders/([0-9]+)$`).FindStringSubmatch(loc)[1]
+	ticketID := s.ticketIDs(t, mustAtoi(t, orderID))[0]
+
+	before := s.request(t, http.MethodGet, loc, buyer).Body.String()
+	if !strings.Contains(before, "PDF генерується") {
+		t.Errorf("order page with no pdf_key yet must show the generating badge:\n%s", before)
+	}
+	if strings.Contains(before, "Завантажити PDF") {
+		t.Error("order page offers a download link before pdf_key is set")
+	}
+
+	s.markTicketPDFReady(t, ticketID, "ticket pdf bytes")
+
+	after := s.request(t, http.MethodGet, loc, buyer).Body.String()
+	wantHref := "/orders/" + orderID + "/tickets/" + strconv.FormatInt(ticketID, 10) + "/pdf"
+	if !strings.Contains(after, `href="`+wantHref+`"`) {
+		t.Errorf("order page does not link the ready pdf at %q:\n%s", wantHref, after)
+	}
+	if strings.Contains(after, "PDF генерується") {
+		t.Error("order page still shows the generating badge after pdf_key is set")
+	}
+}
+
+func TestTicketsListShowsPDFStatusBadge(t *testing.T) {
+	s := newAuthSite(t)
+	id := s.publicEvent(t, publicEvent{slug: "badge-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 5}}})
+	buyer := s.signInAs(t, "sub-buyer", "buyer@example.com", "Buyer")
+	loc := s.postForm(t, "/events/badge-show/buy", buyValues(s.tierIDs(t, id)[0], "1", uuid.NewString()), buyer).Header().Get("Location")
+	orderID := regexp.MustCompile(`/orders/([0-9]+)$`).FindStringSubmatch(loc)[1]
+	ticketID := s.ticketIDs(t, mustAtoi(t, orderID))[0]
+
+	before := s.request(t, http.MethodGet, "/tickets", buyer).Body.String()
+	if !strings.Contains(before, "Квитки генеруються") {
+		t.Errorf("tickets list must show the generating badge while pdf_key is null:\n%s", before)
+	}
+
+	s.markTicketPDFReady(t, ticketID, "ticket pdf bytes")
+
+	after := s.request(t, http.MethodGet, "/tickets", buyer).Body.String()
+	if !strings.Contains(after, "Квитки готові") {
+		t.Errorf("tickets list must show the ready badge once pdf_key is set:\n%s", after)
+	}
+}
+
+func TestDownloadPDFStreamsTheFileToItsOwnerOnly(t *testing.T) {
+	s := newAuthSite(t)
+	id := s.publicEvent(t, publicEvent{slug: "download-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "GA", Price: 30000, Quantity: 5}}})
+	alice := s.signInAs(t, "sub-alice", "alice@example.com", "Alice")
+	bob := s.signInAs(t, "sub-bob", "bob@example.com", "Bob")
+	loc := s.postForm(t, "/events/download-show/buy", buyValues(s.tierIDs(t, id)[0], "1", uuid.NewString()), alice).Header().Get("Location")
+	orderID := regexp.MustCompile(`/orders/([0-9]+)$`).FindStringSubmatch(loc)[1]
+	ticketID := s.ticketIDs(t, mustAtoi(t, orderID))[0]
+
+	pdfURL := "/orders/" + orderID + "/tickets/" + strconv.FormatInt(ticketID, 10) + "/pdf"
+	if rec := s.request(t, http.MethodGet, pdfURL, alice); rec.Code != http.StatusNotFound {
+		t.Errorf("download before pdf_key is set = %d, want 404", rec.Code)
+	}
+
+	s.markTicketPDFReady(t, ticketID, "ticket pdf bytes")
+
+	rec := s.request(t, http.MethodGet, pdfURL, alice)
+	if rec.Code != http.StatusOK || rec.Body.String() != "ticket pdf bytes" {
+		t.Fatalf("owner download = %d %q, want 200 \"ticket pdf bytes\"", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/pdf" {
+		t.Errorf("Content-Type = %q, want application/pdf", ct)
+	}
+
+	if rec := s.request(t, http.MethodGet, pdfURL, bob); rec.Code != http.StatusNotFound {
+		t.Errorf("bob downloads alice's ticket pdf = %d, want 404", rec.Code)
+	}
+	if rec := s.request(t, http.MethodGet, pdfURL, nil); rec.Code != http.StatusFound {
+		t.Errorf("anonymous download = %d, want 302 to sign-in", rec.Code)
+	}
+}
+
+func mustAtoi(t *testing.T, s string) int64 {
+	t.Helper()
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n
 }
 
 func TestOrdersAreOnlyVisibleToBuyer(t *testing.T) {

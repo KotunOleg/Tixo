@@ -11,7 +11,7 @@
         <span class="fw-semibold text-nowrap">{{$.Money .Total}}</span>
       </div>
       <p class="mb-1 small"><time datetime="{{.StartsAt.Format "2006-01-02T15:04:05Z07:00"}}">{{$.DateTime .StartsAt}}</time> · {{.Venue}}</p>
-      <p class="mb-0 small text-body-secondary">{{.TierName}} · {{$.N "tickets.count" .Quantity}}{{if .Cancelled}} · <span class="tixo-status tixo-status-cancelled">{{$.T "tickets.cancelled"}}</span>{{else if .Past}} · {{$.T "tickets.past"}}{{end}}</p>
+      <p class="mb-0 small text-body-secondary">{{.TierName}} · {{$.N "tickets.count" .Quantity}}{{if .Cancelled}} · <span class="tixo-status tixo-status-cancelled">{{$.T "tickets.cancelled"}}</span>{{else if .Past}} · {{$.T "tickets.past"}}{{else if .PDFReady}} · <span class="tixo-badge">{{$.T "tickets.pdf_ready"}}</span>{{else}} · <span class="tixo-badge">{{$.T "tickets.pdf_generating"}}</span>{{end}}</p>
     </li>
     {{end}}
   </ul>

@@ -354,6 +354,51 @@ func TestListShowsNewestFirstWithTotal(t *testing.T) {
 	}
 }
 
+func TestListReportsPDFReadyFromTicketPDFKeys(t *testing.T) {
+	f := newFixture(t, 10)
+	ctx := context.Background()
+	alice := mustUser(t, f.pool, "alice")
+
+	d, _, err := f.svc.Purchase(ctx, alice, Input{TierID: f.tier.ID, Quantity: 2, Key: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	page, _, err := f.svc.List(ctx, alice, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page) != 1 || page[0].PDFReady {
+		t.Fatalf("PDFReady before any pdf_key is set = %v, want false", page[0].PDFReady)
+	}
+
+	tickets, err := f.svc.q.ListTicketsForOrder(ctx, d.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, "UPDATE tickets SET pdf_key = 'deadbeefdeadbeefdeadbeefdeadbeef.pdf' WHERE id = $1", tickets[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	page, _, err = f.svc.List(ctx, alice, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page[0].PDFReady {
+		t.Fatal("PDFReady = true with one ticket still missing a pdf_key")
+	}
+
+	if _, err := f.pool.Exec(ctx, "UPDATE tickets SET pdf_key = 'deadbeefdeadbeefdeadbeefdeadbeef.pdf' WHERE order_id = $1", d.ID); err != nil {
+		t.Fatal(err)
+	}
+	page, _, err = f.svc.List(ctx, alice, 10, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !page[0].PDFReady {
+		t.Fatal("PDFReady = false once every ticket has a pdf_key")
+	}
+}
+
 func orderIDs(ds []Details) []int64 {
 	out := make([]int64, len(ds))
 	for i, d := range ds {

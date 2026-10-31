@@ -250,7 +250,8 @@ func (q *Queries) GetTierSaleState(ctx context.Context, tierID int64) (GetTierSa
 
 const listOrdersForUser = `-- name: ListOrdersForUser :many
 SELECT o.id, o.user_id, o.event_id, o.tier_id, o.quantity, o.unit_price, o.total, o.status, o.idempotency_key, o.created_at, e.slug AS event_slug, e.title AS event_title, e.starts_at AS event_starts_at,
-       e.status AS event_status, t.name AS tier_name, v.name AS venue_name, v.city AS venue_city
+       e.status AS event_status, t.name AS tier_name, v.name AS venue_name, v.city AS venue_city,
+       NOT EXISTS (SELECT 1 FROM tickets tk WHERE tk.order_id = o.id AND tk.pdf_key IS NULL) AS pdf_ready
 FROM orders o
 JOIN events e ON e.id = o.event_id
 JOIN ticket_tiers t ON t.id = o.tier_id
@@ -275,6 +276,7 @@ type ListOrdersForUserRow struct {
 	TierName      string
 	VenueName     string
 	VenueCity     string
+	PdfReady      bool
 }
 
 func (q *Queries) ListOrdersForUser(ctx context.Context, arg ListOrdersForUserParams) ([]ListOrdersForUserRow, error) {
@@ -304,6 +306,7 @@ func (q *Queries) ListOrdersForUser(ctx context.Context, arg ListOrdersForUserPa
 			&i.TierName,
 			&i.VenueName,
 			&i.VenueCity,
+			&i.PdfReady,
 		); err != nil {
 			return nil, err
 		}

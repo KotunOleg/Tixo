@@ -76,8 +76,9 @@ func Mount(r chi.Router, d Deps) {
 			r.Post("/profile/tokens", p.CreateToken)
 			r.Post("/profile/tokens/{id}/revoke", p.RevokeToken)
 
-			ord := Orders{View: d.View, Svc: d.Orders, Log: d.Logger}
+			ord := Orders{View: d.View, Svc: d.Orders, Storage: d.Storage, Log: d.Logger}
 			r.Get("/orders/{id}", ord.Show)
+			r.Get("/orders/{id}/tickets/{ticketID}/pdf", ord.DownloadPDF)
 			r.Get("/tickets", ord.List)
 
 			r.Get("/org", o.List)

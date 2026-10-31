@@ -81,6 +81,7 @@ type Details struct {
 	TierName      string
 	VenueName     string
 	VenueCity     string
+	PDFReady      bool
 	Tickets       []dbgen.Ticket
 }
 
@@ -229,6 +230,7 @@ func (s *Service) List(ctx context.Context, userID int64, limit, offset int32) (
 		out[i] = Details{
 			Order: r.Order, EventSlug: r.EventSlug, EventTitle: r.EventTitle, EventStartsAt: r.EventStartsAt,
 			EventStatus: r.EventStatus, TierName: r.TierName, VenueName: r.VenueName, VenueCity: r.VenueCity,
+			PDFReady: r.PdfReady,
 		}
 	}
 	return out, total, nil
