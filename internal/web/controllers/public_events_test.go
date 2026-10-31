@@ -286,6 +286,48 @@ func TestLandingShowsAddToCalendarLinkWithEventParams(t *testing.T) {
 	}
 }
 
+func TestLandingHidesAddToCalendarLinkForCancelledEvents(t *testing.T) {
+	pool := dbtest.Pool(t)
+	h, _ := buildSite(t, func(d *Deps) {
+		d.Organizers, d.Venues, d.Events, d.Tiers, d.Orders = organizers.New(pool), venues.New(pool), events.New(pool), tiers.New(pool), orders.New(pool)
+		d.ICSFunctionURL = "https://tixo-ics.vercel.app/api/ics"
+	}, nil)
+
+	ctx := context.Background()
+	u, err := dbgen.New(pool).CreateUser(ctx, dbgen.CreateUserParams{Email: "owner2@example.com", Name: "Owner"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	org, err := organizers.New(pool).Create(ctx, u.ID, organizers.CreateInput{Name: "Kyiv Live 2", Slug: "kyiv-live-2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := venues.New(pool).Create(ctx, org.ID, venues.Input{Name: "Atlas", Address: "1 Test St", City: "Kyiv", Lat: 50.45, Lng: 30.52, Capacity: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now().Add(30 * 24 * time.Hour).Truncate(time.Minute)
+	ev, err := events.New(pool).Create(ctx, org.ID, events.Input{
+		VenueID: v.ID, Slug: "ics-cancelled", Title: "ICS Cancelled", Genre: events.GenreRock, StartsAt: start, EndsAt: start.Add(2 * time.Hour),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := events.New(pool).SetStatus(ctx, org.ID, ev.ID, events.StatusPublished); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := events.New(pool).SetStatus(ctx, org.ID, ev.ID, events.StatusCancelled); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/events/ics-cancelled", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if body := rec.Body.String(); strings.Contains(body, "Додати в календар") {
+		t.Error("add-to-calendar link rendered for a cancelled event")
+	}
+}
+
 func TestNoBottomBarWithoutContactsOrSale(t *testing.T) {
 	s := newAuthSite(t)
 	ctx := context.Background()

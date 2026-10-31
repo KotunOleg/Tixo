@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -49,20 +48,27 @@ type hubspotProperties struct {
 	TixoRole  string `json:"tixo_role"`
 }
 
-type hubspotUpsertBody struct {
+type hubspotUpsertInput struct {
+	IDProperty string            `json:"idProperty"`
+	ID         string            `json:"id"`
 	Properties hubspotProperties `json:"properties"`
 }
 
+type hubspotBatchUpsertBody struct {
+	Inputs []hubspotUpsertInput `json:"inputs"`
+}
+
 func (h *HubSpotClient) UpsertContact(ctx context.Context, c Contact) error {
-	body, err := json.Marshal(hubspotUpsertBody{Properties: hubspotProperties{
-		Email: c.Email, FirstName: c.Name, TixoRole: c.Role,
-	}})
+	body, err := json.Marshal(hubspotBatchUpsertBody{Inputs: []hubspotUpsertInput{{
+		IDProperty: "email", ID: c.Email,
+		Properties: hubspotProperties{Email: c.Email, FirstName: c.Name, TixoRole: c.Role},
+	}}})
 	if err != nil {
 		return fmt.Errorf("crm: marshal contact: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("%s/crm/v3/objects/contacts/%s?idProperty=email", h.baseURL, url.PathEscape(c.Email))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, endpoint, bytes.NewReader(body))
+	endpoint := h.baseURL + "/crm/v3/objects/contacts/batch/upsert"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("crm: build request: %w", err)
 	}

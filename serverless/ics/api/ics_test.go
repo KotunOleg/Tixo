@@ -95,3 +95,10 @@ func TestEscapeTextEscapesSpecialCharacters(t *testing.T) {
 		t.Errorf("escapeText() = %q, want %q", got, want)
 	}
 }
+
+func TestEscapeTextEscapesBareCarriageReturn(t *testing.T) {
+	got := escapeText("Evil\rEND:VEVENT\rBEGIN:VALARM")
+	if strings.Contains(got, "\r") {
+		t.Errorf("escapeText() left a bare CR in %q — a lenient parser could read it as a line break and inject calendar content", got)
+	}
+}

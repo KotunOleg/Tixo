@@ -269,7 +269,9 @@ func (c PublicEvents) landing(r *http.Request, pub events.Public) landingData {
 	}
 	d.SEO.Description = metaDescription(d.Description)
 	d.SEO.Event = eventLD(d, pub, d.SEO.PageURL, d.SEO.ImageURL)
-	d.ICSHref = icsHref(c.ICSFunctionURL, d)
+	if d.Sale != saleCancelled {
+		d.ICSHref = icsHref(c.ICSFunctionURL, d)
+	}
 	return d
 }
 
