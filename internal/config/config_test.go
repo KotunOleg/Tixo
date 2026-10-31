@@ -35,6 +35,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.StorageDir != "./data/uploads" {
 		t.Errorf("StorageDir = %q, want ./data/uploads", cfg.StorageDir)
 	}
+	if !cfg.CRMDryRun {
+		t.Error("CRMDryRun = false, want true by default")
+	}
 }
 
 func TestLoadRejects(t *testing.T) {
@@ -60,6 +63,7 @@ func TestLoadRejects(t *testing.T) {
 		{name: "google client id without secret", set: map[string]string{"GOOGLE_CLIENT_ID": "id.apps.googleusercontent.com"}, wantVar: "GOOGLE_CLIENT_SECRET"},
 		{name: "google client secret without id", set: map[string]string{"GOOGLE_CLIENT_SECRET": "secret"}, wantVar: "GOOGLE_CLIENT_ID"},
 		{name: "prod without google sign-in", set: map[string]string{"APP_ENV": "prod", "SESSION_SECRET": strings.Repeat("x", 32), "BASE_URL": "https://tixo.me"}, wantVar: "GOOGLE_CLIENT_ID"},
+		{name: "crm live without hubspot token", set: map[string]string{"CRM_DRY_RUN": "false"}, wantVar: "HUBSPOT_ACCESS_TOKEN"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
