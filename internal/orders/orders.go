@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/KotunOleg/Tixo/internal/crm"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 )
 
@@ -158,6 +159,13 @@ func (s *Service) reserve(ctx context.Context, userID int64, in Input) (dbgen.Or
 	}
 	if _, err := q.InsertOutbox(ctx, dbgen.InsertOutboxParams{Topic: TopicTicketsIssue, Payload: payload}); err != nil {
 		return dbgen.Order{}, fmt.Errorf("insert outbox: %w", err)
+	}
+	crmPayload, err := json.Marshal(crm.ContactEvent{UserID: userID, Kind: crm.RoleBuyer})
+	if err != nil {
+		return dbgen.Order{}, fmt.Errorf("marshal crm contact event: %w", err)
+	}
+	if _, err := q.InsertOutbox(ctx, dbgen.InsertOutboxParams{Topic: crm.TopicCRMContact, Payload: crmPayload}); err != nil {
+		return dbgen.Order{}, fmt.Errorf("insert crm contact outbox row: %w", err)
 	}
 	return order, tx.Commit(ctx)
 }
