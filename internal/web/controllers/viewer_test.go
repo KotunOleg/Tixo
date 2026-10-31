@@ -44,8 +44,8 @@ func TestNoSignInLinkWhenGoogleIsNotConfigured(t *testing.T) {
 	if strings.Contains(body, `href="/org"`) {
 		t.Error("page links to the organizer workspace, which needs a sign-in that is switched off")
 	}
-	if strings.Contains(body, "navbar-toggler") || !strings.Contains(body, `hreflang="en" lang="en"`) {
-		t.Error("with nothing but the language link, the navbar must show it directly instead of behind a menu button")
+	if strings.Contains(body, "navbar-toggler") || !strings.Contains(body, `hreflang="en" lang="en"`) || !strings.Contains(body, `href="/map"`) {
+		t.Error("with only the map and language links, the navbar must show them directly instead of behind a menu button")
 	}
 }
 
@@ -148,7 +148,7 @@ func TestNavbarMarksCurrentSection(t *testing.T) {
 func TestPagesLinkOnlyToBuiltPages(t *testing.T) {
 	s := newAuthSite(t)
 	cookie := s.signIn(t)
-	unbuilt := []string{`href="/events"`, `href="/map"`, `href="/organizers"`, `href="/en/events"`, `href="/en/map"`, `href="/en/organizers"`}
+	unbuilt := []string{`href="/events"`, `href="/organizers"`, `href="/en/events"`, `href="/en/organizers"`}
 	for _, path := range []string{"/", "/en/"} {
 		for _, c := range []*http.Cookie{nil, cookie} {
 			body := s.request(t, http.MethodGet, path, c).Body.String()

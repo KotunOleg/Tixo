@@ -20,6 +20,7 @@ import (
 
 type publicEvent struct {
 	slug        string
+	title       string
 	status      string
 	description string
 	startsIn    time.Duration
@@ -50,9 +51,12 @@ func (s *authSite) publicEvent(t *testing.T, e publicEvent) int64 {
 		e.startsIn = 30 * 24 * time.Hour
 	}
 	start := time.Now().Add(e.startsIn).Truncate(time.Minute)
+	if e.title == "" {
+		e.title = "Show " + e.slug
+	}
 	evs := events.New(s.pool)
 	ev, err := evs.Create(ctx, org.ID, events.Input{
-		VenueID: v.ID, Slug: e.slug, Title: "Show " + e.slug, Description: e.description, Genre: events.GenreRock,
+		VenueID: v.ID, Slug: e.slug, Title: e.title, Description: e.description, Genre: events.GenreRock,
 		StartsAt: start, EndsAt: start.Add(3 * time.Hour),
 	})
 	if err != nil {

@@ -68,6 +68,21 @@ var venues = []venue{
 	{key: "lviv-opera", name: "Львівська національна опера", address: "просп. Свободи, 28", city: "Львів", lat: 49.8440, lng: 24.0263, capacity: 1100},
 	{key: "arena-lviv", name: "Арена Львів", address: "вул. Стрийська, 199", city: "Львів", lat: 49.7754, lng: 24.0280, capacity: 34915},
 	{key: "kyiv-live-rooftop", organizer: "kyiv-live", name: "Kyiv Live Rooftop", address: "вул. Велика Васильківська, 5", city: "Київ", lat: 50.4380, lng: 30.5200, capacity: 400},
+	{key: "zhovtnevyi", name: "Міжнародний центр культури і мистецтв", address: "вул. Інститутська, 1", city: "Київ", lat: 50.4497, lng: 30.5263, capacity: 2000},
+	{key: "closer", name: "Closer", address: "вул. Нижньоюрківська, 31", city: "Київ", lat: 50.4767, lng: 30.4892, capacity: 800},
+	{key: "lviv-philharmonic", name: "Львівська національна філармонія", address: "вул. Чайковського, 7", city: "Львів", lat: 49.8378, lng: 24.0262, capacity: 500},
+	{key: "odesa-opera", name: "Одеський національний академічний театр опери та балету", address: "пров. Чайковського, 1", city: "Одеса", lat: 46.4853, lng: 30.7410, capacity: 1600},
+	{key: "odesa-green-theatre", name: "Зелений театр", address: "вул. Маразліївська, 1", city: "Одеса", lat: 46.4791, lng: 30.7535, capacity: 3000},
+	{key: "kharkiv-opera", name: "Харківський національний академічний театр опери та балету", address: "вул. Сумська, 25", city: "Харків", lat: 50.0053, lng: 36.2335, capacity: 1500},
+	{key: "kharkiv-philharmonic", name: "Харківська обласна філармонія", address: "вул. Римарська, 21", city: "Харків", lat: 49.9935, lng: 36.2304, capacity: 900},
+	{key: "dnipro-philharmonic", name: "Дніпропетровська філармонія", address: "просп. Яворницького, 64", city: "Дніпро", lat: 48.4647, lng: 35.0462, capacity: 1000},
+	{key: "menorah", name: "Менора", address: "вул. Шолом-Алейхема, 4/26", city: "Дніпро", lat: 48.4605, lng: 35.0520, capacity: 1200},
+	{key: "frankivsk-philharmonic", name: "Прикарпатська філармонія", address: "вул. Леся Курбаса, 3", city: "Івано-Франківськ", lat: 48.9226, lng: 24.7111, capacity: 450},
+	{key: "vinnytsia-theatre", name: "Вінницький музично-драматичний театр", address: "вул. Театральна, 13", city: "Вінниця", lat: 49.2331, lng: 28.4682, capacity: 800},
+	{key: "uzhhorod-castle", name: "Ужгородський замок", address: "вул. Капітульна, 33", city: "Ужгород", lat: 48.6233, lng: 22.3020, capacity: 1500},
+	{key: "chernivtsi-philharmonic", name: "Чернівецька обласна філармонія", address: "Театральна площа, 10", city: "Чернівці", lat: 48.2915, lng: 25.9358, capacity: 600},
+	{key: "poltava-theatre", name: "Полтавський академічний музично-драматичний театр", address: "вул. Соборності, 23", city: "Полтава", lat: 49.5891, lng: 34.5514, capacity: 700},
+	{key: "zhytomyr-philharmonic", name: "Житомирська обласна філармонія", address: "вул. Велика Бердичівська, 7", city: "Житомир", lat: 50.2547, lng: 28.6587, capacity: 550},
 }
 
 var artists = []artist{
@@ -95,6 +110,20 @@ var standardTiers = []tier{
 var clubTiers = []tier{
 	{name: "Вхідний", price: 60000, quantity: 300},
 	{name: "VIP", price: 150000, quantity: 50},
+}
+
+var freeTiers = []tier{
+	{name: "Вільний вхід", price: 0, quantity: 500},
+}
+
+var hallTiers = []tier{
+	{name: "Балкон", price: 40000, quantity: 200},
+	{name: "Партер", price: 70000, quantity: 400},
+}
+
+var premiumTiers = []tier{
+	{name: "Партер", price: 180000, quantity: 500},
+	{name: "Ложа", price: 320000, quantity: 80},
 }
 
 var demoEvents = []event{
@@ -148,6 +177,136 @@ var demoEvents = []event{
 		slug: "bjork-lviv-opera", organizer: "lviv-sound", venue: "lviv-opera", genre: events.GenreElectronic, status: "published", dayOffset: -30,
 		title: "Björk: Orchestral", description: "Минула подія — для історії й аналітики.",
 		lineup: []string{"Björk"}, tiers: []tier{{name: "Партер", price: 300000, quantity: 600}},
+	},
+	{
+		slug: "kyiv-symphony-zhovtnevyi", organizer: "kyiv-live", venue: "zhovtnevyi", genre: events.GenreClassical, status: "published", dayOffset: 14,
+		title: "Київський симфонічний: Бетховен і Лятошинський", description: "Дев'ята симфонія і українська класика XX століття.",
+		tiers: premiumTiers,
+	},
+	{
+		slug: "techno-closer", organizer: "kyiv-live", venue: "closer", genre: events.GenreElectronic, status: "published", dayOffset: 4,
+		title: "Closer: техно до ранку", description: "Нічна програма на двох танцполах.",
+		tiers: clubTiers,
+	},
+	{
+		slug: "hip-hop-closer", organizer: "kyiv-live", venue: "closer", genre: events.GenreHipHop, status: "published", dayOffset: 40,
+		title: "Київський хіп-хоп вечір", description: "Молоді українські репери на одній сцені.",
+		lineup: []string{"KALUSH"}, tiers: clubTiers,
+	},
+	{
+		slug: "jazz-lviv-philharmonic", organizer: "lviv-sound", venue: "lviv-philharmonic", genre: events.GenreJazz, status: "published", dayOffset: 8,
+		title: "Leopolis Jazz: вечір у філармонії", description: "Джазовий квартет і запрошені солісти.",
+		tiers: hallTiers,
+	},
+	{
+		slug: "organ-lviv-philharmonic", organizer: "lviv-sound", venue: "lviv-philharmonic", genre: events.GenreClassical, status: "published", dayOffset: 27,
+		title: "Органна музика: Бах", description: "Токати й фуги Баха.",
+		tiers: freeTiers,
+	},
+	{
+		slug: "odesa-opera-gala", organizer: "kyiv-live", venue: "odesa-opera", genre: events.GenreClassical, status: "published", dayOffset: 30,
+		title: "Гала-концерт в Одеській опері", description: "Найкращі арії світової опери.",
+		tiers: premiumTiers,
+	},
+	{
+		slug: "odesa-jazz-green-theatre", organizer: "kyiv-live", venue: "odesa-green-theatre", genre: events.GenreJazz, status: "published", dayOffset: 18,
+		title: "Odesa Jazz Open Air", description: "Джаз просто неба біля моря.",
+		tiers: freeTiers,
+	},
+	{
+		slug: "odesa-rock-green-theatre", organizer: "lviv-sound", venue: "odesa-green-theatre", genre: events.GenreRock, status: "published", dayOffset: 75,
+		title: "Рок біля моря", description: "Українські рок-гурти в Зеленому театрі.",
+		lineup: []string{"Океан Ельзи"}, tiers: standardTiers,
+	},
+	{
+		slug: "odesa-pop-cancelled", organizer: "lviv-sound", venue: "odesa-green-theatre", genre: events.GenrePop, status: "cancelled", dayOffset: 50,
+		title: "Поп-вечір в Одесі", description: "Концерт скасовано.",
+		tiers: hallTiers,
+	},
+	{
+		slug: "kharkiv-ballet", organizer: "kyiv-live", venue: "kharkiv-opera", genre: events.GenreClassical, status: "published", dayOffset: 22,
+		title: "Лебедине озеро", description: "Класичний балет у трьох діях.",
+		tiers: premiumTiers,
+	},
+	{
+		slug: "kharkiv-metal-philharmonic", organizer: "lviv-sound", venue: "kharkiv-philharmonic", genre: events.GenreMetal, status: "published", dayOffset: 12,
+		title: "Metal Symphony", description: "Метал-гурт із симфонічним оркестром.",
+		tiers: hallTiers,
+	},
+	{
+		slug: "kharkiv-folk-past", organizer: "lviv-sound", venue: "kharkiv-philharmonic", genre: events.GenreFolk, status: "published", dayOffset: -10,
+		title: "Фольк-вечір у Харкові", description: "Минула подія.",
+		tiers: hallTiers,
+	},
+	{
+		slug: "dnipro-symphony", organizer: "kyiv-live", venue: "dnipro-philharmonic", genre: events.GenreClassical, status: "published", dayOffset: 33,
+		title: "Симфонічний Дніпро", description: "Моцарт і Чайковський.",
+		tiers: hallTiers,
+	},
+	{
+		slug: "dnipro-rock-menorah", organizer: "lviv-sound", venue: "menorah", genre: events.GenreRock, status: "published", dayOffset: 55,
+		title: "The Hardkiss у Дніпрі", description: "Великий сольний концерт.",
+		lineup: []string{"The Hardkiss"}, tiers: []tier{{name: "Танцпол", price: 110000, quantity: 800}, {name: "VIP", price: 250000, quantity: 60}},
+	},
+	{
+		slug: "dnipro-hip-hop-menorah", organizer: "lviv-sound", venue: "menorah", genre: events.GenreHipHop, status: "published", dayOffset: 95,
+		title: "Хіп-хоп фест у Дніпрі", description: "Чотири години репу.",
+		tiers: clubTiers,
+	},
+	{
+		slug: "frankivsk-folk", organizer: "lviv-sound", venue: "frankivsk-philharmonic", genre: events.GenreFolk, status: "published", dayOffset: 16,
+		title: "Гуцульські мотиви", description: "Трембіти, цимбали і сопілки.",
+		lineup: []string{"DakhaBrakha"}, tiers: hallTiers,
+	},
+	{
+		slug: "vinnytsia-pop", organizer: "kyiv-live", venue: "vinnytsia-theatre", genre: events.GenrePop, status: "published", dayOffset: 26,
+		title: "Onuka у Вінниці", description: "Електронний фольк-поп.",
+		lineup: []string{"Onuka"}, tiers: []tier{{name: "Партер", price: 120000, quantity: 600}, {name: "Ложа", price: 200000, quantity: 60}},
+	},
+	{
+		slug: "uzhhorod-castle-indie", organizer: "lviv-sound", venue: "uzhhorod-castle", genre: events.GenreIndie, status: "published", dayOffset: 48,
+		title: "Інді в замку", description: "Камерний інді-фестиваль у дворі Ужгородського замку.",
+		tiers: []tier{{name: "Денний", price: 50000, quantity: 1000}, {name: "Два дні", price: 90000, quantity: 500}},
+	},
+	{
+		slug: "uzhhorod-castle-alternative", organizer: "lviv-sound", venue: "uzhhorod-castle", genre: events.GenreAlternative, status: "published", dayOffset: 110,
+		title: "Alternative Castle Night", description: "Альтернативна сцена Закарпаття.",
+		lineup: []string{"Go_A"}, tiers: hallTiers,
+	},
+	{
+		slug: "chernivtsi-jazz", organizer: "lviv-sound", venue: "chernivtsi-philharmonic", genre: events.GenreJazz, status: "published", dayOffset: 37,
+		title: "Буковинський джаз", description: "Джаз-бенди з Чернівців і Сучави.",
+		tiers: []tier{{name: "Партер", price: 130000, quantity: 400}},
+	},
+	{
+		slug: "poltava-folk", organizer: "kyiv-live", venue: "poltava-theatre", genre: events.GenreFolk, status: "published", dayOffset: 20,
+		title: "Полтавські вечорниці", description: "Народні пісні й танці.",
+		tiers: freeTiers,
+	},
+	{
+		slug: "zhytomyr-classical", organizer: "kyiv-live", venue: "zhytomyr-philharmonic", genre: events.GenreClassical, status: "published", dayOffset: 65,
+		title: "Вечір камерної музики", description: "Струнний квартет.",
+		tiers: hallTiers,
+	},
+	{
+		slug: "zhytomyr-metal", organizer: "lviv-sound", venue: "zhytomyr-philharmonic", genre: events.GenreMetal, status: "published", dayOffset: 85,
+		title: "Житомирський метал-марафон", description: "П'ять гуртів за один вечір.",
+		tiers: []tier{{name: "Вхідний", price: 45000, quantity: 500}},
+	},
+	{
+		slug: "atlas-indie", organizer: "kyiv-live", venue: "atlas", genre: events.GenreIndie, status: "published", dayOffset: 7,
+		title: "Indie Friday в Atlas", description: "Три інді-гурти і диджей-сет.",
+		tiers: clubTiers,
+	},
+	{
+		slug: "lviv-opera-premiere", organizer: "lviv-sound", venue: "lviv-opera", genre: events.GenreClassical, status: "published", dayOffset: 52,
+		title: "Прем'єра в Львівській опері", description: "Нова постановка сезону.",
+		tiers: premiumTiers,
+	},
+	{
+		slug: "arena-lviv-rock-fest", organizer: "lviv-sound", venue: "arena-lviv", genre: events.GenreRock, status: "published", dayOffset: 100,
+		title: "Lviv Rock Fest", description: "Дводенний рок-фестиваль на стадіоні.",
+		lineup: []string{"Muse", "Бумбокс"}, tiers: []tier{{name: "Один день", price: 140000, quantity: 10000}, {name: "Два дні", price: 240000, quantity: 5000}},
 	},
 }
 
