@@ -433,6 +433,7 @@ organizer = "Organizer"
 panel = "Tickets and contacts"
 price_from_label = "Tickets from"
 buy_cta = "Buy a ticket"
+add_to_calendar = "Add to calendar"
 
 [landing.cancelled]
 title = "This event is cancelled."

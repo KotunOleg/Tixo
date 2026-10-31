@@ -40,6 +40,8 @@ type Config struct {
 
 	HubSpotAccessToken string `env:"HUBSPOT_ACCESS_TOKEN"`
 	CRMDryRun          bool   `env:"CRM_DRY_RUN" envDefault:"true"`
+
+	ICSFunctionURL string `env:"ICS_FUNCTION_URL"`
 }
 
 func (c *Config) IsProd() bool { return c.AppEnv == EnvProd }
