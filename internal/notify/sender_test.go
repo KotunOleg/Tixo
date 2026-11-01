@@ -37,8 +37,8 @@ func (f *senderFixture) queued(t *testing.T, title string, chatID int64) Reminde
 	t.Helper()
 	tier := f.event(t, title, botNow.Add(20*time.Hour))
 	userID := f.holder(t, "fan@example.com", chatID, tier)
-	if n, err := NewReminders(f.pool).Enqueue(context.Background(), botNow, ReminderWindow); err != nil || n != 1 {
-		t.Fatalf("enqueue = %d, %v", n, err)
+	if res, err := NewReminders(f.pool).Enqueue(context.Background(), botNow, ReminderWindow); err != nil || res.Queued != 1 {
+		t.Fatalf("enqueue = %+v, %v", res, err)
 	}
 	return ReminderJob{UserID: userID, EventID: tier.EventID, Kind: KindReminder24h}
 }

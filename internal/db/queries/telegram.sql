@@ -34,14 +34,28 @@ WHERE chat_id = @chat_id::bigint;
 SELECT * FROM telegram_links WHERE user_id = @user_id;
 
 -- name: QueueEventReminders :many
-INSERT INTO notification_log (user_id, event_id, kind)
-SELECT DISTINCT o.user_id, e.id, @kind::text
+INSERT INTO notification_log (user_id, event_id, kind, queued_at)
+SELECT DISTINCT o.user_id, e.id, @kind::text, @now::timestamptz
 FROM events e
 JOIN orders o ON o.event_id = e.id AND o.status IN ('paid', 'fulfilled')
 JOIN telegram_links l ON l.user_id = o.user_id AND l.chat_id IS NOT NULL
-WHERE e.status = 'published' AND e.starts_at > @now AND e.starts_at <= @until
+WHERE e.status = 'published' AND e.starts_at > @now::timestamptz AND e.starts_at <= @until::timestamptz
 ON CONFLICT (user_id, event_id, kind) DO NOTHING
 RETURNING user_id, event_id, kind;
+
+-- name: RequeueStaleReminders :many
+UPDATE notification_log n
+SET queued_at = @now::timestamptz
+FROM events e
+WHERE e.id = n.event_id
+  AND n.kind = @kind::text
+  AND n.sent_at IS NULL
+  AND n.skipped_reason IS NULL
+  AND n.queued_at < @stale_before::timestamptz
+  AND e.status = 'published'
+  AND e.starts_at > @now::timestamptz
+  AND e.starts_at <= @until::timestamptz
+RETURNING n.user_id, n.event_id, n.kind;
 
 -- name: GetEventReminder :one
 SELECT n.sent_at, n.skipped_reason,
