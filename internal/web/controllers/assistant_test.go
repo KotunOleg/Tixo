@@ -30,6 +30,11 @@ type assistantSite struct {
 
 func newAssistantSite(t *testing.T, model agent.Model) *assistantSite {
 	t.Helper()
+	return newAssistantSiteWithTurnLimit(t, model, 0)
+}
+
+func newAssistantSiteWithTurnLimit(t *testing.T, model agent.Model, turnLimit time.Duration) *assistantSite {
+	t.Helper()
 	redisURL := os.Getenv("TEST_REDIS_URL")
 	if redisURL == "" {
 		t.Skip("TEST_REDIS_URL not set")
@@ -45,6 +50,7 @@ func newAssistantSite(t *testing.T, model agent.Model) *assistantSite {
 			Model: model, Tools: ts, MCP: mcpserver.New(ts, d.Logger, "test"), History: agent.NewHistory(rdb), Log: d.Logger, Now: time.Now,
 		})
 		d.AssistantLimits = agent.NewLimits(rdb, assistantRate)
+		d.AssistantTurnLimit = turnLimit
 	})
 	site := &assistantSite{authSite: s, rdb: rdb}
 	site.cookie = s.signIn(t)
@@ -214,6 +220,31 @@ func TestAssistantClientDisconnectCancelsTheModelAndFreesTheUser(t *testing.T) {
 	}
 	if history != 0 {
 		t.Errorf("history has %d messages from an aborted turn", history)
+	}
+}
+
+type stallingModel struct{}
+
+func (stallingModel) Next(ctx context.Context, _ agent.Request, sink agent.Sink) (agent.Reply, error) {
+	_ = sink.Text("still thinking")
+	<-ctx.Done()
+	return agent.Reply{}, ctx.Err()
+}
+
+func TestAssistantChatEmitsAnErrorWhenTheTurnDeadlineIsReached(t *testing.T) {
+	s := newAssistantSiteWithTurnLimit(t, stallingModel{}, 50*time.Millisecond)
+	rec := s.chat(t, t.Context(), `{"message":"rock"}`, s.cookie)
+	events := parseSSE(t, rec.Body.String())
+	if len(events) == 0 {
+		t.Fatal("no SSE events received")
+	}
+	last := events[len(events)-1]
+	var failure struct {
+		Code string `json:"code"`
+	}
+	_ = json.Unmarshal([]byte(last.data), &failure)
+	if last.name != agent.EventError || failure.Code != agent.ErrUpstream {
+		t.Fatalf("last event = %s %s, want an upstream error once the turn deadline is reached", last.name, last.data)
 	}
 }
 

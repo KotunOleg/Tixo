@@ -26,11 +26,12 @@ const (
 )
 
 type Assistant struct {
-	View   *view.Renderer
-	Agent  *agent.Agent
-	Limits *agent.Limits
-	Log    *slog.Logger
-	Now    func() time.Time
+	View      *view.Renderer
+	Agent     *agent.Agent
+	Limits    *agent.Limits
+	Log       *slog.Logger
+	Now       func() time.Time
+	TurnLimit time.Duration
 }
 
 var assistantTextKeys = []string{
@@ -141,7 +142,11 @@ func (c Assistant) Chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), assistantTurnLimit)
+	turnLimit := c.TurnLimit
+	if turnLimit <= 0 {
+		turnLimit = assistantTurnLimit
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), turnLimit)
 	defer cancel()
 	lang := string(i18n.FromContext(r.Context()))
 	if err := c.Agent.Run(ctx, u.ID, lang, text, stream.emit); err != nil && ctx.Err() == nil && !errors.Is(err, errStreamClosed) {
