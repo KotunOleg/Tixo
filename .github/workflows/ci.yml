@@ -126,6 +126,87 @@ jobs:
       - name: run postman collection
         run: npx --yes newman@6.2.3 run tests/postman/tixo.postman_collection.json -e tests/postman/local.json --env-var token=${{ steps.seed.outputs.token }}
 
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tixo
+          POSTGRES_PASSWORD: tixo
+          POSTGRES_DB: tixo
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tixo -d tixo"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: tixo
+          RABBITMQ_DEFAULT_PASS: tixo
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://tixo:tixo@localhost:5432/tixo?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
+      AMQP_URL: amqp://tixo:tixo@localhost:5672/
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: install playwright
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: build tixo with coverage instrumentation
+        run: |
+          mkdir -p /tmp/tixo-cov
+          go build -cover -o /tmp/tixo ./cmd/tixo
+      - name: apply migrations
+        run: /tmp/tixo migrate up
+      - name: seed demo data
+        run: /tmp/tixo seed
+      - name: start server
+        env:
+          GOCOVERDIR: /tmp/tixo-cov
+        run: |
+          /tmp/tixo serve &
+          for i in $(seq 1 30); do /tmp/tixo probe >/dev/null 2>&1 && exit 0; sleep 1; done
+          echo "serve not ready after 30s" >&2
+          exit 1
+      - name: run playwright
+        working-directory: tests/e2e
+        env:
+          E2E_TIXO_BIN: /tmp/tixo
+          E2E_BASE_URL: http://localhost:8080
+        run: npx playwright test
+      - name: stop server and report coverage
+        run: |
+          pkill -f '/tmp/tixo serve' || true
+          for i in $(seq 1 30); do pgrep -f '/tmp/tixo serve' >/dev/null || break; sleep 0.5; done
+          go tool covdata percent -i=/tmp/tixo-cov
+          go tool covdata textfmt -i=/tmp/tixo-cov -o /tmp/e2e-cover.txt
+          go tool cover -func=/tmp/e2e-cover.txt | tail -1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: tests/e2e/playwright-report/
+          retention-days: 14
+
   docker:
     runs-on: ubuntu-latest
     steps:
