@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
@@ -42,6 +43,11 @@ type Config struct {
 	CRMDryRun          bool   `env:"CRM_DRY_RUN" envDefault:"true"`
 
 	ICSFunctionURL string `env:"ICS_FUNCTION_URL"`
+
+	TelegramBotToken      string `env:"TELEGRAM_BOT_TOKEN"`
+	TelegramBotUsername   string `env:"TELEGRAM_BOT_USERNAME"`
+	TelegramWebhookSecret string `env:"TELEGRAM_WEBHOOK_SECRET"`
+	TelegramDryRun        bool   `env:"TELEGRAM_DRY_RUN" envDefault:"true"`
 }
 
 func (c *Config) IsProd() bool { return c.AppEnv == EnvProd }
@@ -49,6 +55,8 @@ func (c *Config) IsProd() bool { return c.AppEnv == EnvProd }
 func (c *Config) GoogleEnabled() bool { return c.GoogleClientID != "" && c.GoogleClientSecret != "" }
 
 func (c *Config) GA4Enabled() bool { return c.GA4MeasurementID != "" }
+
+func (c *Config) TelegramEnabled() bool { return c.TelegramBotUsername != "" }
 
 func Load() (*Config, error) {
 	return LoadFrom(environ())
@@ -99,6 +107,10 @@ func (c *Config) validate() error {
 		return errors.New("HUBSPOT_ACCESS_TOKEN must be set when CRM_DRY_RUN=false")
 	}
 
+	if err := c.validateTelegram(); err != nil {
+		return err
+	}
+
 	if c.IsProd() {
 		if c.BaseURL.Scheme != "https" {
 			return fmt.Errorf("BASE_URL must use https in prod, got %q", c.BaseURL.String())
@@ -113,6 +125,33 @@ func (c *Config) validate() error {
 	}
 	if c.SessionSecret == "" {
 		c.SessionSecret = randomHex(minSecretLen)
+	}
+	return nil
+}
+
+var (
+	telegramSecretPattern   = regexp.MustCompile(`^[A-Za-z0-9_-]{1,256}$`)
+	telegramUsernamePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]{3,31}$`)
+)
+
+func (c *Config) validateTelegram() error {
+	c.TelegramBotUsername = strings.TrimPrefix(c.TelegramBotUsername, "@")
+	if c.TelegramBotUsername != "" && !telegramUsernamePattern.MatchString(c.TelegramBotUsername) {
+		return fmt.Errorf("TELEGRAM_BOT_USERNAME is not a valid bot username, got %q", c.TelegramBotUsername)
+	}
+	if c.TelegramWebhookSecret != "" && !telegramSecretPattern.MatchString(c.TelegramWebhookSecret) {
+		return errors.New("TELEGRAM_WEBHOOK_SECRET must be 1-256 characters of A-Z, a-z, 0-9, _ and -")
+	}
+	if c.TelegramDryRun {
+		return nil
+	}
+	switch {
+	case c.TelegramBotToken == "":
+		return errors.New("TELEGRAM_BOT_TOKEN must be set when TELEGRAM_DRY_RUN=false")
+	case c.TelegramWebhookSecret == "":
+		return errors.New("TELEGRAM_WEBHOOK_SECRET must be set when TELEGRAM_DRY_RUN=false")
+	case c.TelegramBotUsername == "":
+		return errors.New("TELEGRAM_BOT_USERNAME must be set when TELEGRAM_DRY_RUN=false")
 	}
 	return nil
 }
