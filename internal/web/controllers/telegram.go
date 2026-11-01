@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"log/slog"
@@ -18,12 +17,8 @@ const (
 	telegramWebhookMaxBodyBytes = 1 << 20
 )
 
-type UpdateHandler interface {
-	HandleUpdate(ctx context.Context, u notify.Update) error
-}
-
 type TelegramWebhook struct {
-	Bot    UpdateHandler
+	Bot    notify.UpdateHandler
 	Secret string
 	Log    *slog.Logger
 }

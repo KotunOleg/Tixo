@@ -95,7 +95,7 @@ type getUpdatesBody struct {
 
 type setWebhookBody struct {
 	URL            string   `json:"url"`
-	SecretToken    string   `json:"secret_token"`
+	SecretToken    string   `json:"secret_token,omitempty"`
 	AllowedUpdates []string `json:"allowed_updates"`
 }
 

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"net/url"
 	"testing"
 	"time"
+
+	"github.com/KotunOleg/Tixo/internal/config"
 )
 
 func TestParseRemindArgs(t *testing.T) {
@@ -26,5 +29,52 @@ func TestParseRemindArgs(t *testing.T) {
 				t.Errorf("parseRemindArgs(%v) = %s, %v; want %s, error %v", tc.args, got, err, tc.want, tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestTelegramWebhookURL(t *testing.T) {
+	cases := []struct {
+		name    string
+		base    string
+		secret  string
+		want    string
+		wantErr bool
+	}{
+		{"production", "https://tixo-service.duckdns.org", "s3cret_value", "https://tixo-service.duckdns.org/tg/webhook", false},
+		{"trailing slash", "https://tixo.example/", "s3cret_value", "https://tixo.example/tg/webhook", false},
+		{"plain http is refused by telegram", "http://localhost:8080", "s3cret_value", "", true},
+		{"without a secret anyone could post updates", "https://tixo.example", "", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			base, err := url.Parse(tc.base)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := telegramWebhookURL(&config.Config{BaseURL: *base, TelegramWebhookSecret: tc.secret})
+			if (err != nil) != tc.wantErr || got != tc.want {
+				t.Errorf("telegramWebhookURL = %q, %v; want %q, error %v", got, err, tc.want, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestParseSetWebhookArgs(t *testing.T) {
+	if remove, err := parseSetWebhookArgs(nil); err != nil || remove {
+		t.Errorf("no args = %v, %v; want set", remove, err)
+	}
+	if remove, err := parseSetWebhookArgs([]string{"--delete"}); err != nil || !remove {
+		t.Errorf("--delete = %v, %v; want remove", remove, err)
+	}
+	if _, err := parseSetWebhookArgs([]string{"https://evil.example"}); err == nil {
+		t.Error("positional url accepted; the url must come from BASE_URL")
+	}
+}
+
+func TestTelegramCommandsAreRegistered(t *testing.T) {
+	for _, name := range []string{"telegram-remind", "telegram-poll", "telegram-set-webhook"} {
+		if _, ok := commands[name]; !ok {
+			t.Errorf("command %q is not registered", name)
+		}
 	}
 }
