@@ -6,12 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/KotunOleg/Tixo/internal/notify"
 	"github.com/KotunOleg/Tixo/internal/platform/rabbitmq"
 )
+
+const maxRateLimitPause = time.Minute
 
 type ReminderDeliverer interface {
 	Deliver(ctx context.Context, job notify.ReminderJob) error
@@ -22,6 +25,7 @@ type TelegramWorker struct {
 	Channel *amqp.Channel
 	Sender  ReminderDeliverer
 	Log     *slog.Logger
+	Wait    func(ctx context.Context, d time.Duration) error
 }
 
 func (w *TelegramWorker) Run(ctx context.Context) error {
@@ -57,10 +61,6 @@ func (w *TelegramWorker) handle(ctx context.Context, msg amqp.Delivery) {
 
 	if err := w.Sender.Deliver(ctx, job); err != nil {
 		attempt := deathCount(msg, w.Queue) + 1
-		var rateLimited *notify.RetryAfterError
-		if errors.As(err, &rateLimited) {
-			w.Log.Warn("worker: telegram rate limit", "retry_after", rateLimited.After.String())
-		}
 		if attempt >= maxAttempts {
 			if parkErr := w.park(msg); parkErr != nil {
 				w.Log.Error("worker: parking notify.telegram failed, retrying instead of dropping it",
@@ -79,6 +79,13 @@ func (w *TelegramWorker) handle(ctx context.Context, msg amqp.Delivery) {
 		}
 		w.Log.Error("worker: notify.telegram failed, retrying",
 			"user_id", job.UserID, "event_id", job.EventID, "attempt", attempt, "error", err)
+		if pause := rateLimitPause(err); pause > 0 {
+			w.Log.Warn("worker: telegram rate limit, pausing before retry", "pause", pause.String())
+			if waitErr := w.wait(ctx, pause); waitErr != nil {
+				w.Log.Info("worker: stopped during rate limit pause, leaving the reminder unacked", "user_id", job.UserID, "event_id", job.EventID)
+				return
+			}
+		}
 		if nackErr := msg.Nack(false, false); nackErr != nil {
 			w.Log.Error("worker: nack failed message", "error", nackErr)
 		}
@@ -87,6 +94,28 @@ func (w *TelegramWorker) handle(ctx context.Context, msg amqp.Delivery) {
 	if err := msg.Ack(false); err != nil {
 		w.Log.Error("worker: ack processed message", "error", err)
 	}
+}
+
+func (w *TelegramWorker) wait(ctx context.Context, d time.Duration) error {
+	if w.Wait != nil {
+		return w.Wait(ctx, d)
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+func rateLimitPause(err error) time.Duration {
+	rateLimited, ok := errors.AsType[*notify.RetryAfterError](err)
+	if !ok || rateLimited.After <= 0 {
+		return 0
+	}
+	return min(rateLimited.After, maxRateLimitPause)
 }
 
 func (w *TelegramWorker) park(msg amqp.Delivery) error {
