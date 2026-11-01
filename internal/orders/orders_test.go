@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/KotunOleg/Tixo/internal/crm"
 	"github.com/KotunOleg/Tixo/internal/db/dbtest"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
@@ -114,9 +115,25 @@ func TestPurchaseFixesPriceAndIssuesOneTicketPerSeat(t *testing.T) {
 	}
 }
 
+func drainOutbox(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	q := dbgen.New(pool)
+	rows, err := q.ClaimOutboxBatch(context.Background(), 100)
+	if err != nil {
+		t.Fatalf("ClaimOutboxBatch: %v", err)
+	}
+	for _, row := range rows {
+		if err := q.MarkOutboxPublished(context.Background(), row.ID); err != nil {
+			t.Fatalf("MarkOutboxPublished: %v", err)
+		}
+	}
+}
+
 func TestPurchaseWritesOneUnpublishedOutboxRowForTheOrder(t *testing.T) {
 	f := newFixture(t, 10)
 	buyer := mustUser(t, f.pool, "alice")
+
+	drainOutbox(t, f.pool)
 
 	got, _, err := f.svc.Purchase(context.Background(), buyer, Input{TierID: f.tier.ID, Quantity: 1, Key: uuid.New()})
 	if err != nil {
@@ -127,18 +144,61 @@ func TestPurchaseWritesOneUnpublishedOutboxRowForTheOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClaimOutboxBatch: %v", err)
 	}
-	if len(rows) != 1 {
-		t.Fatalf("outbox rows = %d, want 1", len(rows))
+	if len(rows) != 2 {
+		t.Fatalf("outbox rows = %d, want 2", len(rows))
 	}
-	if rows[0].Topic != TopicTicketsIssue {
-		t.Errorf("topic = %q, want %q", rows[0].Topic, TopicTicketsIssue)
+
+	byTopic := make(map[string]dbgen.Outbox, len(rows))
+	for _, row := range rows {
+		byTopic[row.Topic] = row
+	}
+
+	ticketsRow, ok := byTopic[TopicTicketsIssue]
+	if !ok {
+		t.Fatalf("no %s row among %+v", TopicTicketsIssue, rows)
 	}
 	var payload outboxPayload
-	if err := json.Unmarshal(rows[0].Payload, &payload); err != nil {
-		t.Fatalf("unmarshal payload: %v", err)
+	if err := json.Unmarshal(ticketsRow.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal tickets.issue payload: %v", err)
 	}
 	if payload.OrderID != got.ID {
 		t.Errorf("payload order_id = %d, want %d", payload.OrderID, got.ID)
+	}
+
+	crmRow, ok := byTopic[crm.TopicCRMContact]
+	if !ok {
+		t.Fatalf("no %s row among %+v", crm.TopicCRMContact, rows)
+	}
+	var event crm.ContactEvent
+	if err := json.Unmarshal(crmRow.Payload, &event); err != nil {
+		t.Fatalf("unmarshal crm.contact payload: %v", err)
+	}
+	if event.UserID != buyer || event.Kind != crm.RoleBuyer {
+		t.Errorf("crm.contact payload = %+v, want user_id=%d kind=%q", event, buyer, crm.RoleBuyer)
+	}
+}
+
+func TestPurchaseReplayDoesNotDuplicateOutboxRows(t *testing.T) {
+	f := newFixture(t, 10)
+	buyer := mustUser(t, f.pool, "alice")
+	key := uuid.New()
+
+	drainOutbox(t, f.pool)
+
+	if _, _, err := f.svc.Purchase(context.Background(), buyer, Input{TierID: f.tier.ID, Quantity: 1, Key: key}); err != nil {
+		t.Fatalf("Purchase: %v", err)
+	}
+	_, replay, err := f.svc.Purchase(context.Background(), buyer, Input{TierID: f.tier.ID, Quantity: 1, Key: key})
+	if err != nil || !replay {
+		t.Fatalf("replay Purchase = replay %v, err %v", replay, err)
+	}
+
+	rows, err := dbgen.New(f.pool).ClaimOutboxBatch(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("ClaimOutboxBatch: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("outbox rows after replay = %d, want 2 (no duplicates)", len(rows))
 	}
 }
 

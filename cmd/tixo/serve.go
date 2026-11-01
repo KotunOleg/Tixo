@@ -101,6 +101,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 	stats := analytics.New(pool, flags)
 	site := controllers.Deps{
 		View: pages, FS: web.FS, Sessions: sessions, Google: google, Users: users.New(pool), Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, Features: flags, Analytics: stats, APITokens: tokens, Storage: posters, Logger: log,
+		ICSFunctionURL: cfg.ICSFunctionURL,
 	}
 	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, Analytics: stats, APITokens: tokens, Cache: responseCache, Logger: log}
 	handler := server.New(server.Deps{
