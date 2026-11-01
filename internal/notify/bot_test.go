@@ -29,9 +29,13 @@ type sentMessage struct {
 
 type fakeClient struct {
 	sent []sentMessage
+	err  error
 }
 
 func (f *fakeClient) SendMessage(_ context.Context, chatID int64, text string) error {
+	if f.err != nil {
+		return f.err
+	}
 	f.sent = append(f.sent, sentMessage{chatID, text})
 	return nil
 }

@@ -70,6 +70,13 @@ func TestParseWorkerArgsAcceptsCRMContact(t *testing.T) {
 	}
 }
 
+func TestParseWorkerArgsAcceptsTelegramQueue(t *testing.T) {
+	queue, err := parseWorkerArgs([]string{"--queue=notify.telegram"})
+	if err != nil || queue != "notify.telegram" {
+		t.Errorf("parseWorkerArgs(--queue=notify.telegram) = %q, %v", queue, err)
+	}
+}
+
 func TestParseWorkerArgsRejectsUnknownQueue(t *testing.T) {
 	if _, err := parseWorkerArgs([]string{"--queue=unknown.topic"}); err == nil {
 		t.Fatal("parseWorkerArgs(--queue=unknown.topic) = nil error, want rejection")

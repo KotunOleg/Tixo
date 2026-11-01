@@ -126,6 +126,18 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  worker-telegram:
+    <<: *app
+    command: ["worker", "--queue=notify.telegram"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
   scheduler:
     <<: *app
     command: ["scheduler"]
