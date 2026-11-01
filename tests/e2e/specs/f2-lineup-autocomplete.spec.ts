@@ -17,15 +17,17 @@ test("lineup search autocompletes from the backend after 3 characters (F2)", asy
   await page.locator("#venue-lng").fill("30.52");
   await page.locator("#venue-capacity").fill("500");
   await page.getByRole("button", { name: "Зберегти" }).click();
+  await expect(page).toHaveURL(new RegExp(`/org/${e2eOrg}/venues$`));
 
   await page.goto(`/org/${e2eOrg}/events/new`);
   await page.locator("#event-title").fill(eventTitle);
   await page.locator("#event-slug").fill(eventSlug);
-  await page.locator("#event-venue").selectOption({ label: venueName });
+  await page.locator("#event-venue").selectOption({ label: `${venueName} — Kyiv` });
   await page.locator("#event-starts-at").fill(datetimeLocal(365));
   await page.locator("#event-ends-at").fill(datetimeLocal(366));
   await page.locator("#event-genre").selectOption("rock");
   await page.getByRole("button", { name: "Зберегти" }).click();
+  await expect(page).toHaveURL(new RegExp(`/org/${e2eOrg}/events$`));
 
   await page.getByRole("link", { name: eventTitle }).click();
   await expect(page).toHaveURL(/\/org\/.+\/events\/\d+$/);
@@ -48,7 +50,7 @@ test("lineup search autocompletes from the backend after 3 characters (F2)", asy
 
   const hit = page.locator(".select2-results__option", { hasText: "Океан Ельзи" }).first();
   await expect(hit).toBeVisible();
-  await Promise.all([page.waitForURL(/\/org\/.+\/events\/\d+$/), hit.click()]);
+  await Promise.all([page.waitForEvent("load"), hit.click()]);
 
-  await expect(page.getByText("Океан Ельзи")).toBeVisible();
+  await expect(page.locator(".list-group-item", { hasText: "Океан Ельзи" })).toBeVisible();
 });
