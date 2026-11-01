@@ -116,12 +116,12 @@ func TestEnqueueTwoTicksQueueEachReminderOnce(t *testing.T) {
 	r := NewReminders(f.pool)
 
 	first, err := r.Enqueue(context.Background(), botNow, ReminderWindow)
-	if err != nil || first != 1 {
-		t.Fatalf("first tick queued %d (err %v), want 1 even with two orders", first, err)
+	if err != nil || first != (EnqueueResult{Queued: 1}) {
+		t.Fatalf("first tick = %+v (err %v), want 1 queued even with two orders", first, err)
 	}
 	second, err := r.Enqueue(context.Background(), botNow.Add(time.Hour), ReminderWindow)
-	if err != nil || second != 0 {
-		t.Fatalf("second tick queued %d (err %v), want 0", second, err)
+	if err != nil || second != (EnqueueResult{}) {
+		t.Fatalf("second tick an hour later = %+v (err %v), want nothing", second, err)
 	}
 	jobs := f.outboxJobs(t)
 	want := ReminderJob{UserID: alice, EventID: show.EventID, Kind: KindReminder24h}
@@ -163,13 +163,116 @@ func TestEnqueueRespectsTheWindow(t *testing.T) {
 	f.holder(t, "alice@example.com", 42, inDay, inThreeDays)
 	r := NewReminders(f.pool)
 
-	if n, err := r.Enqueue(context.Background(), botNow, ReminderWindow); err != nil || n != 1 {
-		t.Fatalf("24h window queued %d (err %v), want only the event within a day", n, err)
+	if res, err := r.Enqueue(context.Background(), botNow, ReminderWindow); err != nil || res.Queued != 1 {
+		t.Fatalf("24h window = %+v (err %v), want only the event within a day", res, err)
 	}
-	if n, err := r.Enqueue(context.Background(), botNow, 72*time.Hour); err != nil || n != 1 {
-		t.Fatalf("72h demo window queued %d (err %v), want the remaining event", n, err)
+	if res, err := r.Enqueue(context.Background(), botNow, 72*time.Hour); err != nil || res.Queued != 1 {
+		t.Fatalf("72h demo window = %+v (err %v), want the remaining event", res, err)
 	}
 	if _, err := r.Enqueue(context.Background(), botNow, 0); err == nil {
 		t.Error("zero window accepted")
+	}
+}
+
+func TestEnqueueRequeuesReminderStuckAfterParking(t *testing.T) {
+	f := newReminderFixture(t)
+	show := f.event(t, "Show", botNow.Add(20*time.Hour))
+	alice := f.holder(t, "alice@example.com", 42, show)
+	r := NewReminders(f.pool)
+	if _, err := r.Enqueue(context.Background(), botNow, ReminderWindow); err != nil {
+		t.Fatal(err)
+	}
+
+	later := botNow.Add(ReminderStaleAfter + time.Minute)
+	res, err := r.Enqueue(context.Background(), later, ReminderWindow)
+	if err != nil || res != (EnqueueResult{Requeued: 1}) {
+		t.Fatalf("tick after the reminder got stuck = %+v (err %v), want 1 requeued", res, err)
+	}
+	want := ReminderJob{UserID: alice, EventID: show.EventID, Kind: KindReminder24h}
+	if jobs := f.outboxJobs(t); len(jobs) != 2 || jobs[1] != want {
+		t.Errorf("outbox = %+v, want the original job and a second %+v", jobs, want)
+	}
+
+	res, err = r.Enqueue(context.Background(), later.Add(time.Minute), ReminderWindow)
+	if err != nil || res != (EnqueueResult{}) {
+		t.Errorf("tick right after the requeue = %+v (err %v), want nothing until it is stale again", res, err)
+	}
+}
+
+func TestEnqueueLeavesRemindersThatAreNotStuck(t *testing.T) {
+	later := botNow.Add(ReminderStaleAfter + time.Minute)
+	tests := []struct {
+		name     string
+		startsIn time.Duration
+		tickAt   time.Time
+		settle   func(t *testing.T, f *reminderFixture, user, event int64)
+	}{
+		{name: "queued recently", startsIn: 20 * time.Hour, tickAt: botNow.Add(10 * time.Minute)},
+		{name: "already sent", startsIn: 20 * time.Hour, tickAt: later, settle: func(t *testing.T, f *reminderFixture, user, event int64) {
+			if err := f.q.MarkNotificationSent(context.Background(), dbgen.MarkNotificationSentParams{SentAt: botNow, UserID: user, EventID: event, Kind: KindReminder24h}); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "skipped", startsIn: 20 * time.Hour, tickAt: later, settle: func(t *testing.T, f *reminderFixture, user, event int64) {
+			if err := f.q.MarkNotificationSkipped(context.Background(), dbgen.MarkNotificationSkippedParams{Reason: SkipBlocked, UserID: user, EventID: event, Kind: KindReminder24h}); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "event already started", startsIn: 30 * time.Minute, tickAt: later},
+		{name: "event cancelled", startsIn: 20 * time.Hour, tickAt: later, settle: func(t *testing.T, f *reminderFixture, _, event int64) {
+			if _, err := f.q.SetEventStatus(context.Background(), dbgen.SetEventStatusParams{ID: event, OrganizerID: f.org.ID, Status: "cancelled"}); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := newReminderFixture(t)
+			show := f.event(t, "Show", botNow.Add(tt.startsIn))
+			user := f.holder(t, "alice@example.com", 42, show)
+			r := NewReminders(f.pool)
+			if _, err := r.Enqueue(context.Background(), botNow, ReminderWindow); err != nil {
+				t.Fatal(err)
+			}
+			if tt.settle != nil {
+				tt.settle(t, f, user, show.EventID)
+			}
+
+			res, err := r.Enqueue(context.Background(), tt.tickAt, ReminderWindow)
+			if err != nil || res != (EnqueueResult{}) {
+				t.Errorf("tick = %+v (err %v), want nothing requeued", res, err)
+			}
+			if jobs := f.outboxJobs(t); len(jobs) != 1 {
+				t.Errorf("outbox has %d jobs, want only the original one", len(jobs))
+			}
+		})
+	}
+}
+
+func TestEnqueueConcurrentSchedulersRequeueStuckReminderOnce(t *testing.T) {
+	f := newReminderFixture(t)
+	show := f.event(t, "Show", botNow.Add(20*time.Hour))
+	f.holder(t, "alice@example.com", 42, show)
+	r := NewReminders(f.pool)
+	if _, err := r.Enqueue(context.Background(), botNow, ReminderWindow); err != nil {
+		t.Fatal(err)
+	}
+
+	later := botNow.Add(ReminderStaleAfter + time.Minute)
+	var wg sync.WaitGroup
+	errs := make([]error, 4)
+	for i := range errs {
+		wg.Go(func() {
+			_, errs[i] = r.Enqueue(context.Background(), later, ReminderWindow)
+		})
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if jobs := f.outboxJobs(t); len(jobs) != 2 {
+		t.Errorf("outbox has %d jobs after 4 concurrent ticks, want the original and exactly one requeue", len(jobs))
 	}
 }
