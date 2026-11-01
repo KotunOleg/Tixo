@@ -56,7 +56,8 @@ func (Fake) Next(_ context.Context, req Request, sink Sink) (Reply, error) {
 		}
 		args := map[string]any{"query": question, "limit": fakeSearchLimit}
 		if buying {
-			args = map[string]any{"limit": events.SearchMaxLimit}
+			words := strings.Fields(question)
+			args = map[string]any{"query": words[len(words)-1], "limit": events.SearchMaxLimit}
 		}
 		return fakeCall(Block{Type: BlockThinking, Text: lines.thinking}, "s1", tools.NameSearchEvents, args), nil
 	}
@@ -70,7 +71,11 @@ func (Fake) Next(_ context.Context, req Request, sink Sink) (Reply, error) {
 			if err := sink.Thinking(lines.retry); err != nil {
 				return Reply{}, err
 			}
-			return fakeCall(Block{Type: BlockThinking, Text: lines.retry}, "s2", tools.NameSearchEvents, map[string]any{"limit": fakeSearchLimit}), nil
+			limit := fakeSearchLimit
+			if buying {
+				limit = events.SearchMaxLimit
+			}
+			return fakeCall(Block{Type: BlockThinking, Text: lines.retry}, "s2", tools.NameSearchEvents, map[string]any{"limit": limit}), nil
 		case len(found.Events) == 0:
 			return fakeAnswer(sink, lines.none)
 		case buying:
