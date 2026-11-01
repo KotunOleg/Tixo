@@ -15,7 +15,7 @@
   {{end}}
 
   {{with .Data.Telegram}}
-  <section class="mb-5" aria-labelledby="profile-telegram-title">
+  <section class="mb-5 js-telegram-link" aria-labelledby="profile-telegram-title" data-telegram-state="{{.State}}" data-status-url="{{$.URL "/profile/telegram/status"}}">
     <h2 class="h4" id="profile-telegram-title">{{$.T "profile.telegram.title"}}</h2>
     {{if .Linked}}
     <p class="mb-3"><span class="tixo-status tixo-status-published">{{$.T "profile.telegram.connected" "Date" .LinkedAt}}</span></p>
@@ -26,8 +26,9 @@
     {{else}}
     <p class="text-body-secondary">{{$.T "profile.telegram.help"}}</p>
     {{if .Pending}}<p role="status">{{$.T "profile.telegram.pending" "Time" .PendingUntil}}</p>{{end}}
-    <form method="post" action="{{$.URL "/profile/telegram/link"}}">
-      <button class="btn btn-tixo" type="submit">{{if .Pending}}{{$.T "profile.telegram.reopen"}}{{else}}{{$.T "profile.telegram.connect"}}{{end}}</button>
+    <form method="post" action="{{$.URL "/profile/telegram/link"}}" target="_blank" rel="noopener">
+      <button class="btn btn-tixo" type="submit" aria-describedby="profile-telegram-new-tab">{{if .Pending}}{{$.T "profile.telegram.reopen"}}{{else}}{{$.T "profile.telegram.connect"}}{{end}}</button>
+      <p class="form-text mb-0" id="profile-telegram-new-tab">{{$.T "profile.telegram.new_tab"}}</p>
     </form>
     {{end}}
   </section>

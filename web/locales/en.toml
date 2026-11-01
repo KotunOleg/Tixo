@@ -375,6 +375,7 @@ help = "The bot messages you a day before an event you have a ticket for: when, 
 connect = "Connect Telegram"
 pending = "Open the chat with the bot in Telegram and press “Start”. The link works until {{.Time}}."
 reopen = "Open Telegram again"
+new_tab = "Opens in a new tab."
 connected = "Connected on {{.Date}}"
 connected_help = "Reminders arrive a day before the event. Turn them off here or send /stop to the bot."
 disconnect = "Turn off reminders"

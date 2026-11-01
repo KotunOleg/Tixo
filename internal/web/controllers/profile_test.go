@@ -128,21 +128,21 @@ func TestProfileTelegramSectionFollowsTheLinkLifecycle(t *testing.T) {
 		return rec.Body.String()
 	}
 
-	if body := page("/profile"); !strings.Contains(body, "Підключити Telegram") || !strings.Contains(body, `action="/profile/telegram/link"`) {
-		t.Fatalf("not connected: want the connect button\n%s", body)
+	if body := page("/profile"); !strings.Contains(body, "Підключити Telegram") || !strings.Contains(body, `action="/profile/telegram/link" target="_blank"`) || !strings.Contains(body, `data-telegram-state="none"`) {
+		t.Fatalf("not connected: want the connect button opening t.me in a new tab so the profile stays open\n%s", body)
 	}
 
 	rec := s.postForm(t, "/en/profile/telegram/link", nil, cookie)
 	if rec.Code != http.StatusSeeOther || !telegramStartPattern.MatchString(rec.Header().Get("Location")) {
 		t.Fatalf("link = %d → %q", rec.Code, rec.Header().Get("Location"))
 	}
-	if body := page("/en/profile"); !strings.Contains(body, "Open Telegram again") || !strings.Contains(body, "The link works until") {
+	if body := page("/en/profile"); !strings.Contains(body, "Open Telegram again") || !strings.Contains(body, "The link works until") || !strings.Contains(body, `data-telegram-state="pending"`) || !strings.Contains(body, `data-status-url="/en/profile/telegram/status"`) {
 		t.Fatalf("pending: want the reopen button and expiry\n%s", body)
 	}
 
 	s.connectTelegram(t, cookie, 4242)
 	body := page("/profile")
-	if !strings.Contains(body, "Підключено") || !strings.Contains(body, `action="/profile/telegram/unlink"`) || strings.Contains(body, "Підключити Telegram") {
+	if !strings.Contains(body, "Підключено") || !strings.Contains(body, `action="/profile/telegram/unlink"`) || strings.Contains(body, "Підключити Telegram") || !strings.Contains(body, `data-telegram-state="linked"`) {
 		t.Fatalf("connected: want status and the turn-off button only\n%s", body)
 	}
 
