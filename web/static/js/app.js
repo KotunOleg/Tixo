@@ -326,7 +326,7 @@ function setupVenueFilterMap() {
   const ukraine = L.latLngBounds([44.4, 22.1], [52.4, 40.2]);
 
   el.hidden = false;
-  const map = L.map(el, { scrollWheelZoom: false, keyboard: true });
+  const map = L.map(el, { scrollWheelZoom: false, keyboard: true }).fitBounds(ukraine);
   map.attributionControl.setPrefix(false);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: el.dataset.attribution }).addTo(map);
   const markers = L.layerGroup().addTo(map);
