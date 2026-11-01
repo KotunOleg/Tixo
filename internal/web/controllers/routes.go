@@ -64,6 +64,8 @@ func Mount(r chi.Router, d Deps) {
 		pe := PublicEvents{View: d.View, Sessions: d.Sessions, Svc: d.Events, Orders: d.Orders, Log: d.Logger, ICSFunctionURL: d.ICSFunctionURL}
 		r.Get("/events/{slug}", pe.Show)
 		r.Post("/events/{slug}/buy", pe.Buy)
+		vm := VenueMap{View: d.View, Svc: d.Events, Log: d.Logger}
+		r.Get("/map/venues.json", vm.JSON)
 
 		a := Auth{View: d.View, Sessions: d.Sessions, Google: d.Google, Users: d.Users, Log: d.Logger}
 		r.Get("/auth/google/login", a.Login)
