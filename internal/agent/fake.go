@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/tools"
 )
 
@@ -45,18 +46,19 @@ func (Fake) Next(_ context.Context, req Request, sink Sink) (Reply, error) {
 	if !ok {
 		lines = fakeText["uk"]
 	}
-	question, last := fakeState(req.Messages)
+	turn := fakeState(req.Messages)
+	question, last := turn.question, turn.last
 	buying := wantsToBuy(question)
 
 	if last == nil {
 		if err := sink.Thinking(lines.thinking); err != nil {
 			return Reply{}, err
 		}
-		query := question
+		args := map[string]any{"query": question, "limit": fakeSearchLimit}
 		if buying {
-			query = ""
+			args = map[string]any{"limit": events.SearchMaxLimit}
 		}
-		return fakeCall(Block{Type: BlockThinking, Text: lines.thinking}, "s1", tools.NameSearchEvents, map[string]any{"query": query, "limit": fakeSearchLimit}), nil
+		return fakeCall(Block{Type: BlockThinking, Text: lines.thinking}, "s1", tools.NameSearchEvents, args), nil
 	}
 
 	switch last.Name {
@@ -72,10 +74,7 @@ func (Fake) Next(_ context.Context, req Request, sink Sink) (Reply, error) {
 		case len(found.Events) == 0:
 			return fakeAnswer(sink, lines.none)
 		case buying:
-			if err := sink.Thinking(lines.searching); err != nil {
-				return Reply{}, err
-			}
-			return fakeCall(Block{Type: BlockThinking, Text: lines.searching}, "g1", tools.NameGetEvent, map[string]any{"slug": found.Events[0].Slug}), nil
+			return fakeOpen(sink, lines, turn, found.Events)
 		}
 		var b strings.Builder
 		b.WriteString(lines.found)
@@ -86,10 +85,17 @@ func (Fake) Next(_ context.Context, req Request, sink Sink) (Reply, error) {
 	case tools.NameGetEvent:
 		var ev tools.Event
 		if err := json.Unmarshal([]byte(last.Result.Text), &ev); err != nil || last.Result.IsError || len(ev.Tiers) == 0 || !ev.OnSale {
-			return fakeAnswer(sink, lines.refuse)
+			return fakeOpen(sink, lines, turn, turn.found)
+		}
+		tier := ev.Tiers[0]
+		for _, t := range ev.Tiers {
+			if t.Available > 0 {
+				tier = t
+				break
+			}
 		}
 		return fakeCall(Block{}, "b1", tools.NameBookTicket, map[string]any{
-			"event_slug": ev.Slug, "tier_id": ev.Tiers[0].TierID, "quantity": 1, "idempotency_key": "fake-" + ev.Slug,
+			"event_slug": ev.Slug, "tier_id": tier.TierID, "quantity": 1, "idempotency_key": "fake-" + ev.Slug,
 		}), nil
 	default:
 		if last.Result.IsError {
@@ -104,28 +110,58 @@ type fakeTool struct {
 	Result   Block
 }
 
-func fakeState(msgs []Message) (string, *fakeTool) {
-	var question string
+type fakeTurn struct {
+	question string
+	last     *fakeTool
+	found    []tools.EventSummary
+	opened   map[string]bool
+}
+
+func fakeState(msgs []Message) fakeTurn {
+	turn := fakeTurn{opened: map[string]bool{}}
 	start := 0
 	for i := len(msgs) - 1; i >= 0; i-- {
 		if msgs[i].isUserText() {
-			question, start = msgs[i].Blocks[0].Text, i
+			turn.question, start = msgs[i].Blocks[0].Text, i
 			break
 		}
 	}
-	var last *fakeTool
 	calls := map[string]string{}
 	for _, m := range msgs[start:] {
 		for _, b := range m.Blocks {
 			switch b.Type {
 			case BlockToolUse:
 				calls[b.ID] = b.Name
+				if b.Name == tools.NameGetEvent {
+					var in tools.GetEventInput
+					if json.Unmarshal(b.Input, &in) == nil {
+						turn.opened[in.Slug] = true
+					}
+				}
 			case BlockToolResult:
-				last = &fakeTool{ID: b.ToolUseID, Name: calls[b.ToolUseID], Result: b}
+				turn.last = &fakeTool{ID: b.ToolUseID, Name: calls[b.ToolUseID], Result: b}
+				var found tools.SearchEventsOutput
+				if calls[b.ToolUseID] == tools.NameSearchEvents && json.Unmarshal([]byte(b.Text), &found) == nil {
+					turn.found = found.Events
+				}
 			}
 		}
 	}
-	return question, last
+	return turn
+}
+
+func fakeOpen(sink Sink, lines fakeLines, turn fakeTurn, found []tools.EventSummary) (Reply, error) {
+	for _, e := range found {
+		if e.PriceFromUAH == nil || turn.opened[e.Slug] {
+			continue
+		}
+		if err := sink.Thinking(lines.searching); err != nil {
+			return Reply{}, err
+		}
+		id := fmt.Sprintf("g%d", len(turn.opened)+1)
+		return fakeCall(Block{Type: BlockThinking, Text: lines.searching}, id, tools.NameGetEvent, map[string]any{"slug": e.Slug}), nil
+	}
+	return fakeAnswer(sink, lines.refuse)
 }
 
 func wantsToBuy(text string) bool {
