@@ -519,6 +519,8 @@ meta_description = "Concerts and events on a map of Ukraine: pick a venue by dat
 heading = "Events on the map"
 lead = "Venues with upcoming events. Narrow them down by date, genre and price."
 errors_title = "Check the filters"
+map_label = "Venue map"
+network_error = "Couldn't update the map. Showing the previous results."
 
 [map.filters]
 title = "Filters"

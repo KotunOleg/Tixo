@@ -134,6 +134,10 @@ func (v *Renderer) fail(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
+func (v *Renderer) PageFor(r *http.Request) *Page {
+	return v.page(r, "", nil)
+}
+
 func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 	lang := i18n.FromContext(r.Context())
 	viewer, _ := r.Context().Value(viewerKey{}).(*Viewer)

@@ -907,3 +907,58 @@ body:has(.tixo-buybar) {
   display: grid;
   gap: 0.5rem;
 }
+
+.tixo-map-wide {
+  max-width: none;
+  height: min(60vh, 32rem);
+}
+
+.tixo-map-pin {
+  border: 3px solid var(--tixo-bg);
+  border-radius: 50%;
+  background: var(--tixo-accent);
+}
+
+.tixo-map-pin:focus-visible {
+  outline: 2px solid var(--tixo-focus);
+  outline-offset: 2px;
+}
+
+.tixo-map .leaflet-popup-content-wrapper,
+.tixo-map .leaflet-popup-tip {
+  color: var(--tixo-text);
+  background: var(--tixo-surface-2);
+  border: 1px solid var(--tixo-border-strong);
+  box-shadow: var(--tixo-shadow-overlay);
+}
+
+.tixo-map .leaflet-popup-content {
+  margin: 0.75rem 1rem;
+  font-size: var(--tixo-text-sm);
+  line-height: 1.5;
+  overflow-wrap: break-word;
+}
+
+.tixo-map .leaflet-popup-content a {
+  color: var(--tixo-link);
+}
+
+.tixo-map a.leaflet-popup-close-button {
+  color: var(--tixo-text-muted);
+}
+
+.tixo-map .leaflet-popup-content p {
+  margin-top: 0;
+}
+
+.tixo-map-popup-title {
+  font-weight: 600;
+}
+
+.tixo-map-status {
+  color: var(--tixo-danger);
+}
+
+.tixo-map-status:empty {
+  display: none;
+}
