@@ -25,6 +25,21 @@ jobs:
       - name: sqlc generated code is up to date
         run: go tool sqlc diff
 
+  ics:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: serverless/ics
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: serverless/ics/go.mod
+      - name: go vet
+        run: go vet ./...
+      - name: go test
+        run: go test -race -count=1 ./...
+
   test:
     runs-on: ubuntu-latest
     services:
