@@ -103,3 +103,77 @@ func TestVenueMapJSONKeepsMarkupInTitlesInert(t *testing.T) {
 		t.Errorf("title after decoding = %+v, want the original text back", got.Venues)
 	}
 }
+
+func TestVenueMapPageListsVenuesWithoutJavaScript(t *testing.T) {
+	s := newAuthSite(t)
+	s.publicEvent(t, publicEvent{slug: "rock-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "Standard", Price: 50000, Quantity: 10}}})
+	s.publicEvent(t, publicEvent{slug: "free-show", status: events.StatusPublished, tiers: []tiers.Input{{Name: "Entry", Price: 0, Quantity: 10}}})
+
+	for _, tc := range []struct{ path, want, link, price, free string }{
+		{"/map", "Знайдено 2 майданчики", `href="/events/rock-show"`, "від\u00a0500\u00a0₴", "Безкоштовно"},
+		{"/en/map", "2 venues found", `href="/en/events/rock-show"`, "from\u00a0₴500", "Free"},
+	} {
+		rec := s.request(t, http.MethodGet, tc.path, nil)
+		body := rec.Body.String()
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", tc.path, rec.Code)
+		}
+		for _, want := range []string{tc.want, tc.link, tc.price, tc.free, `<form class="tixo-map-filters" id="map-filters" method="get"`, `<a class="nav-link" aria-current="page" href="` + strings.TrimSuffix(tc.path, "/map") + `/map">`} {
+			if !strings.Contains(body, want) {
+				t.Errorf("GET %s: missing %q", tc.path, want)
+			}
+		}
+		if strings.Contains(body, "від Безкоштовно") || strings.Contains(body, "from Free") {
+			t.Errorf("GET %s: free event reads as a price from free", tc.path)
+		}
+	}
+}
+
+func TestVenueMapPageKeepsFiltersAndShowsEmptyState(t *testing.T) {
+	s := newAuthSite(t)
+	s.publicEvent(t, publicEvent{slug: "rock-show", status: events.StatusPublished})
+
+	body := s.request(t, http.MethodGet, "/map?genre=jazz&max_price=300&from=2030-01-01", nil).Body.String()
+	for _, want := range []string{`<option value="jazz" selected>`, `name="max_price" value="300"`, `name="from" value="2030-01-01"`, "Нічого не знайдено", `href="/map">Скинути фільтри`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("filtered page: missing %q", want)
+		}
+	}
+	if strings.Contains(body, "rock-show") {
+		t.Error("filtered page lists an event that does not match the genre")
+	}
+	if unfiltered := s.request(t, http.MethodGet, "/map", nil).Body.String(); strings.Contains(unfiltered, "Скинути фільтри") {
+		t.Error("reset link shown without any filter")
+	}
+}
+
+func TestVenueMapPageShowsFieldErrors(t *testing.T) {
+	s := newAuthSite(t)
+	s.publicEvent(t, publicEvent{slug: "rock-show", status: events.StatusPublished})
+
+	rec := s.request(t, http.MethodGet, "/en/map?from=2030-05-10&to=2030-05-09&max_price=-5", nil)
+	body := rec.Body.String()
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", rec.Code)
+	}
+	for _, want := range []string{
+		`role="alert"`, `<a href="#map-to">The to date can&#39;t be earlier than the from date.</a>`, `<a href="#map-max-price">`,
+		`id="map-to" name="to" value="2030-05-09" aria-invalid="true" aria-describedby="map-to-error"`,
+		`name="max_price" value="-5" aria-describedby="map-max-price-help map-max-price-error" aria-invalid="true"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	if strings.Contains(body, "rock-show") || strings.Contains(body, "Nothing found") {
+		t.Error("invalid filters must show the errors only, not results or the empty state")
+	}
+}
+
+func TestVenueMapEmptyStateHasASingleResetLink(t *testing.T) {
+	s := newAuthSite(t)
+	body := s.request(t, http.MethodGet, "/map?genre=jazz", nil).Body.String()
+	if n := strings.Count(body, "Скинути фільтри"); n != 1 {
+		t.Errorf("reset links on an empty filtered result = %d, want 1 in the empty state", n)
+	}
+}
