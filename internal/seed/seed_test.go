@@ -115,6 +115,30 @@ func TestSeedHasPastAndUpcomingPublishedEvents(t *testing.T) {
 	}
 }
 
+func TestSeedSpreadsUpcomingEventsAcrossTheMapWithDifferentGenresAndPrices(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	if _, err := Run(ctx, pool, seedNow); err != nil {
+		t.Fatal(err)
+	}
+	var venues, cities, genres, free, pricey int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(DISTINCT v.id), count(DISTINCT v.city), count(DISTINCT e.genre),
+		       count(DISTINCT e.id) FILTER (WHERE p.price = 0),
+		       count(DISTINCT e.id) FILTER (WHERE p.price > 100000)
+		FROM events e
+		JOIN venues v ON v.id = e.venue_id
+		JOIN LATERAL (SELECT min(price) AS price FROM ticket_tiers WHERE event_id = e.id) p ON true
+		WHERE e.status = 'published' AND e.ends_at >= $1`, seedNow).Scan(&venues, &cities, &genres, &free, &pricey); err != nil {
+		t.Fatal(err)
+	}
+	if venues < 18 || cities < 8 || genres < 8 || free < 2 || pricey < 5 {
+		t.Errorf("upcoming published events cover %d venues in %d cities, %d genres, %d free, %d priced over 1000 UAH; "+
+			"want ≥ 18 venues, ≥ 8 cities, ≥ 8 genres, ≥ 2 free and ≥ 5 pricey so map filters visibly narrow the result",
+			venues, cities, genres, free, pricey)
+	}
+}
+
 func TestParseOwnerAcceptsOnlyDemoOrganizers(t *testing.T) {
 	good, err := ParseOwner(" Kyiv-Live = Me@Gmail.com ")
 	if err != nil || good != (Owner{Slug: "kyiv-live", Email: "me@gmail.com"}) {

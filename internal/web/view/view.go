@@ -134,6 +134,10 @@ func (v *Renderer) fail(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
+func (v *Renderer) PageFor(r *http.Request) *Page {
+	return v.page(r, "", nil)
+}
+
 func (v *Renderer) page(r *http.Request, name string, data any) *Page {
 	lang := i18n.FromContext(r.Context())
 	viewer, _ := r.Context().Value(viewerKey{}).(*Viewer)
@@ -228,9 +232,16 @@ func (p *Page) Current(section string) bool {
 	return p.Path == section || strings.HasPrefix(p.Path, section+"/")
 }
 
-func (p *Page) SwitchURL() string { return i18n.Path(p.OtherLang(), p.Path) }
+func (p *Page) SwitchURL() string { return p.withQuery(i18n.Path(p.OtherLang(), p.Path)) }
 
-func (p *Page) EnglishURL() string { return i18n.Path(i18n.EN, p.Path) }
+func (p *Page) EnglishURL() string { return p.withQuery(i18n.Path(i18n.EN, p.Path)) }
+
+func (p *Page) withQuery(path string) string {
+	if p.query == "" || strings.HasPrefix(p.Path, "/auth/") {
+		return path
+	}
+	return path + "?" + p.query
+}
 
 func (p *Page) OtherLang() i18n.Lang {
 	if p.Lang == i18n.EN {

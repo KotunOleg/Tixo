@@ -163,6 +163,42 @@ func TestGA4ScriptLoadsOnlyWithMeasurementID(t *testing.T) {
 	}
 }
 
+func TestLanguageLinksKeepFiltersButNotAuthCallbackCodes(t *testing.T) {
+	for _, tc := range []struct {
+		lang        i18n.Lang
+		path, query string
+		wantSwitch  string
+		wantEnglish string
+	}{
+		{i18n.UK, "/map", "genre=rock&max_price=500", "/en/map?genre=rock&max_price=500", "/en/map?genre=rock&max_price=500"},
+		{i18n.EN, "/map", "genre=jazz", "/map?genre=jazz", "/en/map?genre=jazz"},
+		{i18n.UK, "/events/x", "", "/en/events/x", "/en/events/x"},
+		{i18n.UK, "/auth/google/callback", "code=secret&state=s", "/en/auth/google/callback", "/en/auth/google/callback"},
+	} {
+		p := &Page{Lang: tc.lang, Path: tc.path, query: tc.query}
+		if got := p.SwitchURL(); got != tc.wantSwitch {
+			t.Errorf("SwitchURL() on %s %s?%s = %q, want %q", tc.lang, tc.path, tc.query, got, tc.wantSwitch)
+		}
+		if got := p.EnglishURL(); got != tc.wantEnglish {
+			t.Errorf("EnglishURL() on %s %s?%s = %q, want %q", tc.lang, tc.path, tc.query, got, tc.wantEnglish)
+		}
+	}
+}
+
+func TestLanguageLinkQueryCannotBreakOutOfTheAttribute(t *testing.T) {
+	v, err := newRenderer(t, `{{define "content"}}<a href="{{.SwitchURL}}">x</a>{{end}}`, &bytes.Buffer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/map", nil)
+	req.URL.RawQuery = `genre="><script>alert(1)</script>`
+	rec := httptest.NewRecorder()
+	v.Render(rec, req, http.StatusOK, "pages/page", nil)
+	if body := rec.Body.String(); strings.Contains(body, "<script>") || !strings.Contains(body, `href="/en/map?genre=%22%3e%3cscript%3e`) {
+		t.Errorf("language link must carry the query, percent-encoded inside the attribute:\n%s", body)
+	}
+}
+
 func TestURLStaysInsideSite(t *testing.T) {
 	p := &Page{Lang: i18n.EN}
 	cases := map[string]string{

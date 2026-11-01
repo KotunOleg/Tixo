@@ -512,3 +512,47 @@ buy = "Buy from {{.Price}}"
 email = "Email the organizer: {{.Value}}"
 phone = "Call the organizer: {{.Value}}"
 telegram = "Organizer on Telegram: {{.Value}}"
+
+[map]
+title = "Event map"
+meta_description = "Concerts and events on a map of Ukraine: pick a venue by date, genre and ticket price."
+heading = "Events on the map"
+lead = "Venues with upcoming events. Narrow them down by date, genre and price."
+errors_title = "Check the filters"
+map_label = "Venue map"
+skip_to_results = "Skip the map and go to the list"
+network_error = "Couldn't update the map. Showing the previous results."
+
+[map.filters]
+title = "Filters"
+from = "From date"
+to = "To date"
+genre = "Genre"
+genre_any = "All genres"
+max_price = "Price up to, ₴"
+max_price_help = "Price of the cheapest ticket. 0 shows free events only."
+submit = "Show"
+reset = "Reset filters"
+
+[map.results]
+price_from = "from {{.Price}}"
+
+[map.results.count]
+one = "{{.Count}} venue found"
+other = "{{.Count}} venues found"
+
+[map.results.more]
+one = "And {{.Count}} more event"
+other = "And {{.Count}} more events"
+
+[map.empty]
+title = "Nothing found"
+text = "Try a wider date range, another genre or a higher price."
+
+[map.error]
+from_format = "Enter the from date as YYYY-MM-DD."
+to_format = "Enter the to date as YYYY-MM-DD."
+to_range = "The to date can't be earlier than the from date."
+genre_invalid = "Pick a genre from the list."
+max_price_format = "Enter the price as a whole number of hryvnias."
+max_price_range = "The price must be between 0 and 1,000,000,000 ₴."
