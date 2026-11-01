@@ -8,27 +8,44 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/KotunOleg/Tixo/internal/config"
 	"github.com/KotunOleg/Tixo/internal/crm"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
+	"github.com/KotunOleg/Tixo/internal/notify"
 	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
 	"github.com/KotunOleg/Tixo/internal/platform/postgres"
 	"github.com/KotunOleg/Tixo/internal/platform/rabbitmq"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
+	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/worker"
+	"github.com/KotunOleg/Tixo/web"
 )
 
 func init() {
-	commands["worker"] = command{summary: "consume an outbox queue (tickets.issue by default, or --queue=crm.contact)", run: runWorker}
+	commands["worker"] = command{summary: "consume an outbox queue (tickets.issue by default, or --queue=crm.contact|notify.telegram)", run: runWorker}
+}
+
+var workerQueues = []string{orders.TopicTicketsIssue, crm.TopicCRMContact, notify.TopicTelegram}
+
+func declareWorkerQueues(ch *amqp.Channel) error {
+	for _, queue := range workerQueues {
+		if err := rabbitmq.DeclareTopology(ch, queue); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func parseWorkerArgs(args []string) (string, error) {
 	fs := flag.NewFlagSet("worker", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	var queue string
-	fs.StringVar(&queue, "queue", "", "queue to consume: tickets.issue (default) or crm.contact")
+	fs.StringVar(&queue, "queue", "", "queue to consume: tickets.issue (default), crm.contact or notify.telegram")
 	if err := fs.Parse(args); err != nil {
 		return "", fmt.Errorf("worker: %w", err)
 	}
@@ -38,7 +55,7 @@ func parseWorkerArgs(args []string) (string, error) {
 	if queue == "" {
 		queue = orders.TopicTicketsIssue
 	}
-	if queue != orders.TopicTicketsIssue && queue != crm.TopicCRMContact {
+	if !slices.Contains(workerQueues, queue) {
 		return "", fmt.Errorf("worker: unknown --queue %q", queue)
 	}
 	return queue, nil
@@ -92,6 +109,14 @@ func runWorker(ctx context.Context, args []string, _ io.Writer) error {
 		client := crmClient(cfg, log)
 		cw := &worker.CRMWorker{Queue: queue, Channel: ch, Queries: dbgen.New(pool), Client: client, Log: log}
 		run = cw.Run
+	case notify.TopicTelegram:
+		tr, err := i18n.New(web.FS)
+		if err != nil {
+			return err
+		}
+		sender := notify.NewSender(pool, telegramClient(cfg, log), tr, cfg.BaseURL.String(), log)
+		tgw := &worker.TelegramWorker{Queue: queue, Channel: ch, Sender: sender, Log: log}
+		run = tgw.Run
 	}
 
 	log.Info("worker starting", "queue", queue)

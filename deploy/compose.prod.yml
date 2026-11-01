@@ -17,6 +17,10 @@ x-app: &app
     HUBSPOT_ACCESS_TOKEN: ${HUBSPOT_ACCESS_TOKEN:-}
     CRM_DRY_RUN: ${CRM_DRY_RUN:-true}
     ICS_FUNCTION_URL: ${ICS_FUNCTION_URL:-}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+    TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+    TELEGRAM_DRY_RUN: ${TELEGRAM_DRY_RUN:-true}
   logging: &logging
     driver: json-file
     options:
@@ -118,6 +122,19 @@ services:
   worker-crm:
     <<: *app
     command: ["worker", "--queue=crm.contact"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    logging: *logging
+    restart: unless-stopped
+
+  worker-telegram:
+    <<: *app
+    command: ["worker", "--queue=notify.telegram"]
     depends_on:
       postgres:
         condition: service_healthy

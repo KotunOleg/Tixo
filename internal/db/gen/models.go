@@ -76,6 +76,15 @@ type Membership struct {
 	CreatedAt   time.Time
 }
 
+type NotificationLog struct {
+	UserID        int64
+	EventID       int64
+	Kind          string
+	QueuedAt      time.Time
+	SentAt        pgtype.Timestamptz
+	SkippedReason pgtype.Text
+}
+
 type Order struct {
 	ID             int64
 	UserID         int64
@@ -104,6 +113,15 @@ type Outbox struct {
 	Payload     json.RawMessage
 	CreatedAt   time.Time
 	PublishedAt pgtype.Timestamptz
+}
+
+type TelegramLink struct {
+	UserID         int64
+	ChatID         pgtype.Int8
+	Language       string
+	TokenHash      []byte
+	TokenExpiresAt pgtype.Timestamptz
+	LinkedAt       pgtype.Timestamptz
 }
 
 type Ticket struct {

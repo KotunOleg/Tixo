@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/KotunOleg/Tixo/internal/notify"
 )
 
 var profileTokenIDPattern = regexp.MustCompile(`/profile/tokens/(\d+)/revoke`)
@@ -94,5 +96,82 @@ func TestRevokeTokenRejectsForeignOwner(t *testing.T) {
 	rec := s.postForm(t, "/profile/tokens/"+strconv.FormatInt(tokenID, 10)+"/revoke", nil, stranger)
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("foreign revoke = %d, want 404", rec.Code)
+	}
+}
+
+var telegramStartPattern = regexp.MustCompile(`^https://t\.me/tixo_test_bot\?start=([A-Za-z0-9_-]+)$`)
+
+func (s *authSite) connectTelegram(t *testing.T, cookie *http.Cookie, chatID int64) {
+	t.Helper()
+	rec := s.postForm(t, "/profile/telegram/link", nil, cookie)
+	m := telegramStartPattern.FindStringSubmatch(rec.Header().Get("Location"))
+	if rec.Code != http.StatusSeeOther || m == nil {
+		t.Fatalf("link = %d → %q, want 303 to the bot with a start token", rec.Code, rec.Header().Get("Location"))
+	}
+	if err := s.deps.Telegram.HandleUpdate(t.Context(), notify.Update{Message: &notify.Message{
+		Chat: notify.Chat{ID: chatID, Type: "private"}, From: &notify.User{LanguageCode: "uk"}, Text: "/start " + m[1],
+	}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProfileTelegramSectionFollowsTheLinkLifecycle(t *testing.T) {
+	s := newAuthSite(t)
+	cookie := s.signInAs(t, "sub-tg", "tg@example.com", "Telegram User")
+	page := func(path string) string {
+		t.Helper()
+		rec := s.request(t, http.MethodGet, path, cookie)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET %s = %d", path, rec.Code)
+		}
+		return rec.Body.String()
+	}
+
+	if body := page("/profile"); !strings.Contains(body, "Підключити Telegram") || !strings.Contains(body, `action="/profile/telegram/link"`) {
+		t.Fatalf("not connected: want the connect button\n%s", body)
+	}
+
+	rec := s.postForm(t, "/en/profile/telegram/link", nil, cookie)
+	if rec.Code != http.StatusSeeOther || !telegramStartPattern.MatchString(rec.Header().Get("Location")) {
+		t.Fatalf("link = %d → %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if body := page("/en/profile"); !strings.Contains(body, "Open Telegram again") || !strings.Contains(body, "The link works until") {
+		t.Fatalf("pending: want the reopen button and expiry\n%s", body)
+	}
+
+	s.connectTelegram(t, cookie, 4242)
+	body := page("/profile")
+	if !strings.Contains(body, "Підключено") || !strings.Contains(body, `action="/profile/telegram/unlink"`) || strings.Contains(body, "Підключити Telegram") {
+		t.Fatalf("connected: want status and the turn-off button only\n%s", body)
+	}
+
+	rec = s.postForm(t, "/profile/telegram/unlink", nil, cookie)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/profile" {
+		t.Fatalf("unlink = %d → %q, want 303 to /profile", rec.Code, rec.Header().Get("Location"))
+	}
+	if body := page("/profile"); !strings.Contains(body, "Нагадування в Telegram вимкнено.") || !strings.Contains(body, "Підключити Telegram") {
+		t.Fatalf("after unlink: want the flash and the connect button again\n%s", body)
+	}
+}
+
+func TestProfileTelegramIsOnlyForSignedInUsers(t *testing.T) {
+	s := newAuthSite(t)
+	for _, path := range []string{"/profile/telegram/link", "/profile/telegram/unlink"} {
+		rec := s.request(t, http.MethodPost, path, nil)
+		if rec.Code != http.StatusFound || !strings.HasPrefix(rec.Header().Get("Location"), "/auth/google/login") {
+			t.Errorf("anonymous POST %s = %d → %q, want redirect to sign-in", path, rec.Code, rec.Header().Get("Location"))
+		}
+	}
+}
+
+func TestProfileHidesTelegramWhenTheBotIsNotConfigured(t *testing.T) {
+	s := newAuthSiteTweaked(t, nil, nil, func(d *Deps) { d.Telegram = nil })
+	cookie := s.signInAs(t, "sub-no-tg", "notg@example.com", "No Telegram")
+
+	if body := s.request(t, http.MethodGet, "/profile", cookie).Body.String(); strings.Contains(body, "profile-telegram-title") {
+		t.Errorf("profile shows the telegram section without a bot")
+	}
+	if rec := s.postForm(t, "/profile/telegram/link", nil, cookie); rec.Code != http.StatusNotFound {
+		t.Errorf("link without a bot = %d, want 404", rec.Code)
 	}
 }

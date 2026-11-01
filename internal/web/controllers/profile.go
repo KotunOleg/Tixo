@@ -12,6 +12,7 @@ import (
 
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/auth"
+	"github.com/KotunOleg/Tixo/internal/notify"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
@@ -23,7 +24,15 @@ type apiTokenRow struct {
 	LastUsedAt string
 }
 
+type telegramSection struct {
+	Linked       bool
+	Pending      bool
+	LinkedAt     string
+	PendingUntil string
+}
+
 type profileData struct {
+	Telegram   *telegramSection
 	Tokens     []apiTokenRow
 	Name       string
 	Errors     map[string]string
@@ -36,6 +45,7 @@ type Profile struct {
 	View     *view.Renderer
 	Sessions *scs.SessionManager
 	Svc      *apitokens.Service
+	Telegram *notify.Bot
 	Log      *slog.Logger
 }
 
@@ -88,6 +98,54 @@ func (p Profile) RevokeToken(w http.ResponseWriter, r *http.Request) {
 	redirectLocal(w, i18n.Path(i18n.FromContext(r.Context()), "/profile"), http.StatusSeeOther)
 }
 
+func (p Profile) LinkTelegram(w http.ResponseWriter, r *http.Request) {
+	if p.Telegram == nil {
+		p.View.NotFound(w, r)
+		return
+	}
+	u, _ := auth.CurrentUser(r.Context())
+	link, _, err := p.Telegram.IssueLink(r.Context(), u.ID)
+	if err != nil {
+		p.serverError(w, r, err)
+		return
+	}
+	p.Log.InfoContext(r.Context(), "telegram link issued", "user_id", u.ID, "request_id", middleware.GetReqID(r.Context()))
+	redirect(w, link, http.StatusSeeOther)
+}
+
+func (p Profile) UnlinkTelegram(w http.ResponseWriter, r *http.Request) {
+	if p.Telegram == nil {
+		p.View.NotFound(w, r)
+		return
+	}
+	u, _ := auth.CurrentUser(r.Context())
+	if err := p.Telegram.Unlink(r.Context(), u.ID); err != nil {
+		p.serverError(w, r, err)
+		return
+	}
+	p.Log.InfoContext(r.Context(), "telegram unlinked", "user_id", u.ID, "request_id", middleware.GetReqID(r.Context()))
+	auth.SetFlash(r.Context(), p.Sessions, "profile.telegram.unlinked")
+	redirectLocal(w, i18n.Path(i18n.FromContext(r.Context()), "/profile"), http.StatusSeeOther)
+}
+
+func (p Profile) telegramSection(r *http.Request, userID int64) (*telegramSection, error) {
+	if p.Telegram == nil {
+		return nil, nil
+	}
+	st, err := p.Telegram.Status(r.Context(), userID)
+	if err != nil {
+		return nil, err
+	}
+	sec := &telegramSection{Linked: st.Linked(), Pending: st.Pending()}
+	if sec.Linked {
+		sec.LinkedAt = st.LinkedAt.In(kyiv).Format(dateLayout)
+	}
+	if sec.Pending {
+		sec.PendingUntil = st.PendingUntil.In(kyiv).Format(timeLayout)
+	}
+	return sec, nil
+}
+
 func (p Profile) render(w http.ResponseWriter, r *http.Request, status int, data profileData) {
 	u, _ := auth.CurrentUser(r.Context())
 	list, err := p.Svc.List(r.Context(), u.ID)
@@ -104,6 +162,11 @@ func (p Profile) render(w http.ResponseWriter, r *http.Request, status int, data
 		rows[i] = apiTokenRow{ID: t.ID, Name: t.Name, CreatedAt: t.CreatedAt.In(kyiv).Format(dateLayout), LastUsedAt: lastUsed}
 	}
 	data.Tokens = rows
+	data.Telegram, err = p.telegramSection(r, u.ID)
+	if err != nil {
+		p.serverError(w, r, err)
+		return
+	}
 	p.View.Render(w, r, status, "pages/profile", data)
 }
 
