@@ -21,6 +21,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/features"
 	"github.com/KotunOleg/Tixo/internal/lineup"
+	"github.com/KotunOleg/Tixo/internal/notify"
 	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
@@ -50,6 +51,9 @@ type Deps struct {
 	Logger     *slog.Logger
 
 	ICSFunctionURL string
+
+	Telegram              *notify.Bot
+	TelegramWebhookSecret string
 }
 
 func Mount(r chi.Router, d Deps) {
@@ -58,6 +62,9 @@ func Mount(r chi.Router, d Deps) {
 	seo := SEO{View: d.View, Events: d.Events, Log: d.Logger}
 	r.Get("/robots.txt", seo.Robots)
 	r.Get("/sitemap.xml", seo.Sitemap)
+	if d.Telegram != nil {
+		r.Method(http.MethodPost, TelegramWebhookPath, TelegramWebhook{Bot: d.Telegram, Secret: d.TelegramWebhookSecret, Log: d.Logger})
+	}
 	r.Group(func(r chi.Router) {
 		r.Use(d.Sessions.LoadAndSave, d.loadUser())
 		r.Get("/", Home{View: d.View, Events: d.Events, Log: d.Logger}.ServeHTTP)
