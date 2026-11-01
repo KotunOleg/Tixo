@@ -148,8 +148,8 @@ func TestStartWithTokenLinksTheChatOnceInTheSendersLanguage(t *testing.T) {
 	token := f.issueToken(t, alice)
 
 	reply := f.send(t, 42, "en-US", "/start "+token)
-	if !strings.Contains(reply, "Telegram is connected") {
-		t.Errorf("reply = %q", reply)
+	if !strings.Contains(reply, "Telegram is connected") || !strings.Contains(reply, "https://tixo.example/en/profile") {
+		t.Errorf("reply = %q, want the confirmation with a link back to the profile", reply)
 	}
 	if chat, lang := f.chatOf(t, alice); chat != 42 || lang != "en" {
 		t.Errorf("chat = %d, lang = %q, want 42 en", chat, lang)
@@ -199,7 +199,7 @@ func TestChatLinkedAgainMovesToTheNewAccount(t *testing.T) {
 	f.send(t, 42, "uk", "/start "+f.issueToken(t, alice))
 
 	reply := f.send(t, 42, "uk", "/start "+f.issueToken(t, bob))
-	if !strings.Contains(reply, "підключено") {
+	if !strings.Contains(reply, "підключено") || !strings.Contains(reply, "https://tixo.example/profile") {
 		t.Errorf("reply = %q", reply)
 	}
 	if chat, _ := f.chatOf(t, alice); chat != 0 {
