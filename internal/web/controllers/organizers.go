@@ -22,6 +22,7 @@ import (
 const (
 	maxFormBytes = 64 << 10
 	dateLayout   = "02.01.2006 15:04"
+	timeLayout   = "15:04"
 )
 
 var kyiv = mustLocation("Europe/Kyiv")

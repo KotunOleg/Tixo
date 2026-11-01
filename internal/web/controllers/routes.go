@@ -83,10 +83,12 @@ func Mount(r chi.Router, d Deps) {
 		o := Organizers{View: d.View, Sessions: d.Sessions, Svc: d.Organizers, Log: d.Logger}
 		r.Group(func(r chi.Router) {
 			r.Use(requireUser)
-			p := Profile{View: d.View, Sessions: d.Sessions, Svc: d.APITokens, Log: d.Logger}
+			p := Profile{View: d.View, Sessions: d.Sessions, Svc: d.APITokens, Telegram: d.Telegram, Log: d.Logger}
 			r.Get("/profile", p.Show)
 			r.Post("/profile/tokens", p.CreateToken)
 			r.Post("/profile/tokens/{id}/revoke", p.RevokeToken)
+			r.Post("/profile/telegram/link", p.LinkTelegram)
+			r.Post("/profile/telegram/unlink", p.UnlinkTelegram)
 
 			ord := Orders{View: d.View, Svc: d.Orders, Storage: d.Storage, Log: d.Logger}
 			r.Get("/orders/{id}", ord.Show)

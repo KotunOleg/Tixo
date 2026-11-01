@@ -14,6 +14,25 @@
   </div>
   {{end}}
 
+  {{with .Data.Telegram}}
+  <section class="mb-5" aria-labelledby="profile-telegram-title">
+    <h2 class="h4" id="profile-telegram-title">{{$.T "profile.telegram.title"}}</h2>
+    {{if .Linked}}
+    <p class="mb-3"><span class="tixo-status tixo-status-published">{{$.T "profile.telegram.connected" "Date" .LinkedAt}}</span></p>
+    <p class="text-body-secondary">{{$.T "profile.telegram.connected_help"}}</p>
+    <form method="post" action="{{$.URL "/profile/telegram/unlink"}}">
+      <button class="btn btn-quiet" type="submit">{{$.T "profile.telegram.disconnect"}}</button>
+    </form>
+    {{else}}
+    <p class="text-body-secondary">{{$.T "profile.telegram.help"}}</p>
+    {{if .Pending}}<p role="status">{{$.T "profile.telegram.pending" "Time" .PendingUntil}}</p>{{end}}
+    <form method="post" action="{{$.URL "/profile/telegram/link"}}">
+      <button class="btn btn-tixo" type="submit">{{if .Pending}}{{$.T "profile.telegram.reopen"}}{{else}}{{$.T "profile.telegram.connect"}}{{end}}</button>
+    </form>
+    {{end}}
+  </section>
+  {{end}}
+
   <h2 class="h4">{{.T "profile.tokens.title"}}</h2>
   <p class="text-body-secondary">{{.T "profile.tokens.help"}}</p>
 
