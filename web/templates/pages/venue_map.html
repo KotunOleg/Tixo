@@ -52,9 +52,13 @@
       </form>
     </div>
     <div class="col-lg-9">
-      <div class="tixo-map tixo-map-wide mb-4 js-filter-map" hidden role="region" aria-label="{{.T "map.map_label"}}" data-endpoint="{{.URL "/map/venues.json"}}" data-attribution="{{.T "landing.map_attribution"}}"></div>
+      <div class="position-relative">
+        <a class="visually-hidden-focusable skip-link js-map-skip" href="#map-results" hidden>{{.T "map.skip_to_results"}}</a>
+        <div class="tixo-map tixo-map-wide mb-4 js-filter-map" hidden role="region" aria-label="{{.T "map.map_label"}}" data-endpoint="{{.URL "/map/venues.json"}}" data-attribution="{{.T "landing.map_attribution"}}"></div>
+      </div>
+      <div id="map-results" tabindex="-1">
       <p class="tixo-map-status small mb-3 js-map-status" role="status"></p>
-      <h2 class="h5 mb-3" id="map-results-title" aria-live="polite">{{if not .Data.Errors}}{{.Data.Map.Summary}}{{end}}</h2>
+      <h2 class="h5 mb-3 tixo-map-results-title" id="map-results-title" aria-live="polite">{{if not .Data.Errors}}{{.Data.Map.Summary}}{{end}}</h2>
       <div class="js-map-results">
       {{if .Data.Map.Venues}}
       <ol class="tixo-venue-results list-unstyled mb-0" aria-labelledby="map-results-title">
@@ -81,6 +85,7 @@
         {{if .Data.Filtered}}<a class="btn btn-quiet mt-3" href="{{.URL "/map"}}">{{.T "map.filters.reset"}}</a>{{end}}
       </div>
       {{end}}
+      </div>
       </div>
     </div>
   </div>

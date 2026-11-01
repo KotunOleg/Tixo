@@ -959,6 +959,7 @@ body:has(.tixo-buybar) {
   color: var(--tixo-danger);
 }
 
-.tixo-map-status:empty {
+.tixo-map-status:empty,
+.tixo-map-results-title:empty {
   display: none;
 }

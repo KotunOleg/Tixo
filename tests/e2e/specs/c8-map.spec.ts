@@ -61,6 +61,36 @@ test.describe("public venue map (C8)", () => {
     await expect(page.locator(".js-map-reset")).toBeHidden();
   });
 
+  test("an invalid filter clears stale results and the language link keeps valid filters", async ({ page }) => {
+    await page.goto("/map");
+    await expect(pins(page).first()).toBeVisible();
+
+    await applyFilter(page, () => page.locator("#map-genre").selectOption("rock"));
+    await expect(page.locator(".tixo-navbar a[hreflang='en']")).toHaveAttribute("href", "/en/map?genre=rock");
+    await expect(page.locator("footer a[hreflang='en']")).toHaveAttribute("href", "/en/map?genre=rock");
+
+    const invalid = page.waitForResponse((r) => r.url().includes("/map/venues.json"));
+    await page.locator("#map-max-price").fill("-5");
+    expect((await invalid).status()).toBe(400);
+    await expect(page.locator("#map-max-price")).toHaveAttribute("aria-invalid", "true");
+    await expect(pins(page)).toHaveCount(0);
+    await expect(venues(page)).toHaveCount(0);
+    await expect(page.locator("#map-results-title")).toBeEmpty();
+    await expect(page.locator(".js-map-reset")).toBeVisible();
+  });
+
+  test("the skip link jumps from the map to the results list", async ({ page }) => {
+    await page.goto("/map");
+    await expect(pins(page).first()).toBeVisible();
+    await page.locator("#map-filters button[type=submit]").focus();
+    await page.keyboard.press("Tab");
+    const skip = page.locator(".js-map-skip");
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(page.locator("#map-results")).toBeFocused();
+  });
+
   test("a marker opens its popup from the keyboard", async ({ page }) => {
     await page.goto("/map");
     const first = pins(page).first();
