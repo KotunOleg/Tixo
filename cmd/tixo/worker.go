@@ -8,6 +8,9 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/KotunOleg/Tixo/internal/config"
 	"github.com/KotunOleg/Tixo/internal/crm"
@@ -27,6 +30,17 @@ func init() {
 	commands["worker"] = command{summary: "consume an outbox queue (tickets.issue by default, or --queue=crm.contact|notify.telegram)", run: runWorker}
 }
 
+var workerQueues = []string{orders.TopicTicketsIssue, crm.TopicCRMContact, notify.TopicTelegram}
+
+func declareWorkerQueues(ch *amqp.Channel) error {
+	for _, queue := range workerQueues {
+		if err := rabbitmq.DeclareTopology(ch, queue); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func parseWorkerArgs(args []string) (string, error) {
 	fs := flag.NewFlagSet("worker", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -41,7 +55,7 @@ func parseWorkerArgs(args []string) (string, error) {
 	if queue == "" {
 		queue = orders.TopicTicketsIssue
 	}
-	if queue != orders.TopicTicketsIssue && queue != crm.TopicCRMContact && queue != notify.TopicTelegram {
+	if !slices.Contains(workerQueues, queue) {
 		return "", fmt.Errorf("worker: unknown --queue %q", queue)
 	}
 	return queue, nil
