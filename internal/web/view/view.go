@@ -232,9 +232,16 @@ func (p *Page) Current(section string) bool {
 	return p.Path == section || strings.HasPrefix(p.Path, section+"/")
 }
 
-func (p *Page) SwitchURL() string { return i18n.Path(p.OtherLang(), p.Path) }
+func (p *Page) SwitchURL() string { return p.withQuery(i18n.Path(p.OtherLang(), p.Path)) }
 
-func (p *Page) EnglishURL() string { return i18n.Path(i18n.EN, p.Path) }
+func (p *Page) EnglishURL() string { return p.withQuery(i18n.Path(i18n.EN, p.Path)) }
+
+func (p *Page) withQuery(path string) string {
+	if p.query == "" || strings.HasPrefix(p.Path, "/auth/") {
+		return path
+	}
+	return path + "?" + p.query
+}
 
 func (p *Page) OtherLang() i18n.Lang {
 	if p.Lang == i18n.EN {
