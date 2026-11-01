@@ -64,3 +64,22 @@ FROM events e
 JOIN venues v ON v.id = e.venue_id
 JOIN organizers o ON o.id = e.organizer_id
 WHERE e.slug = @slug AND e.status IN ('published', 'cancelled');
+
+-- name: ListMapEvents :many
+SELECT e.slug, e.title, e.starts_at, e.genre,
+       coalesce(p.price_from, 0)::bigint AS price_from, (p.price_from IS NOT NULL)::boolean AS has_price,
+       v.id AS venue_id, v.name AS venue_name, v.city AS venue_city, v.address AS venue_address, v.lat AS venue_lat, v.lng AS venue_lng
+FROM events e
+JOIN venues v ON v.id = e.venue_id
+LEFT JOIN LATERAL (
+    SELECT coalesce(min(t.price) FILTER (WHERE t.available > 0), min(t.price))::bigint AS price_from
+    FROM ticket_tiers t
+    WHERE t.event_id = e.id
+) p ON true
+WHERE e.status = 'published'
+  AND e.ends_at >= @after
+  AND (sqlc.narg(before)::timestamptz IS NULL OR e.starts_at < sqlc.narg(before)::timestamptz)
+  AND (sqlc.narg(genre)::text IS NULL OR e.genre = sqlc.narg(genre)::text)
+  AND (sqlc.narg(max_price)::bigint IS NULL OR p.price_from <= sqlc.narg(max_price)::bigint)
+ORDER BY v.city, v.name, v.id, e.starts_at, e.id
+LIMIT @lim;

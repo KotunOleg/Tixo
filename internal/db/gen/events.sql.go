@@ -256,6 +256,88 @@ func (q *Queries) ListEventsForOrganizer(ctx context.Context, arg ListEventsForO
 	return items, nil
 }
 
+const listMapEvents = `-- name: ListMapEvents :many
+SELECT e.slug, e.title, e.starts_at, e.genre,
+       coalesce(p.price_from, 0)::bigint AS price_from, (p.price_from IS NOT NULL)::boolean AS has_price,
+       v.id AS venue_id, v.name AS venue_name, v.city AS venue_city, v.address AS venue_address, v.lat AS venue_lat, v.lng AS venue_lng
+FROM events e
+JOIN venues v ON v.id = e.venue_id
+LEFT JOIN LATERAL (
+    SELECT coalesce(min(t.price) FILTER (WHERE t.available > 0), min(t.price))::bigint AS price_from
+    FROM ticket_tiers t
+    WHERE t.event_id = e.id
+) p ON true
+WHERE e.status = 'published'
+  AND e.ends_at >= $1
+  AND ($2::timestamptz IS NULL OR e.starts_at < $2::timestamptz)
+  AND ($3::text IS NULL OR e.genre = $3::text)
+  AND ($4::bigint IS NULL OR p.price_from <= $4::bigint)
+ORDER BY v.city, v.name, v.id, e.starts_at, e.id
+LIMIT $5
+`
+
+type ListMapEventsParams struct {
+	After    time.Time
+	Before   pgtype.Timestamptz
+	Genre    pgtype.Text
+	MaxPrice pgtype.Int8
+	Lim      int32
+}
+
+type ListMapEventsRow struct {
+	Slug         string
+	Title        string
+	StartsAt     time.Time
+	Genre        string
+	PriceFrom    int64
+	HasPrice     bool
+	VenueID      int64
+	VenueName    string
+	VenueCity    string
+	VenueAddress string
+	VenueLat     float64
+	VenueLng     float64
+}
+
+func (q *Queries) ListMapEvents(ctx context.Context, arg ListMapEventsParams) ([]ListMapEventsRow, error) {
+	rows, err := q.db.Query(ctx, listMapEvents,
+		arg.After,
+		arg.Before,
+		arg.Genre,
+		arg.MaxPrice,
+		arg.Lim,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListMapEventsRow
+	for rows.Next() {
+		var i ListMapEventsRow
+		if err := rows.Scan(
+			&i.Slug,
+			&i.Title,
+			&i.StartsAt,
+			&i.Genre,
+			&i.PriceFrom,
+			&i.HasPrice,
+			&i.VenueID,
+			&i.VenueName,
+			&i.VenueCity,
+			&i.VenueAddress,
+			&i.VenueLat,
+			&i.VenueLng,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUpcomingPublishedEvents = `-- name: ListUpcomingPublishedEvents :many
 SELECT e.id, e.organizer_id, e.venue_id, e.slug, e.title, e.description, e.starts_at, e.ends_at, e.genre, e.price_from, e.poster_key, e.status, e.created_at, e.updated_at, v.name AS venue_name, v.city AS venue_city
 FROM events e
