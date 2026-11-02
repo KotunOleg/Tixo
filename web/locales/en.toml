@@ -556,3 +556,9 @@ to_range = "The to date can't be earlier than the from date."
 genre_invalid = "Pick a genre from the list."
 max_price_format = "Enter the price as a whole number of hryvnias."
 max_price_range = "The price must be between 0 and 1,000,000,000 ₴."
+
+[telegram.bot]
+linked = "Done, Telegram is connected. We'll remind you a day before your event. To turn reminders off, send /stop"
+expired = "This link has expired or was already used. Create a new one in your Tixo profile: {{.URL}}"
+help = "I send reminders about events you have tickets for. To connect me, open your Tixo profile and press “Connect Telegram”: {{.URL}}"
+stopped = "Reminders are off. You can turn them back on in your Tixo profile: {{.URL}}"
