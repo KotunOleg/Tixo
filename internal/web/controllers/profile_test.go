@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -156,10 +157,15 @@ func TestProfileTelegramSectionFollowsTheLinkLifecycle(t *testing.T) {
 
 func TestProfileTelegramIsOnlyForSignedInUsers(t *testing.T) {
 	s := newAuthSite(t)
-	for _, path := range []string{"/profile/telegram/link", "/profile/telegram/unlink"} {
-		rec := s.request(t, http.MethodPost, path, nil)
+	cases := []struct{ method, path string }{
+		{http.MethodPost, "/profile/telegram/link"},
+		{http.MethodPost, "/profile/telegram/unlink"},
+		{http.MethodGet, "/profile/telegram/status"},
+	}
+	for _, tc := range cases {
+		rec := s.request(t, tc.method, tc.path, nil)
 		if rec.Code != http.StatusFound || !strings.HasPrefix(rec.Header().Get("Location"), "/auth/google/login") {
-			t.Errorf("anonymous POST %s = %d → %q, want redirect to sign-in", path, rec.Code, rec.Header().Get("Location"))
+			t.Errorf("anonymous %s %s = %d → %q, want redirect to sign-in", tc.method, tc.path, rec.Code, rec.Header().Get("Location"))
 		}
 	}
 }
@@ -173,5 +179,49 @@ func TestProfileHidesTelegramWhenTheBotIsNotConfigured(t *testing.T) {
 	}
 	if rec := s.postForm(t, "/profile/telegram/link", nil, cookie); rec.Code != http.StatusNotFound {
 		t.Errorf("link without a bot = %d, want 404", rec.Code)
+	}
+	if rec := s.request(t, http.MethodGet, "/profile/telegram/status", cookie); rec.Code != http.StatusNotFound {
+		t.Errorf("status without a bot = %d, want 404", rec.Code)
+	}
+}
+
+func (s *authSite) telegramState(t *testing.T, cookie *http.Cookie) string {
+	t.Helper()
+	rec := s.request(t, http.MethodGet, "/profile/telegram/status", cookie)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("Cache-Control = %q, want no-store so a proxy never serves a stale or foreign state", cc)
+	}
+	var body struct {
+		State string `json:"state"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("status body %q: %v", rec.Body.String(), err)
+	}
+	return body.State
+}
+
+func TestTelegramStatusReportsOnlyTheSignedInUsersLink(t *testing.T) {
+	s := newAuthSite(t)
+	alice := s.signInAs(t, "sub-tg-alice", "alice-tg@example.com", "Alice")
+	bob := s.signInAs(t, "sub-tg-bob", "bob-tg@example.com", "Bob")
+
+	if got := s.telegramState(t, alice); got != "none" {
+		t.Errorf("fresh user state = %q, want none", got)
+	}
+	if rec := s.postForm(t, "/profile/telegram/link", nil, alice); rec.Code != http.StatusSeeOther {
+		t.Fatalf("link = %d", rec.Code)
+	}
+	if got := s.telegramState(t, alice); got != "pending" {
+		t.Errorf("after issuing a link state = %q, want pending", got)
+	}
+	s.connectTelegram(t, bob, 77)
+	if got := s.telegramState(t, alice); got != "pending" {
+		t.Errorf("alice state = %q after bob linked, want her own pending", got)
+	}
+	if got := s.telegramState(t, bob); got != "linked" {
+		t.Errorf("bob state = %q, want linked", got)
 	}
 }

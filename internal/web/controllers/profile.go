@@ -13,6 +13,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/auth"
 	"github.com/KotunOleg/Tixo/internal/notify"
+	"github.com/KotunOleg/Tixo/internal/platform/httpx"
 	"github.com/KotunOleg/Tixo/internal/web/i18n"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
@@ -25,6 +26,7 @@ type apiTokenRow struct {
 }
 
 type telegramSection struct {
+	State        string
 	Linked       bool
 	Pending      bool
 	LinkedAt     string
@@ -128,6 +130,37 @@ func (p Profile) UnlinkTelegram(w http.ResponseWriter, r *http.Request) {
 	redirectLocal(w, i18n.Path(i18n.FromContext(r.Context()), "/profile"), http.StatusSeeOther)
 }
 
+func (p Profile) TelegramStatus(w http.ResponseWriter, r *http.Request) {
+	if p.Telegram == nil {
+		p.View.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	u, _ := auth.CurrentUser(r.Context())
+	st, err := p.Telegram.Status(r.Context(), u.ID)
+	if err != nil {
+		p.Log.ErrorContext(r.Context(), "telegram status failed", "error", err, "request_id", middleware.GetReqID(r.Context()))
+		httpx.WriteError(w, http.StatusInternalServerError, "internal error", nil)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, telegramStatusJSON{State: telegramState(st)})
+}
+
+type telegramStatusJSON struct {
+	State string `json:"state"`
+}
+
+func telegramState(st notify.LinkStatus) string {
+	switch {
+	case st.Linked():
+		return "linked"
+	case st.Pending():
+		return "pending"
+	default:
+		return "none"
+	}
+}
+
 func (p Profile) telegramSection(r *http.Request, userID int64) (*telegramSection, error) {
 	if p.Telegram == nil {
 		return nil, nil
@@ -136,7 +169,7 @@ func (p Profile) telegramSection(r *http.Request, userID int64) (*telegramSectio
 	if err != nil {
 		return nil, err
 	}
-	sec := &telegramSection{Linked: st.Linked(), Pending: st.Pending()}
+	sec := &telegramSection{Linked: st.Linked(), Pending: st.Pending(), State: telegramState(st)}
 	if sec.Linked {
 		sec.LinkedAt = st.LinkedAt.In(kyiv).Format(dateLayout)
 	}
