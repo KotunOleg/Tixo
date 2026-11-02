@@ -116,7 +116,7 @@ func (a *Agent) Run(ctx context.Context, userID int64, lang, text string, emit E
 		req.Messages = append(append([]Message{}, history...), turn...)
 		reply, err := a.Model.Next(ctx, req, sink)
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return a.ctxFailure(ctx, emit)
 		}
 		if err != nil {
 			return a.fail(emit, ErrUpstream, err)
@@ -156,6 +156,14 @@ func (a *Agent) fail(emit Emit, code string, cause error) error {
 		return err
 	}
 	return cause
+}
+
+func (a *Agent) ctxFailure(ctx context.Context, emit Emit) error {
+	err := ctx.Err()
+	if errors.Is(err, context.DeadlineExceeded) {
+		return a.fail(emit, ErrUpstream, err)
+	}
+	return err
 }
 
 func (a *Agent) connect(ctx context.Context, userID int64) (*mcp.ClientSession, error) {
@@ -202,7 +210,7 @@ func (a *Agent) runTools(ctx context.Context, session *mcp.ClientSession, blocks
 		}
 		content, res, confirm := a.callTool(ctx, session, b)
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, a.ctxFailure(ctx, emit)
 		}
 		if err := emit(EventToolResult, res); err != nil {
 			return nil, err
