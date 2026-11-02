@@ -10,7 +10,6 @@ import (
 	"github.com/KotunOleg/Tixo/internal/config"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/notify"
-	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
 	"github.com/KotunOleg/Tixo/internal/platform/postgres"
 	"github.com/KotunOleg/Tixo/internal/platform/rabbitmq"
@@ -52,10 +51,8 @@ func runScheduler(ctx context.Context, _ []string, _ io.Writer) error {
 	}
 	defer func() { _ = ch.Close() }()
 
-	for _, queue := range []string{orders.TopicTicketsIssue, notify.TopicTelegram} {
-		if err := rabbitmq.DeclareTopology(ch, queue); err != nil {
-			return err
-		}
+	if err := declareWorkerQueues(ch); err != nil {
+		return err
 	}
 
 	relay := &worker.Relay{Pool: pool, Queries: dbgen.New(pool), Channel: ch, Log: log}
