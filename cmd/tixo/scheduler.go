@@ -79,10 +79,10 @@ func runScheduler(ctx context.Context, _ []string, _ io.Writer) error {
 }
 
 func enqueueReminders(ctx context.Context, r *notify.Reminders, log *slog.Logger) {
-	n, err := r.Enqueue(ctx, time.Now(), notify.ReminderWindow)
+	res, err := r.Enqueue(ctx, time.Now(), notify.ReminderWindow)
 	if err != nil {
 		log.Error("telegram reminders tick failed", "error", err)
 		return
 	}
-	log.Info("telegram reminders queued", "count", n)
+	log.Info("telegram reminders queued", "queued", res.Queued, "requeued", res.Requeued)
 }

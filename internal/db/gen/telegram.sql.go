@@ -184,12 +184,12 @@ func (q *Queries) MarkNotificationSkipped(ctx context.Context, arg MarkNotificat
 }
 
 const queueEventReminders = `-- name: QueueEventReminders :many
-INSERT INTO notification_log (user_id, event_id, kind)
-SELECT DISTINCT o.user_id, e.id, $1::text
+INSERT INTO notification_log (user_id, event_id, kind, queued_at)
+SELECT DISTINCT o.user_id, e.id, $1::text, $2::timestamptz
 FROM events e
 JOIN orders o ON o.event_id = e.id AND o.status IN ('paid', 'fulfilled')
 JOIN telegram_links l ON l.user_id = o.user_id AND l.chat_id IS NOT NULL
-WHERE e.status = 'published' AND e.starts_at > $2 AND e.starts_at <= $3
+WHERE e.status = 'published' AND e.starts_at > $2::timestamptz AND e.starts_at <= $3::timestamptz
 ON CONFLICT (user_id, event_id, kind) DO NOTHING
 RETURNING user_id, event_id, kind
 `
@@ -235,6 +235,59 @@ WHERE chat_id = $1::bigint
 func (q *Queries) ReleaseTelegramChat(ctx context.Context, chatID int64) error {
 	_, err := q.db.Exec(ctx, releaseTelegramChat, chatID)
 	return err
+}
+
+const requeueStaleReminders = `-- name: RequeueStaleReminders :many
+UPDATE notification_log n
+SET queued_at = $1::timestamptz
+FROM events e
+WHERE e.id = n.event_id
+  AND n.kind = $2::text
+  AND n.sent_at IS NULL
+  AND n.skipped_reason IS NULL
+  AND n.queued_at < $3::timestamptz
+  AND e.status = 'published'
+  AND e.starts_at > $1::timestamptz
+  AND e.starts_at <= $4::timestamptz
+RETURNING n.user_id, n.event_id, n.kind
+`
+
+type RequeueStaleRemindersParams struct {
+	Now         time.Time
+	Kind        string
+	StaleBefore time.Time
+	Until       time.Time
+}
+
+type RequeueStaleRemindersRow struct {
+	UserID  int64
+	EventID int64
+	Kind    string
+}
+
+func (q *Queries) RequeueStaleReminders(ctx context.Context, arg RequeueStaleRemindersParams) ([]RequeueStaleRemindersRow, error) {
+	rows, err := q.db.Query(ctx, requeueStaleReminders,
+		arg.Now,
+		arg.Kind,
+		arg.StaleBefore,
+		arg.Until,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RequeueStaleRemindersRow
+	for rows.Next() {
+		var i RequeueStaleRemindersRow
+		if err := rows.Scan(&i.UserID, &i.EventID, &i.Kind); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const unlinkTelegramChat = `-- name: UnlinkTelegramChat :execrows

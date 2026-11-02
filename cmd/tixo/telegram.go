@@ -77,11 +77,11 @@ func runTelegramRemind(ctx context.Context, args []string, stdout io.Writer) err
 	}
 	defer pool.Close()
 
-	n, err := notify.NewReminders(pool).Enqueue(ctx, time.Now(), within)
+	res, err := notify.NewReminders(pool).Enqueue(ctx, time.Now(), within)
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(stdout, "queued %d telegram reminders for events starting within %s\n", n, within)
+	_, err = fmt.Fprintf(stdout, "queued %d telegram reminders and requeued %d stuck ones for events starting within %s\n", res.Queued, res.Requeued, within)
 	return err
 }
 
