@@ -619,6 +619,14 @@ function setupTelegramLinkStatus() {
   let busy = false;
 
   const visible = () => document.visibilityState === "visible";
+  const editing = () =>
+    Array.from(document.querySelectorAll("input, textarea")).some(
+      (field) =>
+        !field.readOnly &&
+        !field.disabled &&
+        field.type !== "hidden" &&
+        (field === document.activeElement || field.value !== field.defaultValue),
+    );
   const cancel = () => {
     clearTimeout(timer);
     timer = 0;
@@ -656,7 +664,7 @@ function setupTelegramLinkStatus() {
     } finally {
       busy = false;
     }
-    if (status.state !== rendered || (status.expires || "") !== renderedExpires) {
+    if ((status.state !== rendered || (status.expires || "") !== renderedExpires) && !editing()) {
       stop();
       location.reload();
       return;
