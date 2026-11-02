@@ -38,6 +38,12 @@ func TestLoadDefaults(t *testing.T) {
 	if !cfg.CRMDryRun {
 		t.Error("CRMDryRun = false, want true by default")
 	}
+	if !cfg.TelegramDryRun {
+		t.Error("TelegramDryRun = false, want true by default so dev and CI never message real chats")
+	}
+	if cfg.TelegramEnabled() {
+		t.Error("TelegramEnabled() = true without TELEGRAM_BOT_USERNAME")
+	}
 }
 
 func TestLoadRejects(t *testing.T) {
@@ -64,6 +70,11 @@ func TestLoadRejects(t *testing.T) {
 		{name: "google client secret without id", set: map[string]string{"GOOGLE_CLIENT_SECRET": "secret"}, wantVar: "GOOGLE_CLIENT_ID"},
 		{name: "prod without google sign-in", set: map[string]string{"APP_ENV": "prod", "SESSION_SECRET": strings.Repeat("x", 32), "BASE_URL": "https://tixo.me"}, wantVar: "GOOGLE_CLIENT_ID"},
 		{name: "crm live without hubspot token", set: map[string]string{"CRM_DRY_RUN": "false"}, wantVar: "HUBSPOT_ACCESS_TOKEN"},
+		{name: "telegram live without bot token", set: liveTelegram("TELEGRAM_BOT_TOKEN"), wantVar: "TELEGRAM_BOT_TOKEN"},
+		{name: "telegram live without webhook secret", set: liveTelegram("TELEGRAM_WEBHOOK_SECRET"), wantVar: "TELEGRAM_WEBHOOK_SECRET"},
+		{name: "telegram live without bot username", set: liveTelegram("TELEGRAM_BOT_USERNAME"), wantVar: "TELEGRAM_BOT_USERNAME"},
+		{name: "telegram webhook secret with characters telegram rejects", set: map[string]string{"TELEGRAM_WEBHOOK_SECRET": "a b/c"}, wantVar: "TELEGRAM_WEBHOOK_SECRET"},
+		{name: "telegram bot username with a path", set: map[string]string{"TELEGRAM_BOT_USERNAME": "tixo_bot/start"}, wantVar: "TELEGRAM_BOT_USERNAME"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -82,6 +93,32 @@ func TestLoadRejects(t *testing.T) {
 				t.Errorf("error %q does not name %s", err, tc.wantVar)
 			}
 		})
+	}
+}
+
+func liveTelegram(without string) map[string]string {
+	vars := map[string]string{
+		"TELEGRAM_DRY_RUN":        "false",
+		"TELEGRAM_BOT_TOKEN":      "123:abc",
+		"TELEGRAM_WEBHOOK_SECRET": "s3cret_value",
+		"TELEGRAM_BOT_USERNAME":   "tixo_bot",
+	}
+	delete(vars, without)
+	return vars
+}
+
+func TestTelegramLiveConfigLoadsAndUsernameLosesAt(t *testing.T) {
+	env := validEnv()
+	for k, v := range liveTelegram("") {
+		env[k] = v
+	}
+	env["TELEGRAM_BOT_USERNAME"] = "@tixo_bot"
+	cfg, err := LoadFrom(env)
+	if err != nil {
+		t.Fatalf("complete live telegram config rejected: %v", err)
+	}
+	if cfg.TelegramDryRun || cfg.TelegramBotUsername != "tixo_bot" || !cfg.TelegramEnabled() {
+		t.Errorf("dry run = %v, username = %q, enabled = %v", cfg.TelegramDryRun, cfg.TelegramBotUsername, cfg.TelegramEnabled())
 	}
 }
 

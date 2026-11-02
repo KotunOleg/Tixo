@@ -73,6 +73,10 @@ make check             # lint + перевірка згенерованого к
 | `GOOGLE_CLIENT_ID` | — | OAuth client для входу через Google; без нього в dev вхід вимкнено, у prod обов'язковий |
 | `GOOGLE_CLIENT_SECRET` | — | секрет того ж OAuth client, задається разом з `GOOGLE_CLIENT_ID` |
 | `STORAGE_DIR` | `./data/uploads` | тека для завантажених файлів (постери подій); у compose — том `uploads` на `/data/uploads` |
+| `TELEGRAM_DRY_RUN` | `true` | `true` — виклики Telegram Bot API лише пишуться в лог; реальні повідомлення — тільки з `false` |
+| `TELEGRAM_BOT_TOKEN` | — | токен бота від @BotFather; обов'язковий при `TELEGRAM_DRY_RUN=false` |
+| `TELEGRAM_BOT_USERNAME` | — | ім'я бота для посилання `t.me/<бот>`; без нього секції Telegram у профілі немає |
+| `TELEGRAM_WEBHOOK_SECRET` | — | секрет у заголовку `X-Telegram-Bot-Api-Secret-Token` (`A-Z a-z 0-9 _ -`); обов'язковий при `TELEGRAM_DRY_RUN=false` |
 
 ## Вхід через Google
 

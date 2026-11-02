@@ -74,6 +74,10 @@ func TestUISnapshotServer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	site.connectTelegram(t, member, 777)
+	if _, _, err := site.deps.Telegram.IssueLink(context.Background(), site.sessionUserID(t, owner)); err != nil {
+		t.Fatal(err)
+	}
 
 	srv := httptest.NewServer(site.h)
 	t.Cleanup(srv.Close)
