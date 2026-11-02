@@ -83,3 +83,36 @@ WHERE e.status = 'published'
   AND (sqlc.narg(max_price)::bigint IS NULL OR p.price_from <= sqlc.narg(max_price)::bigint)
 ORDER BY v.city, v.name, v.id, e.starts_at, e.id
 LIMIT @lim;
+
+-- name: SearchPublicEvents :many
+WITH needle AS (
+    SELECT '%' || replace(replace(replace(sqlc.narg(query)::text, '\', '\\'), '%', '\%'), '_', '\_') || '%' AS q,
+           '%' || replace(replace(replace(sqlc.narg(city)::text, '\', '\\'), '%', '\%'), '_', '\_') || '%' AS city
+)
+SELECT e.slug, e.title, e.starts_at, e.genre,
+       coalesce(p.price_from, 0)::bigint AS price_from, (p.price_from IS NOT NULL)::boolean AS has_price,
+       v.name AS venue_name, v.city AS venue_city
+FROM events e
+JOIN venues v ON v.id = e.venue_id
+CROSS JOIN needle n
+LEFT JOIN LATERAL (
+    SELECT coalesce(min(t.price) FILTER (WHERE t.available > 0), min(t.price))::bigint AS price_from
+    FROM ticket_tiers t
+    WHERE t.event_id = e.id
+) p ON true
+WHERE e.status = 'published'
+  AND e.ends_at >= @after
+  AND (sqlc.narg(before)::timestamptz IS NULL OR e.starts_at < sqlc.narg(before)::timestamptz)
+  AND (sqlc.narg(genre)::text IS NULL OR e.genre = sqlc.narg(genre)::text)
+  AND (sqlc.narg(max_price)::bigint IS NULL OR p.price_from <= sqlc.narg(max_price)::bigint)
+  AND (n.city IS NULL OR v.city ILIKE n.city)
+  AND (n.q IS NULL
+       OR e.title ILIKE n.q
+       OR v.name ILIKE n.q
+       OR v.city ILIKE n.q
+       OR EXISTS (
+           SELECT 1 FROM event_artists ea JOIN artists a ON a.id = ea.artist_id
+           WHERE ea.event_id = e.id AND a.name ILIKE n.q
+       ))
+ORDER BY e.starts_at, e.id
+LIMIT @lim;
