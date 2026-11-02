@@ -226,10 +226,31 @@ func TestAssistantResetForgetsTheConversation(t *testing.T) {
 	if n, _ := s.rdb.LLen(context.Background(), key).Result(); n == 0 {
 		t.Fatal("chat was not saved")
 	}
-	if rec := s.request(t, http.MethodPost, "/assistant/reset", s.cookie); rec.Code != http.StatusNoContent {
+	if rec := s.request(t, http.MethodPost, "/assistant/reset", s.cookie); rec.Code != http.StatusOK {
 		t.Fatalf("reset status = %d", rec.Code)
 	}
 	if n, _ := s.rdb.LLen(context.Background(), key).Result(); n != 0 {
 		t.Fatalf("history still has %d messages after reset", n)
+	}
+}
+
+func TestAssistantPageShowsTheSavedConversationAsText(t *testing.T) {
+	s := newAssistantSite(t, agent.Fake{})
+	empty := s.request(t, http.MethodGet, "/en/assistant", s.cookie).Body.String()
+	if !strings.Contains(empty, "js-assistant-suggest") || strings.Contains(empty, "tixo-msg-user") {
+		t.Fatal("fresh page should offer suggestions and no messages")
+	}
+	if err := agent.NewHistory(s.rdb).Append(context.Background(), s.userID, []agent.Message{
+		{Role: agent.RoleUser, Blocks: []agent.Block{{Type: agent.BlockText, Text: "<img src=x onerror=alert(1)>"}}},
+		{Role: agent.RoleAssistant, Blocks: []agent.Block{{Type: agent.BlockThinking, Text: "secret plan"}, {Type: agent.BlockText, Text: "Nothing found"}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	body := s.request(t, http.MethodGet, "/en/assistant", s.cookie).Body.String()
+	if strings.Contains(body, "<img src=x") || !strings.Contains(body, "&lt;img src=x") {
+		t.Error("saved message was not escaped")
+	}
+	if !strings.Contains(body, "Nothing found") || strings.Contains(body, "secret plan") {
+		t.Error("page should show the answer text and leave thinking out")
 	}
 }

@@ -963,3 +963,123 @@ body:has(.tixo-buybar) {
 .tixo-map-results-title:empty {
   display: none;
 }
+
+.tixo-assistant {
+  max-width: 48rem;
+}
+
+.tixo-chat-log {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.tixo-chat-log:empty {
+  display: none;
+}
+
+.tixo-msg-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.6;
+}
+
+.tixo-msg-user {
+  justify-self: end;
+  max-width: min(85%, 36rem);
+  padding: 0.75rem 1rem;
+  background: var(--tixo-surface-2);
+  border: 1px solid var(--tixo-border);
+  border-radius: var(--tixo-radius-lg);
+}
+
+.tixo-msg-label,
+.tixo-msg-note,
+.tixo-msg-pending {
+  color: var(--tixo-text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.tixo-msg-note {
+  margin: 0.5rem 0 0;
+}
+
+.tixo-agent-steps {
+  margin-bottom: 0.75rem;
+  padding-inline-start: 0.75rem;
+  border-inline-start: 2px solid var(--tixo-border-strong);
+  color: var(--tixo-text-muted);
+  font-size: 0.875rem;
+}
+
+.tixo-agent-steps > summary {
+  cursor: pointer;
+  color: var(--tixo-text);
+  width: fit-content;
+}
+
+.tixo-agent-steps > summary:focus-visible {
+  outline: 2px solid var(--tixo-focus);
+  outline-offset: 2px;
+}
+
+.tixo-agent-thinking {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0.5rem 0 0;
+}
+
+.tixo-agent-thinking:empty {
+  display: none;
+}
+
+.tixo-agent-step-list {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.tixo-agent-results {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  overflow-wrap: anywhere;
+}
+
+.tixo-confirm {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--tixo-surface);
+  border: 1px solid var(--tixo-border-strong);
+  border-radius: var(--tixo-radius-lg);
+}
+
+.tixo-confirm-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.tixo-confirm-summary dt {
+  color: var(--tixo-text-muted);
+  font-weight: 400;
+}
+
+.tixo-confirm-summary dd {
+  margin: 0;
+}
+
+.tixo-chat-error {
+  color: var(--tixo-danger);
+}
+
+.tixo-chat-error:empty {
+  display: none;
+}

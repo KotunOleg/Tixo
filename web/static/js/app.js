@@ -691,3 +691,393 @@ function setupTelegramLinkStatus() {
 }
 
 setupTelegramLinkStatus();
+
+function setupAssistant() {
+  const root = document.querySelector(".js-assistant");
+  const textsNode = document.getElementById("assistant-texts");
+  if (!root || !textsNode || !window.fetch || !window.ReadableStream) {
+    return;
+  }
+  let texts;
+  try {
+    texts = JSON.parse(textsNode.textContent);
+  } catch {
+    return;
+  }
+  root.hidden = false;
+
+  const t = (key) => texts[key] || key;
+  const lang = root.dataset.lang;
+  const locale = lang === "en" ? "en-GB" : "uk-UA";
+  const slugPattern = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+  const log = root.querySelector(".js-assistant-log");
+  const empty = root.querySelector(".js-assistant-empty");
+  const form = root.querySelector(".js-assistant-form");
+  const input = form.querySelector("textarea");
+  const send = root.querySelector(".js-assistant-send");
+  const stop = root.querySelector(".js-assistant-stop");
+  const errorBox = root.querySelector(".js-assistant-error");
+  const announce = root.querySelector(".js-assistant-announce");
+  const resetButton = document.querySelector(".js-assistant-reset");
+  let controller = null;
+  let lastMessage = "";
+  let cardCount = 0;
+
+  const make = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) {
+      node.className = className;
+    }
+    if (text !== undefined) {
+      node.textContent = text;
+    }
+    return node;
+  };
+  const nearBottom = () => window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 160;
+  const follow = (was) => {
+    if (was) {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+    }
+  };
+  const money = (uah) => {
+    if (!uah) {
+      return t("assistant.free");
+    }
+    const n = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(uah);
+    return lang === "en" ? "₴" + n : n + " ₴";
+  };
+  const when = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) {
+      return "";
+    }
+    return new Intl.DateTimeFormat(locale, { timeZone: "Europe/Kyiv", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(d);
+  };
+  const eventHref = (slug) => (typeof slug === "string" && slugPattern.test(slug) ? root.dataset.eventsUrl + slug : null);
+
+  function showError(message, action) {
+    errorBox.replaceChildren(make("span", null, message));
+    if (action) {
+      errorBox.append(" ", action);
+    }
+  }
+
+  function retryButton() {
+    const button = make("button", "btn btn-quiet btn-sm ms-1", t("assistant.retry"));
+    button.type = "button";
+    button.addEventListener("click", () => sendMessage(lastMessage));
+    return button;
+  }
+
+  function addUser(text) {
+    const li = make("li", "tixo-msg tixo-msg-user");
+    li.append(make("span", "visually-hidden", t("assistant.you") + " "), make("p", "tixo-msg-text mb-0", text));
+    log.append(li);
+    return li;
+  }
+
+  function addAssistant() {
+    const li = make("li", "tixo-msg tixo-msg-ai");
+    const steps = make("details", "tixo-agent-steps");
+    steps.open = true;
+    steps.hidden = true;
+    steps.append(make("summary", null, t("assistant.steps")));
+    const thinking = make("p", "tixo-agent-thinking");
+    const list = make("ol", "tixo-agent-step-list");
+    steps.append(thinking, list);
+    const pending = make("p", "tixo-msg-pending", t("assistant.pending"));
+    const text = make("p", "tixo-msg-text mb-0");
+    const results = make("ul", "tixo-agent-results");
+    li.append(make("p", "tixo-msg-label", t("assistant.ai_label")), steps, pending, text, results);
+    log.append(li);
+    return { li, steps, thinking, list, pending, text, results, calls: {} };
+  }
+
+  function argsText(inputArgs) {
+    return Object.entries(inputArgs || {})
+      .filter(([key, value]) => key !== "idempotency_key" && value !== "" && value !== null && typeof value !== "object")
+      .map(([key, value]) => key + "=" + value)
+      .join(", ");
+  }
+
+  function summary(name, data) {
+    if (!data) {
+      return "";
+    }
+    if (name === "search_events" && Array.isArray(data.events)) {
+      return t("assistant.results").replace("{n}", data.events.length);
+    }
+    if (name === "list_venues" && Array.isArray(data.venues)) {
+      return t("assistant.results").replace("{n}", data.venues.length);
+    }
+    return data.title || data.event || "";
+  }
+
+  function addEventLink(msg, ev) {
+    const href = eventHref(ev.slug);
+    if (!href || msg.li.querySelector(".tixo-confirm") || msg.results.querySelector('[data-slug="' + ev.slug + '"]')) {
+      return;
+    }
+    const li = make("li");
+    li.dataset.slug = ev.slug;
+    const link = make("a", null, ev.title || ev.slug);
+    link.href = href;
+    const facts = [when(ev.starts_at), ev.venue];
+    if (typeof ev.price_from_uah === "number") {
+      facts.push(ev.price_from_uah ? t("assistant.from") + " " + money(ev.price_from_uah) : money(0));
+    }
+    li.append(link, make("span", "d-block small text-body-secondary", facts.filter(Boolean).join(" · ")));
+    msg.results.append(li);
+  }
+
+  function confirmCard(msg, b) {
+    const href = eventHref(b.event_slug);
+    if (!href) {
+      return;
+    }
+    cardCount += 1;
+    const titleId = "assistant-confirm-" + cardCount;
+    const card = make("div", "tixo-confirm");
+    card.setAttribute("role", "group");
+    card.setAttribute("aria-labelledby", titleId);
+    const title = make("h3", "h6 mb-3", t("assistant.confirm.title"));
+    title.id = titleId;
+    const dl = make("dl", "tixo-confirm-summary");
+    [
+      ["assistant.confirm.event", b.event],
+      ["assistant.confirm.date", when(b.starts_at) + (b.venue ? " · " + b.venue : "")],
+      ["assistant.confirm.tier", b.tier],
+      ["assistant.confirm.quantity", String(b.quantity)],
+      ["assistant.confirm.total", money(b.total_uah)],
+    ].forEach(([key, value]) => dl.append(make("dt", null, t(key)), make("dd", null, value)));
+    const buy = make("form", "d-flex flex-wrap gap-2");
+    buy.method = "post";
+    buy.action = href + "/buy";
+    [["tier_id", b.tier_id], ["quantity", b.quantity], ["idempotency_key", crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()]].forEach(([name, value]) => {
+      const field = make("input");
+      field.type = "hidden";
+      field.name = name;
+      field.value = String(value);
+      buy.append(field);
+    });
+    const buyButton = make("button", "btn btn-tixo", t("assistant.confirm.buy"));
+    buyButton.type = "submit";
+    const cancel = make("button", "btn btn-quiet", t("assistant.confirm.cancel"));
+    cancel.type = "button";
+    cancel.addEventListener("click", () => {
+      card.remove();
+      input.focus();
+      if (!controller) {
+        sendMessage(t("assistant.cancelled_message"));
+      }
+    });
+    buy.append(buyButton, cancel);
+    card.append(title, dl, make("p", "small text-body-secondary", t("assistant.confirm.test_payment")), buy);
+    msg.results.replaceChildren();
+    msg.li.append(card);
+  }
+
+  function handle(msg, name, data) {
+    switch (name) {
+      case "thinking":
+        msg.steps.hidden = false;
+        msg.thinking.textContent += data.text || "";
+        break;
+      case "text":
+        msg.pending.remove();
+        msg.text.textContent += data.text || "";
+        break;
+      case "tool_call": {
+        msg.steps.hidden = false;
+        const args = argsText(data.input);
+        const line = make("li", null, t("assistant.tool." + data.name) + (args ? ": " + args : ""));
+        msg.calls[data.id] = line;
+        msg.list.append(line);
+        break;
+      }
+      case "tool_result": {
+        const line = msg.calls[data.id];
+        if (line) {
+          const result = data.ok ? summary(data.name, data.data) : t("assistant.failed");
+          if (result) {
+            line.append(" → " + result);
+          }
+        }
+        if (data.ok && data.name === "search_events" && Array.isArray(data.data?.events)) {
+          data.data.events.forEach((ev) => addEventLink(msg, ev));
+        }
+        if (data.ok && data.name === "get_event" && data.data) {
+          addEventLink(msg, { slug: data.data.slug, title: data.data.title, starts_at: data.data.starts_at, venue: data.data.venue });
+        }
+        break;
+      }
+      case "confirm_required":
+        confirmCard(msg, data);
+        break;
+      case "error": {
+        msg.pending.remove();
+        const known = { refusal: "assistant.error.refusal", too_many_steps: "assistant.error.too_many_steps" }[data.code];
+        showError(t(known || "assistant.error.network"), known ? null : retryButton());
+        break;
+      }
+      case "done":
+        msg.pending.remove();
+        if (data.truncated) {
+          msg.li.append(make("p", "tixo-msg-note", t("assistant.truncated")));
+        }
+        announce.textContent = msg.text.textContent;
+        break;
+    }
+  }
+
+  async function readStream(res, msg) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) {
+        return;
+      }
+      const was = nearBottom();
+      buffer += decoder.decode(value, { stream: true });
+      let cut;
+      while ((cut = buffer.indexOf("\n\n")) >= 0) {
+        const frame = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        let name = "";
+        let data = "";
+        frame.split("\n").forEach((line) => {
+          if (line.startsWith("event: ")) {
+            name = line.slice(7);
+          } else if (line.startsWith("data: ")) {
+            data += line.slice(6);
+          }
+        });
+        try {
+          handle(msg, name, JSON.parse(data || "{}"));
+        } catch {
+          continue;
+        }
+      }
+      follow(was);
+    }
+  }
+
+  async function failedRequest(res) {
+    if (res.status === 401) {
+      const link = make("a", null, t("nav.sign_in"));
+      link.href = root.dataset.loginUrl;
+      showError(t("assistant.error.session"), link);
+    } else if (res.status === 409) {
+      showError(t("assistant.error.busy"));
+    } else if (res.status === 429) {
+      const body = await res.json().catch(() => ({}));
+      const at = body.retry_at ? new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(new Date(body.retry_at)) : "";
+      showError(t("assistant.error.rate").replace("{limit}", body.limit || "").replace("{time}", at));
+    } else if (res.status === 400) {
+      showError(t("assistant.error.invalid"));
+    } else {
+      showError(t("assistant.error.network"), retryButton());
+    }
+  }
+
+  function setStreaming(on) {
+    send.hidden = on;
+    stop.hidden = !on;
+  }
+
+  async function sendMessage(raw) {
+    const text = (raw || "").trim();
+    if (!text || controller) {
+      return;
+    }
+    if (text.length > 2000) {
+      showError(t("assistant.error.invalid"));
+      return;
+    }
+    lastMessage = text;
+    errorBox.replaceChildren();
+    empty.hidden = true;
+    const userLine = addUser(text);
+    const msg = addAssistant();
+    follow(true);
+    input.value = "";
+    controller = new AbortController();
+    setStreaming(true);
+    input.focus();
+    try {
+      const res = await fetch(root.dataset.chatUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({ message: text }),
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
+      if (!res.ok || !res.body) {
+        userLine.remove();
+        msg.li.remove();
+        input.value = text;
+        await failedRequest(res);
+      } else {
+        if (resetButton) {
+          resetButton.hidden = false;
+        }
+        await readStream(res, msg);
+      }
+    } catch (err) {
+      msg.pending.remove();
+      if (err.name === "AbortError") {
+        msg.li.append(make("p", "tixo-msg-note", t("assistant.stopped")));
+      } else {
+        showError(t("assistant.error.network"), retryButton());
+      }
+    } finally {
+      msg.pending.remove();
+      if (msg.steps.isConnected && msg.list.children.length + msg.thinking.textContent.length > 0) {
+        msg.steps.open = false;
+      }
+      if (!log.children.length) {
+        empty.hidden = false;
+      }
+      controller = null;
+      const hadFocus = document.activeElement === stop || document.activeElement === document.body;
+      setStreaming(false);
+      if (hadFocus) {
+        input.focus();
+      }
+    }
+  }
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendMessage(input.value);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      sendMessage(input.value);
+    }
+  });
+  stop.addEventListener("click", () => controller?.abort());
+  root.querySelectorAll(".js-assistant-suggest").forEach((button) => {
+    button.addEventListener("click", () => sendMessage(button.textContent));
+  });
+  resetButton?.addEventListener("click", async () => {
+    controller?.abort();
+    const res = await fetch(root.dataset.resetUrl, { method: "POST", credentials: "same-origin" }).catch(() => null);
+    if (!res || !res.ok) {
+      showError(t("assistant.error.network"));
+      return;
+    }
+    log.replaceChildren();
+    errorBox.replaceChildren();
+    announce.textContent = "";
+    empty.hidden = false;
+    resetButton.hidden = true;
+    input.focus();
+  });
+  follow(log.children.length > 0);
+}
+
+setupAssistant();

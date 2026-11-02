@@ -283,3 +283,29 @@ func (s emitSink) Thinking(delta string) error {
 func (s emitSink) Text(delta string) error {
 	return s.emit(EventText, map[string]string{"text": delta})
 }
+
+type Line struct {
+	User bool
+	Text string
+}
+
+func (a *Agent) Transcript(ctx context.Context, userID int64) ([]Line, error) {
+	msgs, err := a.History.Load(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	var out []Line
+	for _, m := range msgs {
+		var b strings.Builder
+		for _, blk := range m.Blocks {
+			if blk.Type == BlockText {
+				b.WriteString(blk.Text)
+			}
+		}
+		if b.Len() == 0 {
+			continue
+		}
+		out = append(out, Line{User: m.Role == RoleUser, Text: b.String()})
+	}
+	return out, nil
+}
