@@ -800,7 +800,7 @@ function setupAssistant() {
     const results = make("ul", "tixo-agent-results");
     li.append(make("p", "tixo-msg-label", t("assistant.ai_label")), steps, pending, text, results);
     log.append(li);
-    return { li, steps, thinking, list, pending, text, results, calls: {} };
+    return { li, steps, thinking, list, pending, text, results, calls: {}, toolSinceText: false };
   }
 
   function argsText(inputArgs) {
@@ -895,10 +895,15 @@ function setupAssistant() {
         break;
       case "text":
         msg.pending.remove();
+        if (msg.toolSinceText && msg.text.textContent) {
+          msg.text.textContent += "\n\n";
+        }
+        msg.toolSinceText = false;
         msg.text.textContent += data.text || "";
         break;
       case "tool_call": {
         msg.steps.hidden = false;
+        msg.toolSinceText = true;
         const args = argsText(data.input);
         const line = make("li", null, t("assistant.tool." + data.name) + (args ? ": " + args : ""));
         msg.calls[data.id] = line;
