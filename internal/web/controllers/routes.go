@@ -10,10 +10,12 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/agent"
 	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
 	"github.com/KotunOleg/Tixo/internal/artists"
@@ -54,6 +56,9 @@ type Deps struct {
 
 	Telegram              *notify.Bot
 	TelegramWebhookSecret string
+
+	Assistant       *agent.Agent
+	AssistantLimits *agent.Limits
 }
 
 func Mount(r chi.Router, d Deps) {
@@ -74,6 +79,11 @@ func Mount(r chi.Router, d Deps) {
 		vm := VenueMap{View: d.View, Svc: d.Events, Log: d.Logger}
 		r.Get("/map", vm.Page)
 		r.Get("/map/venues.json", vm.JSON)
+		if d.Assistant != nil {
+			as := Assistant{Agent: d.Assistant, Limits: d.AssistantLimits, Log: d.Logger, Now: time.Now}
+			r.Post("/assistant/chat", as.Chat)
+			r.Post("/assistant/reset", as.Reset)
+		}
 
 		a := Auth{View: d.View, Sessions: d.Sessions, Google: d.Google, Users: d.Users, Log: d.Logger}
 		r.Get("/auth/google/login", a.Login)
