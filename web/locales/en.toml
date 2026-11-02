@@ -573,3 +573,6 @@ linked = "Done, Telegram is connected. We'll remind you a day before your event.
 expired = "This link has expired or was already used. Create a new one in your Tixo profile: {{.URL}}"
 help = "I send reminders about events you have tickets for. To connect me, open your Tixo profile and press “Connect Telegram”: {{.URL}}"
 stopped = "Reminders are off. You can turn them back on in your Tixo profile: {{.URL}}"
+
+[telegram]
+reminder = "Event reminder: {{.Title}}\nWhen: {{.When}} (Kyiv time)\nWhere: {{.Venue}}, {{.City}}\nYour tickets: {{.URL}}"
