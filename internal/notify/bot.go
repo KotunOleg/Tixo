@@ -60,6 +60,40 @@ func (b *Bot) IssueLink(ctx context.Context, userID int64) (link string, expires
 	return "https://t.me/" + b.cfg.Username + "?start=" + url.QueryEscape(token), expiresAt, nil
 }
 
+type LinkStatus struct {
+	LinkedAt     time.Time
+	PendingUntil time.Time
+}
+
+func (s LinkStatus) Linked() bool { return !s.LinkedAt.IsZero() }
+
+func (s LinkStatus) Pending() bool { return !s.Linked() && !s.PendingUntil.IsZero() }
+
+func (b *Bot) Status(ctx context.Context, userID int64) (LinkStatus, error) {
+	l, err := b.q.GetTelegramLink(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return LinkStatus{}, nil
+	}
+	if err != nil {
+		return LinkStatus{}, fmt.Errorf("telegram link status: %w", err)
+	}
+	var st LinkStatus
+	if l.LinkedAt.Valid {
+		st.LinkedAt = l.LinkedAt.Time
+	}
+	if l.TokenExpiresAt.Valid && l.TokenExpiresAt.Time.After(b.now()) {
+		st.PendingUntil = l.TokenExpiresAt.Time
+	}
+	return st, nil
+}
+
+func (b *Bot) Unlink(ctx context.Context, userID int64) error {
+	if err := b.q.UnlinkTelegramUser(ctx, userID); err != nil {
+		return fmt.Errorf("unlink telegram user: %w", err)
+	}
+	return nil
+}
+
 func (b *Bot) HandleUpdate(ctx context.Context, u Update) error {
 	m := u.Message
 	if m == nil || m.Chat.Type != privateChat {

@@ -25,12 +25,15 @@ import (
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/features"
 	"github.com/KotunOleg/Tixo/internal/lineup"
+	"github.com/KotunOleg/Tixo/internal/notify"
 	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/tiers"
 	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/venues"
+	"github.com/KotunOleg/Tixo/internal/web/i18n"
+	"github.com/KotunOleg/Tixo/web"
 )
 
 type fakeGoogle struct {
@@ -126,6 +129,11 @@ func newAuthSiteWithClient(t *testing.T, client *http.Client) *authSite {
 
 func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)) *authSite {
 	t.Helper()
+	return newAuthSiteTweaked(t, client, extra, nil)
+}
+
+func newAuthSiteTweaked(t *testing.T, client *http.Client, extra func(r chi.Router), tweak func(d *Deps)) *authSite {
+	t.Helper()
 	fake := newFakeGoogle(t)
 	if client == nil {
 		client = fake.srv.Client()
@@ -150,6 +158,15 @@ func newAuthSiteWith(t *testing.T, client *http.Client, extra func(r chi.Router)
 			t.Fatal(err)
 		}
 		d.Storage = store
+		tr, err := i18n.New(web.FS)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Telegram = notify.NewBot(pool, &notify.DryRunClient{Log: d.Logger}, tr, notify.BotConfig{BaseURL: testBaseURL.String(), Username: "tixo_test_bot"}, d.Logger)
+		d.TelegramWebhookSecret = testWebhookSecret
+		if tweak != nil {
+			tweak(d)
+		}
 		d.Google = auth.NewGoogleWith("client-id", "client-secret", testBaseURL, auth.GoogleEndpoints{
 			Auth:     oauth2.Endpoint{AuthURL: fake.srv.URL + "/authorize", TokenURL: fake.srv.URL + "/token"},
 			Userinfo: fake.srv.URL + "/userinfo",

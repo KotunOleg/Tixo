@@ -369,6 +369,17 @@ metal = "Metal"
 [profile]
 title = "Profile"
 
+[profile.telegram]
+title = "Telegram reminders"
+help = "The bot messages you a day before an event you have a ticket for: when, where, and a link to your tickets."
+connect = "Connect Telegram"
+pending = "Open the chat with the bot in Telegram and press “Start”. The link works until {{.Time}}."
+reopen = "Open Telegram again"
+connected = "Connected on {{.Date}}"
+connected_help = "Reminders arrive a day before the event. Turn them off here or send /stop to the bot."
+disconnect = "Turn off reminders"
+unlinked = "Telegram reminders are off."
+
 [profile.tokens]
 title = "API tokens"
 help = "Tokens for the REST API (Postman, curl, MCP). Send them in the Authorization: Bearer <token> header."
