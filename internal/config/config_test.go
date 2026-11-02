@@ -44,6 +44,40 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.TelegramEnabled() {
 		t.Error("TelegramEnabled() = true without TELEGRAM_BOT_USERNAME")
 	}
+	if !cfg.AgentFake() {
+		t.Error("AgentFake() = false by default, dev and CI would call the paid Claude API")
+	}
+	if cfg.AgentModel != "claude-sonnet-5-5" || cfg.AgentRatePerHour != 20 {
+		t.Errorf("agent defaults = %q, %d/h, want claude-sonnet-5-5, 20/h", cfg.AgentModel, cfg.AgentRatePerHour)
+	}
+}
+
+func TestAgentFakeUnlessFlagOffAndKeySet(t *testing.T) {
+	cases := []struct {
+		name     string
+		set      map[string]string
+		wantFake bool
+	}{
+		{name: "flag off without key stays fake", set: map[string]string{"AGENT_FAKE": "false"}, wantFake: true},
+		{name: "key with default flag stays fake", set: map[string]string{"ANTHROPIC_API_KEY": "sk-ant-x"}, wantFake: true},
+		{name: "blank key with flag off stays fake", set: map[string]string{"AGENT_FAKE": "false", "ANTHROPIC_API_KEY": "  "}, wantFake: true},
+		{name: "flag off and key set goes live", set: map[string]string{"AGENT_FAKE": "false", "ANTHROPIC_API_KEY": "sk-ant-x"}, wantFake: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := validEnv()
+			for k, v := range tc.set {
+				env[k] = v
+			}
+			cfg, err := LoadFrom(env)
+			if err != nil {
+				t.Fatalf("config rejected: %v", err)
+			}
+			if cfg.AgentFake() != tc.wantFake {
+				t.Errorf("AgentFake() = %v, want %v", cfg.AgentFake(), tc.wantFake)
+			}
+		})
+	}
 }
 
 func TestLoadRejects(t *testing.T) {
@@ -74,6 +108,9 @@ func TestLoadRejects(t *testing.T) {
 		{name: "telegram live without webhook secret", set: liveTelegram("TELEGRAM_WEBHOOK_SECRET"), wantVar: "TELEGRAM_WEBHOOK_SECRET"},
 		{name: "telegram live without bot username", set: liveTelegram("TELEGRAM_BOT_USERNAME"), wantVar: "TELEGRAM_BOT_USERNAME"},
 		{name: "telegram webhook secret with characters telegram rejects", set: map[string]string{"TELEGRAM_WEBHOOK_SECRET": "a b/c"}, wantVar: "TELEGRAM_WEBHOOK_SECRET"},
+		{name: "agent rate of zero messages", set: map[string]string{"AGENT_RATE_PER_HOUR": "0"}, wantVar: "AGENT_RATE_PER_HOUR"},
+		{name: "agent rate beyond a sane budget", set: map[string]string{"AGENT_RATE_PER_HOUR": "100000"}, wantVar: "AGENT_RATE_PER_HOUR"},
+		{name: "empty agent model", set: map[string]string{"AGENT_MODEL": " "}, wantVar: "AGENT_MODEL"},
 		{name: "telegram bot username with a path", set: map[string]string{"TELEGRAM_BOT_USERNAME": "tixo_bot/start"}, wantVar: "TELEGRAM_BOT_USERNAME"},
 	}
 	for _, tc := range cases {

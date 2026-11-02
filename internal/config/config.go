@@ -19,8 +19,9 @@ const (
 	EnvTest = "test"
 	EnvProd = "prod"
 
-	minSecretLen = 32
-	maxDBConns   = 50
+	minSecretLen        = 32
+	maxDBConns          = 50
+	maxAgentRatePerHour = 1000
 )
 
 type Config struct {
@@ -48,6 +49,11 @@ type Config struct {
 	TelegramBotUsername   string `env:"TELEGRAM_BOT_USERNAME"`
 	TelegramWebhookSecret string `env:"TELEGRAM_WEBHOOK_SECRET"`
 	TelegramDryRun        bool   `env:"TELEGRAM_DRY_RUN" envDefault:"true"`
+
+	AnthropicAPIKey  string `env:"ANTHROPIC_API_KEY"`
+	AgentModel       string `env:"AGENT_MODEL" envDefault:"claude-sonnet-5-5"`
+	AgentFakeFlag    bool   `env:"AGENT_FAKE" envDefault:"true"`
+	AgentRatePerHour int    `env:"AGENT_RATE_PER_HOUR" envDefault:"20"`
 }
 
 func (c *Config) IsProd() bool { return c.AppEnv == EnvProd }
@@ -57,6 +63,8 @@ func (c *Config) GoogleEnabled() bool { return c.GoogleClientID != "" && c.Googl
 func (c *Config) GA4Enabled() bool { return c.GA4MeasurementID != "" }
 
 func (c *Config) TelegramEnabled() bool { return c.TelegramBotUsername != "" }
+
+func (c *Config) AgentFake() bool { return c.AgentFakeFlag || c.AnthropicAPIKey == "" }
 
 func Load() (*Config, error) {
 	return LoadFrom(environ())
@@ -109,6 +117,15 @@ func (c *Config) validate() error {
 
 	if err := c.validateTelegram(); err != nil {
 		return err
+	}
+
+	c.AnthropicAPIKey = strings.TrimSpace(c.AnthropicAPIKey)
+	c.AgentModel = strings.TrimSpace(c.AgentModel)
+	if c.AgentModel == "" {
+		return errors.New("AGENT_MODEL must not be empty")
+	}
+	if c.AgentRatePerHour < 1 || c.AgentRatePerHour > maxAgentRatePerHour {
+		return fmt.Errorf("AGENT_RATE_PER_HOUR must be between 1 and %d, got %d", maxAgentRatePerHour, c.AgentRatePerHour)
 	}
 
 	if c.IsProd() {
