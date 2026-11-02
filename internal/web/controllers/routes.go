@@ -89,6 +89,7 @@ func Mount(r chi.Router, d Deps) {
 			r.Post("/profile/tokens/{id}/revoke", p.RevokeToken)
 			r.Post("/profile/telegram/link", p.LinkTelegram)
 			r.Post("/profile/telegram/unlink", p.UnlinkTelegram)
+			r.Get("/profile/telegram/status", p.TelegramStatus)
 
 			ord := Orders{View: d.View, Svc: d.Orders, Storage: d.Storage, Log: d.Logger}
 			r.Get("/orders/{id}", ord.Show)

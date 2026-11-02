@@ -603,3 +603,91 @@ function pushGA4Purchase() {
 }
 
 pushGA4Purchase();
+
+function setupTelegramLinkStatus() {
+  const section = document.querySelector(".js-telegram-link");
+  const rendered = section?.dataset.telegramState;
+  const renderedExpires = section?.dataset.telegramExpires || "";
+  const url = section?.dataset.statusUrl;
+  if (!section || !url || rendered === "linked" || typeof fetch !== "function") {
+    return;
+  }
+  const pollEveryMs = 3000;
+  const pollForMs = 15 * 60 * 1000;
+  let deadline = 0;
+  let timer = 0;
+  let busy = false;
+
+  const visible = () => document.visibilityState === "visible";
+  const editing = () =>
+    Array.from(document.querySelectorAll("input, textarea")).some(
+      (field) =>
+        !field.readOnly &&
+        !field.disabled &&
+        field.type !== "hidden" &&
+        (field === document.activeElement || field.value !== field.defaultValue),
+    );
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = 0;
+  };
+  const stop = () => {
+    cancel();
+    deadline = 0;
+  };
+  const schedule = () => {
+    if (deadline && !timer && visible()) {
+      timer = setTimeout(check, pollEveryMs);
+    }
+  };
+
+  async function check() {
+    timer = 0;
+    if (!deadline || busy || !visible()) {
+      return;
+    }
+    if (Date.now() > deadline) {
+      stop();
+      return;
+    }
+    busy = true;
+    let status;
+    try {
+      const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(String(response.status));
+      }
+      status = await response.json();
+    } catch {
+      stop();
+      return;
+    } finally {
+      busy = false;
+    }
+    if ((status.state !== rendered || (status.expires || "") !== renderedExpires) && !editing()) {
+      stop();
+      location.reload();
+      return;
+    }
+    schedule();
+  }
+
+  const start = () => {
+    deadline = Date.now() + pollForMs;
+    cancel();
+    schedule();
+  };
+
+  document.addEventListener("visibilitychange", () => {
+    cancel();
+    if (visible()) {
+      check();
+    }
+  });
+  section.addEventListener("submit", start);
+  if (rendered === "pending") {
+    start();
+  }
+}
+
+setupTelegramLinkStatus();

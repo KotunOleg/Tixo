@@ -375,6 +375,7 @@ help = "The bot messages you a day before an event you have a ticket for: when, 
 connect = "Connect Telegram"
 pending = "Open the chat with the bot in Telegram and press “Start”. The link works until {{.Time}}."
 reopen = "Open Telegram again"
+new_tab = "Opens in a new tab."
 connected = "Connected on {{.Date}}"
 connected_help = "Reminders arrive a day before the event. Turn them off here or send /stop to the bot."
 disconnect = "Turn off reminders"
@@ -569,7 +570,7 @@ max_price_format = "Enter the price as a whole number of hryvnias."
 max_price_range = "The price must be between 0 and 1,000,000,000 ₴."
 
 [telegram.bot]
-linked = "Done, Telegram is connected. We'll remind you a day before your event. To turn reminders off, send /stop"
+linked = "Done, Telegram is connected. We'll remind you a day before your event. To turn reminders off, send /stop\nBack to Tixo: {{.URL}}"
 expired = "This link has expired or was already used. Create a new one in your Tixo profile: {{.URL}}"
 help = "I send reminders about events you have tickets for. To connect me, open your Tixo profile and press “Connect Telegram”: {{.URL}}"
 stopped = "Reminders are off. You can turn them back on in your Tixo profile: {{.URL}}"
