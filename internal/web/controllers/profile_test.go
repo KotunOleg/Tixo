@@ -187,6 +187,16 @@ func TestProfileHidesTelegramWhenTheBotIsNotConfigured(t *testing.T) {
 
 func (s *authSite) telegramState(t *testing.T, cookie *http.Cookie) string {
 	t.Helper()
+	return s.telegramStatus(t, cookie).State
+}
+
+type telegramStatusBody struct {
+	State   string `json:"state"`
+	Expires string `json:"expires"`
+}
+
+func (s *authSite) telegramStatus(t *testing.T, cookie *http.Cookie) telegramStatusBody {
+	t.Helper()
 	rec := s.request(t, http.MethodGet, "/profile/telegram/status", cookie)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d", rec.Code)
@@ -194,13 +204,11 @@ func (s *authSite) telegramState(t *testing.T, cookie *http.Cookie) string {
 	if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
 		t.Errorf("Cache-Control = %q, want no-store so a proxy never serves a stale or foreign state", cc)
 	}
-	var body struct {
-		State string `json:"state"`
-	}
+	var body telegramStatusBody
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("status body %q: %v", rec.Body.String(), err)
 	}
-	return body.State
+	return body
 }
 
 func TestTelegramStatusReportsOnlyTheSignedInUsersLink(t *testing.T) {
@@ -223,5 +231,32 @@ func TestTelegramStatusReportsOnlyTheSignedInUsersLink(t *testing.T) {
 	}
 	if got := s.telegramState(t, bob); got != "linked" {
 		t.Errorf("bob state = %q, want linked", got)
+	}
+}
+
+func TestTelegramStatusChangesWhenTheLinkIsIssuedAgain(t *testing.T) {
+	s := newAuthSite(t)
+	cookie := s.signInAs(t, "sub-tg-reopen", "reopen-tg@example.com", "Reopen")
+	issue := func() telegramStatusBody {
+		t.Helper()
+		if rec := s.postForm(t, "/profile/telegram/link", nil, cookie); rec.Code != http.StatusSeeOther {
+			t.Fatalf("link = %d", rec.Code)
+		}
+		st := s.telegramStatus(t, cookie)
+		rec := s.request(t, http.MethodGet, "/profile", cookie)
+		if want := `data-telegram-expires="` + st.Expires + `"`; st.Expires == "" || !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("status %+v, page must render the same expiry the status reports (%s)", st, want)
+		}
+		return st
+	}
+
+	first := issue()
+	second := issue()
+	if second.State != "pending" || second.Expires == first.Expires {
+		t.Errorf("after reopening status = %+v, first = %+v; the expiry must change so the open profile refreshes the shown time", second, first)
+	}
+	s.connectTelegram(t, cookie, 4343)
+	if st := s.telegramStatus(t, cookie); st.State != "linked" || st.Expires != "" {
+		t.Errorf("linked status = %+v, want no expiry", st)
 	}
 }

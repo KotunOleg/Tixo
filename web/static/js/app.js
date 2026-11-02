@@ -607,6 +607,7 @@ pushGA4Purchase();
 function setupTelegramLinkStatus() {
   const section = document.querySelector(".js-telegram-link");
   const rendered = section?.dataset.telegramState;
+  const renderedExpires = section?.dataset.telegramExpires || "";
   const url = section?.dataset.statusUrl;
   if (!section || !url || rendered === "linked" || typeof fetch !== "function") {
     return;
@@ -642,20 +643,20 @@ function setupTelegramLinkStatus() {
       return;
     }
     busy = true;
-    let state;
+    let status;
     try {
       const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
       if (!response.ok) {
         throw new Error(String(response.status));
       }
-      state = (await response.json()).state;
+      status = await response.json();
     } catch {
       stop();
       return;
     } finally {
       busy = false;
     }
-    if (state !== rendered) {
+    if (status.state !== rendered || (status.expires || "") !== renderedExpires) {
       stop();
       location.reload();
       return;

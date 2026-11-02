@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
@@ -27,6 +28,7 @@ type apiTokenRow struct {
 
 type telegramSection struct {
 	State        string
+	Expires      string
 	Linked       bool
 	Pending      bool
 	LinkedAt     string
@@ -143,11 +145,12 @@ func (p Profile) TelegramStatus(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusInternalServerError, "internal error", nil)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, telegramStatusJSON{State: telegramState(st)})
+	httpx.WriteJSON(w, http.StatusOK, telegramStatusJSON{State: telegramState(st), Expires: telegramExpires(st)})
 }
 
 type telegramStatusJSON struct {
-	State string `json:"state"`
+	State   string `json:"state"`
+	Expires string `json:"expires,omitempty"`
 }
 
 func telegramState(st notify.LinkStatus) string {
@@ -161,6 +164,13 @@ func telegramState(st notify.LinkStatus) string {
 	}
 }
 
+func telegramExpires(st notify.LinkStatus) string {
+	if !st.Pending() {
+		return ""
+	}
+	return st.PendingUntil.UTC().Format(time.RFC3339Nano)
+}
+
 func (p Profile) telegramSection(r *http.Request, userID int64) (*telegramSection, error) {
 	if p.Telegram == nil {
 		return nil, nil
@@ -169,7 +179,7 @@ func (p Profile) telegramSection(r *http.Request, userID int64) (*telegramSectio
 	if err != nil {
 		return nil, err
 	}
-	sec := &telegramSection{Linked: st.Linked(), Pending: st.Pending(), State: telegramState(st)}
+	sec := &telegramSection{Linked: st.Linked(), Pending: st.Pending(), State: telegramState(st), Expires: telegramExpires(st)}
 	if sec.Linked {
 		sec.LinkedAt = st.LinkedAt.In(kyiv).Format(dateLayout)
 	}
