@@ -15,7 +15,7 @@
   {{end}}
 
   {{with .Data.Telegram}}
-  <section class="mb-5 js-telegram-link" aria-labelledby="profile-telegram-title" data-telegram-state="{{.State}}" data-telegram-expires="{{.Expires}}" data-status-url="{{$.URL "/profile/telegram/status"}}">
+  <section class="mb-5 js-telegram-link" aria-labelledby="profile-telegram-title"{{if $.Data.TelegramLive}} data-telegram-state="{{.State}}" data-telegram-expires="{{.Expires}}" data-status-url="{{$.URL "/profile/telegram/status"}}"{{end}}>
     <h2 class="h4" id="profile-telegram-title">{{$.T "profile.telegram.title"}}</h2>
     {{if .Linked}}
     <p class="mb-3"><span class="tixo-status tixo-status-published">{{$.T "profile.telegram.connected" "Date" .LinkedAt}}</span></p>

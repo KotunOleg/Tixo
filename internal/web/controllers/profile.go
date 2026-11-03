@@ -36,13 +36,14 @@ type telegramSection struct {
 }
 
 type profileData struct {
-	Telegram   *telegramSection
-	Tokens     []apiTokenRow
-	Name       string
-	Errors     map[string]string
-	JustIssued bool
-	IssuedName string
-	IssuedRaw  string
+	Telegram     *telegramSection
+	Tokens       []apiTokenRow
+	Name         string
+	Errors       map[string]string
+	JustIssued   bool
+	IssuedName   string
+	IssuedRaw    string
+	TelegramLive bool
 }
 
 type Profile struct {
@@ -54,7 +55,7 @@ type Profile struct {
 }
 
 func (p Profile) Show(w http.ResponseWriter, r *http.Request) {
-	p.render(w, r, http.StatusOK, profileData{})
+	p.render(w, r, http.StatusOK, profileData{TelegramLive: true})
 }
 
 func (p Profile) CreateToken(w http.ResponseWriter, r *http.Request) {

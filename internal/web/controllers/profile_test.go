@@ -62,6 +62,29 @@ func TestIssueTokenShowsRawValueOnce(t *testing.T) {
 	}
 }
 
+func TestIssueTokenResponseDoesNotPollTelegramStatus(t *testing.T) {
+	s := newAuthSite(t)
+	cookie := s.signInAs(t, "sub-owner-poll", "owner-poll@example.com", "Owner")
+
+	s.postForm(t, "/profile/telegram/link", nil, cookie)
+
+	rec := s.postForm(t, "/profile/tokens", url.Values{"name": {"laptop"}}, cookie)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create token = %d, want 201\n%s", rec.Code, rec.Body.String())
+	}
+	if body := rec.Body.String(); strings.Contains(body, "data-status-url") {
+		t.Fatalf("POST /profile/tokens response starts telegram polling and would resubmit the form on reload: %s", body)
+	}
+
+	rec = s.postForm(t, "/profile/tokens", url.Values{"name": {"  "}}, cookie)
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("create blank-name token = %d, want 422\n%s", rec.Code, rec.Body.String())
+	}
+	if body := rec.Body.String(); strings.Contains(body, "data-status-url") {
+		t.Fatalf("422 POST /profile/tokens response starts telegram polling: %s", body)
+	}
+}
+
 func TestIssueTokenRejectsBlankName(t *testing.T) {
 	s := newAuthSite(t)
 	cookie := s.signInAs(t, "sub-owner", "owner2@example.com", "Owner")
