@@ -53,7 +53,7 @@ func (c EventsSearch) Show(w http.ResponseWriter, r *http.Request) {
 	var verr *events.ValidationError
 	switch {
 	case errors.As(err, &verr):
-		data.Errors = map[string]string{events.FieldQuery: "events.search.error_" + verr.Fields[events.FieldQuery]}
+		data.Errors = map[string]string{events.FieldQuery: "events_search.error_" + verr.Fields[events.FieldQuery]}
 		c.View.Render(w, r, http.StatusBadRequest, "pages/events_search", data)
 		return
 	case err != nil:

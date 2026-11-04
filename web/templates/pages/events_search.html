@@ -1,0 +1,39 @@
+{{define "title"}}{{if .Data.Searched}}{{.T "events_search.heading_query" "Query" .Data.Query}}{{else}}{{.T "events_search.heading"}}{{end}} · {{.T "site.name"}}{{end}}
+{{define "description"}}{{.T "events_search.meta_description"}}{{end}}
+{{define "content"}}
+<section class="container py-5">
+  <h1 class="mb-4">{{if .Data.Searched}}{{.T "events_search.heading_query" "Query" .Data.Query}}{{else}}{{.T "events_search.heading"}}{{end}}</h1>
+  {{with .Data.Errors}}
+  <div class="tixo-error-summary mb-4" id="search-errors" tabindex="-1" data-focus-on-load role="alert" aria-labelledby="search-errors-title">
+    <h2 class="h6 mb-2" id="search-errors-title">{{$.T "events_search.errors_title"}}</h2>
+    <ul class="mb-0">
+      {{with index . "query"}}<li><a href="#search-q">{{$.T .}}</a></li>{{end}}
+    </ul>
+  </div>
+  {{end}}
+  <form class="tixo-search mb-5" action="{{.URL "/events"}}" method="get" role="search">
+    <label class="form-label" for="search-q">{{.T "home.search.label"}}</label>
+    <div class="d-flex flex-column flex-sm-row gap-2">
+      <input id="search-q" class="form-control form-control-lg" type="search" name="q" value="{{.Data.Query}}" placeholder="{{.T "home.search.placeholder"}}" autocomplete="off"{{if .Data.Errors}} aria-invalid="true"{{end}}>
+      <button class="btn btn-tixo btn-lg px-4 flex-shrink-0" type="submit">{{.T "home.search.submit"}}</button>
+    </div>
+  </form>
+  {{if .Data.Cards}}
+  {{template "event_cards" .}}
+  {{else if not .Data.Errors}}
+  <div class="tixo-empty p-4 p-lg-5">
+    {{if .Data.Searched}}
+    <h2 class="h5">{{.T "events_search.empty_title"}}</h2>
+    <p class="text-body-secondary">{{.T "events_search.empty_text"}}</p>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-quiet" href="{{.URL "/map"}}">{{.T "events_search.empty_map"}}</a>
+      <a class="btn btn-quiet" href="{{.URL "/assistant"}}">{{.T "events_search.empty_assistant"}}</a>
+    </div>
+    {{else}}
+    <h2 class="h5">{{.T "home.upcoming.empty_title"}}</h2>
+    <p class="text-body-secondary mb-0">{{.T "home.upcoming.empty_text"}}</p>
+    {{end}}
+  </div>
+  {{end}}
+</section>
+{{end}}
