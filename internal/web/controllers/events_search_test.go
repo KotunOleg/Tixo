@@ -13,12 +13,12 @@ import (
 func TestEventsSearchResultsShowThePosterFromTheSearchedEvent(t *testing.T) {
 	s := newAuthSite(t)
 	s.publicEvent(t, publicEvent{slug: "jazz-with-poster", title: "Jazz With Poster", status: events.StatusPublished, posterKey: "posters/jazz.jpg"})
-	rec := s.request(t, http.MethodGet, "/events?q=jazz-with-poster", nil)
+	rec := s.request(t, http.MethodGet, "/events?q=Poster", nil)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET = %d\n%s", rec.Code, rec.Body)
 	}
 	if !strings.Contains(rec.Body.String(), `src="/media/posters/jazz.jpg"`) {
-		t.Errorf("GET /events?q=jazz-with-poster: missing poster image, got:\n%s", rec.Body)
+		t.Errorf("GET /events?q=Poster: missing poster image, got:\n%s", rec.Body)
 	}
 }
 
