@@ -75,6 +75,8 @@ func Mount(r chi.Router, d Deps) {
 		r.Use(d.Sessions.LoadAndSave, d.loadUser())
 		r.Get("/", Home{View: d.View, Events: d.Events, Log: d.Logger}.ServeHTTP)
 		pe := PublicEvents{View: d.View, Sessions: d.Sessions, Svc: d.Events, Orders: d.Orders, Log: d.Logger, ICSFunctionURL: d.ICSFunctionURL}
+		es := EventsSearch{View: d.View, Events: d.Events, Log: d.Logger}
+		r.Get("/events", es.Show)
 		r.Get("/events/{slug}", pe.Show)
 		r.Post("/events/{slug}/buy", pe.Buy)
 		vm := VenueMap{View: d.View, Svc: d.Events, Log: d.Logger}
