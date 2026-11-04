@@ -20,7 +20,7 @@ type EventCard struct {
 }
 
 type homeData struct {
-	Upcoming []EventCard
+	Cards []EventCard
 }
 
 type Home struct {
@@ -39,7 +39,7 @@ func (h Home) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for _, row := range rows {
-			data.Upcoming = append(data.Upcoming, EventCard{
+			data.Cards = append(data.Cards, EventCard{
 				Title: row.Event.Title, URL: "/events/" + row.Event.Slug, Venue: row.VenueName + ", " + row.VenueCity,
 				StartsAt: row.Event.StartsAt, PosterURL: posterURL(row.Event.PosterKey),
 			})
