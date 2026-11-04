@@ -11,6 +11,7 @@
     <div class="collapse navbar-collapse" id="nav-main">
       <ul class="navbar-nav me-auto">
         <li class="nav-item"><a class="nav-link"{{if .Current "/map"}} aria-current="page"{{end}} href="{{.URL "/map"}}">{{.T "nav.map"}}</a></li>
+        <li class="nav-item"><a class="nav-link"{{if .Current "/assistant"}} aria-current="page"{{end}} href="{{.URL "/assistant"}}">{{.T "nav.assistant"}}</a></li>
         {{if .Viewer}}<li class="nav-item"><a class="nav-link"{{if or (.Current "/tickets") (.Current "/orders")}} aria-current="page"{{end}} href="{{.URL "/tickets"}}">{{.T "nav.tickets"}}</a></li>{{end}}
         <li class="nav-item"><a class="nav-link"{{if .Current "/org"}} aria-current="page"{{end}} href="{{.URL "/org"}}">{{.T "nav.organizers"}}</a></li>
       </ul>
@@ -43,6 +44,7 @@
     </div>
     {{else}}
     <a class="nav-link ms-auto me-3"{{if .Current "/map"}} aria-current="page"{{end}} href="{{.URL "/map"}}">{{.T "nav.map"}}</a>
+    <a class="nav-link me-3"{{if .Current "/assistant"}} aria-current="page"{{end}} href="{{.URL "/assistant"}}">{{.T "nav.assistant"}}</a>
     <a class="btn btn-sm btn-quiet" href="{{.SwitchURL}}" hreflang="{{.OtherLang}}" lang="{{.OtherLang}}">{{.T "lang.switch"}}</a>
     {{end}}
   </div>

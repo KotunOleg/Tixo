@@ -396,6 +396,98 @@ func (q *Queries) ListUpcomingPublishedEvents(ctx context.Context, arg ListUpcom
 	return items, nil
 }
 
+const searchPublicEvents = `-- name: SearchPublicEvents :many
+WITH needle AS (
+    SELECT '%' || replace(replace(replace($6::text, '\', '\\'), '%', '\%'), '_', '\_') || '%' AS q,
+           '%' || replace(replace(replace($7::text, '\', '\\'), '%', '\%'), '_', '\_') || '%' AS city
+)
+SELECT e.slug, e.title, e.starts_at, e.genre,
+       coalesce(p.price_from, 0)::bigint AS price_from, (p.price_from IS NOT NULL)::boolean AS has_price,
+       v.name AS venue_name, v.city AS venue_city
+FROM events e
+JOIN venues v ON v.id = e.venue_id
+CROSS JOIN needle n
+LEFT JOIN LATERAL (
+    SELECT coalesce(min(t.price) FILTER (WHERE t.available > 0), min(t.price))::bigint AS price_from
+    FROM ticket_tiers t
+    WHERE t.event_id = e.id
+) p ON true
+WHERE e.status = 'published'
+  AND e.ends_at >= $1
+  AND ($2::timestamptz IS NULL OR e.starts_at < $2::timestamptz)
+  AND ($3::text IS NULL OR e.genre = $3::text)
+  AND ($4::bigint IS NULL OR p.price_from <= $4::bigint)
+  AND (n.city IS NULL OR v.city ILIKE n.city)
+  AND (n.q IS NULL
+       OR e.title ILIKE n.q
+       OR v.name ILIKE n.q
+       OR v.city ILIKE n.q
+       OR EXISTS (
+           SELECT 1 FROM event_artists ea JOIN artists a ON a.id = ea.artist_id
+           WHERE ea.event_id = e.id AND a.name ILIKE n.q
+       ))
+ORDER BY e.starts_at, e.id
+LIMIT $5
+`
+
+type SearchPublicEventsParams struct {
+	After    time.Time
+	Before   pgtype.Timestamptz
+	Genre    pgtype.Text
+	MaxPrice pgtype.Int8
+	Lim      int32
+	Query    pgtype.Text
+	City     pgtype.Text
+}
+
+type SearchPublicEventsRow struct {
+	Slug      string
+	Title     string
+	StartsAt  time.Time
+	Genre     string
+	PriceFrom int64
+	HasPrice  bool
+	VenueName string
+	VenueCity string
+}
+
+func (q *Queries) SearchPublicEvents(ctx context.Context, arg SearchPublicEventsParams) ([]SearchPublicEventsRow, error) {
+	rows, err := q.db.Query(ctx, searchPublicEvents,
+		arg.After,
+		arg.Before,
+		arg.Genre,
+		arg.MaxPrice,
+		arg.Lim,
+		arg.Query,
+		arg.City,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchPublicEventsRow
+	for rows.Next() {
+		var i SearchPublicEventsRow
+		if err := rows.Scan(
+			&i.Slug,
+			&i.Title,
+			&i.StartsAt,
+			&i.Genre,
+			&i.PriceFrom,
+			&i.HasPrice,
+			&i.VenueName,
+			&i.VenueCity,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setEventStatus = `-- name: SetEventStatus :one
 UPDATE events
 SET status = $1, updated_at = now()

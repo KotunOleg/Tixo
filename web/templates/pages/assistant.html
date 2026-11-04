@@ -1,0 +1,52 @@
+{{define "title"}}{{.T "assistant.title"}} · {{.T "site.name"}}{{end}}
+{{define "description"}}{{.T "assistant.meta_description"}}{{end}}
+{{define "content"}}
+<section class="container py-5 tixo-assistant">
+  <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
+    <h1 class="mb-0" id="assistant-heading">{{.T "assistant.heading"}}</h1>
+    {{if .Viewer}}<button class="btn btn-quiet btn-sm js-assistant-reset" type="button"{{if not .Data.Transcript}} hidden{{end}}>{{.T "assistant.reset"}}</button>{{end}}
+  </div>
+  <p class="text-body-secondary mb-4">{{.T "assistant.lead"}}</p>
+  {{if not .Viewer}}
+  <div class="tixo-empty p-4">
+    <p class="mb-3">{{.T "assistant.guest_text"}}</p>
+    <a class="btn btn-tixo" href="{{.Data.LoginURL}}">{{.T "assistant.sign_in"}}</a>
+  </div>
+  {{else}}
+  <noscript>
+    <p class="tixo-flash border rounded p-3">{{.T "assistant.noscript"}} <a href="{{.URL "/map"}}">{{.T "assistant.noscript_link"}}</a></p>
+  </noscript>
+  <div class="js-assistant" data-chat-url="{{.Data.ChatURL}}" data-reset-url="{{.Data.ResetURL}}" data-events-url="{{.Data.EventsURL}}" data-login-url="{{.Data.LoginURL}}" data-lang="{{.Lang}}" hidden>
+    <div role="log" aria-live="off" aria-label="{{.T "assistant.log_label"}}">
+    <ol class="tixo-chat-log list-unstyled mb-4 js-assistant-log">
+      {{range .Data.Transcript}}
+      {{if .User}}
+      <li class="tixo-msg tixo-msg-user"><span class="visually-hidden">{{$.T "assistant.you"}} </span><p class="tixo-msg-text mb-0">{{.Text}}</p></li>
+      {{else}}
+      <li class="tixo-msg tixo-msg-ai"><p class="tixo-msg-label">{{$.T "assistant.ai_label"}}</p><p class="tixo-msg-text mb-0">{{.Text}}</p></li>
+      {{end}}
+      {{end}}
+    </ol>
+    </div>
+    <div class="tixo-chat-empty mb-4 js-assistant-empty"{{if .Data.Transcript}} hidden{{end}}>
+      <h2 class="h6 mb-2" id="assistant-suggest-title">{{.T "assistant.empty_title"}}</h2>
+      <ul class="list-unstyled d-flex flex-column align-items-start gap-2 mb-0" aria-labelledby="assistant-suggest-title">
+        {{range .Data.Suggestions}}<li><button class="btn btn-quiet btn-sm text-start js-assistant-suggest" type="button">{{.}}</button></li>{{end}}
+      </ul>
+    </div>
+    <div class="visually-hidden js-assistant-announce" aria-live="polite"></div>
+    <form class="tixo-chat-form js-assistant-form" novalidate>
+      <label class="form-label" for="assistant-input">{{.T "assistant.input_label"}}</label>
+      <textarea class="form-control mb-1" id="assistant-input" name="message" rows="2" maxlength="2000" required aria-describedby="assistant-hint assistant-error"></textarea>
+      <div class="form-text mb-3" id="assistant-hint">{{.T "assistant.input_hint"}}</div>
+      <div class="tixo-chat-error mb-3 js-assistant-error" id="assistant-error" role="alert"></div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-tixo js-assistant-send" type="submit">{{.T "assistant.send"}}</button>
+        <button class="btn btn-quiet js-assistant-stop" type="button" hidden>{{.T "assistant.stop"}}</button>
+      </div>
+    </form>
+  </div>
+  <script type="application/json" id="assistant-texts">{{.Data.Texts}}</script>
+  {{end}}
+</section>
+{{end}}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/KotunOleg/Tixo/internal/agent"
 	"github.com/KotunOleg/Tixo/internal/analytics"
 	"github.com/KotunOleg/Tixo/internal/api"
 	"github.com/KotunOleg/Tixo/internal/apitokens"
@@ -22,6 +23,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/features"
 	"github.com/KotunOleg/Tixo/internal/health"
 	"github.com/KotunOleg/Tixo/internal/lineup"
+	"github.com/KotunOleg/Tixo/internal/mcpserver"
 	"github.com/KotunOleg/Tixo/internal/orders"
 	"github.com/KotunOleg/Tixo/internal/organizers"
 	"github.com/KotunOleg/Tixo/internal/platform/logger"
@@ -31,6 +33,7 @@ import (
 	"github.com/KotunOleg/Tixo/internal/platform/storage"
 	"github.com/KotunOleg/Tixo/internal/server"
 	"github.com/KotunOleg/Tixo/internal/tiers"
+	"github.com/KotunOleg/Tixo/internal/tools"
 	"github.com/KotunOleg/Tixo/internal/users"
 	"github.com/KotunOleg/Tixo/internal/venues"
 	"github.com/KotunOleg/Tixo/internal/web/controllers"
@@ -104,6 +107,12 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		ICSFunctionURL: cfg.ICSFunctionURL,
 		Telegram:       telegramBot(cfg, pool, tr, log), TelegramWebhookSecret: cfg.TelegramWebhookSecret,
 	}
+	assistantTools := tools.New(evs, ords, cfg.BaseURL, time.Now)
+	mcpServer := mcpserver.New(assistantTools, log, version)
+	site.Assistant = agent.New(agent.Deps{
+		Model: assistantModel(cfg, log), Tools: assistantTools, MCP: mcpServer, History: agent.NewHistory(rdb), Log: log, Now: time.Now,
+	})
+	site.AssistantLimits = agent.NewLimits(rdb, cfg.AgentRatePerHour)
 	apiDeps := api.Deps{Organizers: orgs, Venues: ven, Events: evs, Tiers: trs, Lineup: lup, Artists: arts, Orders: ords, Analytics: stats, APITokens: tokens, Cache: responseCache, Logger: log}
 	handler := server.New(server.Deps{
 		Logger: log,
@@ -111,6 +120,7 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		Routes: func(r chi.Router) {
 			controllers.Mount(r, site)
 			api.Mount(r, apiDeps)
+			r.Handle("/mcp", mcpServer.Handler(tokens))
 		},
 		NotFound:    site.NotFound(),
 		ServerError: pages.ServerError,
@@ -122,4 +132,14 @@ func runServe(ctx context.Context, _ []string, _ io.Writer) error {
 		return fmt.Errorf("listen %s: %w", cfg.HTTPAddr, err)
 	}
 	return server.Serve(ctx, ln, handler, log, shutdownTimeout)
+}
+
+func assistantModel(cfg *config.Config, log *slog.Logger) agent.Model {
+	if cfg.AgentFake() {
+		if cfg.IsProd() {
+			log.Warn("assistant runs on the scripted fake: set AGENT_FAKE=false and ANTHROPIC_API_KEY for real answers")
+		}
+		return agent.Fake{}
+	}
+	return agent.NewClaude(cfg.AnthropicAPIKey, cfg.AgentModel)
 }

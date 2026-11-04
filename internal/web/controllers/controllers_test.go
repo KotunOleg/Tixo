@@ -82,6 +82,8 @@ func TestPagesRenderInBothLanguages(t *testing.T) {
 		{"/en/", http.StatusOK, "en", "Find your event"},
 		{"/no-such-page", http.StatusNotFound, "uk", "Сторінку не знайдено"},
 		{"/en/no-such-page", http.StatusNotFound, "en", "Page not found"},
+		{"/assistant", http.StatusOK, "uk", "Увійти, щоб спитати"},
+		{"/en/assistant", http.StatusOK, "en", "Sign in to ask"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {

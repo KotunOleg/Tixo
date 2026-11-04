@@ -18,8 +18,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/redis/go-redis/v9"
 
+	"github.com/KotunOleg/Tixo/internal/agent"
 	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
+	"github.com/KotunOleg/Tixo/internal/mcpserver"
+	"github.com/KotunOleg/Tixo/internal/tools"
 )
 
 type uiServer struct {
@@ -36,8 +40,9 @@ func TestUISnapshotServer(t *testing.T) {
 	if out == "" {
 		t.Skip("UI_OUT not set: this test only serves demo pages for the screenshot harness")
 	}
+	rdb := uiRedis(t)
 	var site *authSite
-	site = newAuthSiteWith(t, nil, func(r chi.Router) {
+	site = newAuthSiteTweaked(t, nil, func(r chi.Router) {
 		r.Get("/ui/auth-error/{kind}", func(w http.ResponseWriter, r *http.Request) {
 			id := "auth.error." + chi.URLParam(r, "kind")
 			if !slices.Contains(uiAuthErrors, id) {
@@ -47,6 +52,12 @@ func TestUISnapshotServer(t *testing.T) {
 			site.deps.View.Render(w, r, http.StatusBadRequest, "pages/auth_error", authErrorData{MessageID: id})
 		})
 		r.Get("/ui/boom", func(http.ResponseWriter, *http.Request) { panic("ui snapshot: server error page") })
+	}, func(d *Deps) {
+		ts := tools.New(d.Events, d.Orders, testBaseURL, time.Now)
+		d.Assistant = agent.New(agent.Deps{
+			Model: agent.Fake{}, Tools: ts, MCP: mcpserver.New(ts, d.Logger, "ui"), History: agent.NewHistory(rdb), Log: d.Logger, Now: time.Now,
+		})
+		d.AssistantLimits = agent.NewLimits(rdb, uiAssistantRate)
 	})
 
 	owner := site.signInAs(t, "sub-owner", "oleksandra.kostiantynopolska-shevchenko@example.com", "Олександра-Вікторія Костянтинопольська-Шевченко")
@@ -78,6 +89,8 @@ func TestUISnapshotServer(t *testing.T) {
 	if _, _, err := site.deps.Telegram.IssueLink(context.Background(), site.sessionUserID(t, owner)); err != nil {
 		t.Fatal(err)
 	}
+
+	site.seedAssistant(t, rdb, site.sessionUserID(t, member), site.sessionUserID(t, newcomer))
 
 	srv := httptest.NewServer(site.h)
 	t.Cleanup(srv.Close)
@@ -322,5 +335,46 @@ func (s *authSite) seedAnalytics(t *testing.T, buyer int64) {
 				t.Fatal(err)
 			}
 		}
+	}
+}
+
+const uiAssistantRate = 50
+
+func uiRedis(t *testing.T) *redis.Client {
+	t.Helper()
+	opts, err := redis.ParseURL(os.Getenv("TEST_REDIS_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rdb := redis.NewClient(opts)
+	t.Cleanup(func() { _ = rdb.Close() })
+	return rdb
+}
+
+func (s *authSite) seedAssistant(t *testing.T, rdb *redis.Client, talker, limited int64) {
+	t.Helper()
+	ctx := context.Background()
+	keys, _ := rdb.Keys(ctx, "agent:*").Result()
+	if len(keys) > 0 {
+		if err := rdb.Del(ctx, keys...).Err(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	long := "Ось що знайшов на наступні вихідні у Києві. Симфонічний вечір: Лятошинський, Сильвестров і прем'єра твору молодих композиторів — Національна філармонія України, субота о 19:00, квитки від 350 ₴. " +
+		"Довге посилання без пробілів: https://tixo.example/events/symfonichnyi-vechir-liatoshynskyi-sylvestrov-i-premiera-tvoru-molodykh-kompozytoriv\nДругий рядок відповіді."
+	turn := []agent.Message{
+		{Role: agent.RoleUser, Blocks: []agent.Block{{Type: agent.BlockText, Text: "Що послухати з класики у Києві на вихідних, бажано до 500 грн?"}}},
+		{Role: agent.RoleAssistant, Blocks: []agent.Block{{Type: agent.BlockText, Text: long}}},
+	}
+	if err := agent.NewHistory(rdb).Append(ctx, talker, turn); err != nil {
+		t.Fatal(err)
+	}
+	limits := agent.NewLimits(rdb, uiAssistantRate)
+	for range uiAssistantRate {
+		release, err := limits.Acquire(ctx, limited, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		release()
 	}
 }

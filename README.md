@@ -77,6 +77,10 @@ make check             # lint + перевірка згенерованого к
 | `TELEGRAM_BOT_TOKEN` | — | токен бота від @BotFather; обов'язковий при `TELEGRAM_DRY_RUN=false` |
 | `TELEGRAM_BOT_USERNAME` | — | ім'я бота для посилання `t.me/<бот>`; без нього секції Telegram у профілі немає |
 | `TELEGRAM_WEBHOOK_SECRET` | — | секрет у заголовку `X-Telegram-Bot-Api-Secret-Token` (`A-Z a-z 0-9 _ -`); обов'язковий при `TELEGRAM_DRY_RUN=false` |
+| `AGENT_FAKE` | `true` | `true` — ШІ-асистент і його кроки працюють на сценарному фейку без мережі; реальний Claude — лише з `false` і ключем |
+| `ANTHROPIC_API_KEY` | — | ключ Claude API; порожній — асистент завжди на фейку |
+| `AGENT_MODEL` | `claude-sonnet-5-5` | модель Claude для асистента |
+| `AGENT_RATE_PER_HOUR` | `20` | скільки повідомлень асистенту на годину може надіслати один користувач (1–1000) |
 
 ## Вхід через Google
 
