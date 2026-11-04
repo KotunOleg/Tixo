@@ -41,6 +41,7 @@ type SearchResult struct {
 	PriceFrom *int64
 	VenueName string
 	VenueCity string
+	PosterKey pgtype.Text
 }
 
 func (s *Service) Search(ctx context.Context, now time.Time, q SearchQuery) ([]SearchResult, error) {
@@ -56,6 +57,7 @@ func (s *Service) Search(ctx context.Context, now time.Time, q SearchQuery) ([]S
 	for _, r := range rows {
 		res := SearchResult{
 			Slug: r.Slug, Title: r.Title, Genre: r.Genre, StartsAt: r.StartsAt, VenueName: r.VenueName, VenueCity: r.VenueCity,
+			PosterKey: r.PosterKey,
 		}
 		if r.HasPrice {
 			price := r.PriceFrom

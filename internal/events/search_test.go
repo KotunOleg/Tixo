@@ -95,6 +95,34 @@ func TestSearchReturnsVenueAndCheapestPriceSortedByDate(t *testing.T) {
 	}
 }
 
+func TestSearchReturnsThePosterKeySetOnTheEvent(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	seedMap(t, pool, []mapSeedEvent{
+		{slug: "with-poster", venue: "Atlas", genre: GenreRock, status: StatusPublished, days: 3},
+		{slug: "without-poster", venue: "Atlas", genre: GenreRock, status: StatusPublished, days: 4},
+	})
+	if _, err := pool.Exec(ctx, "UPDATE events SET poster_key = 'posters/with-poster.jpg' WHERE slug = 'with-poster'"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := New(pool).Search(ctx, mapNow, SearchQuery{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range got {
+		switch r.Slug {
+		case "with-poster":
+			if !r.PosterKey.Valid || r.PosterKey.String != "posters/with-poster.jpg" {
+				t.Errorf("with-poster PosterKey = %+v, want posters/with-poster.jpg", r.PosterKey)
+			}
+		case "without-poster":
+			if r.PosterKey.Valid {
+				t.Errorf("without-poster PosterKey = %+v, want none", r.PosterKey)
+			}
+		}
+	}
+}
+
 func TestSearchCapsTheResultCount(t *testing.T) {
 	pool := dbtest.Pool(t)
 	seed := make([]mapSeedEvent, 0, SearchMaxLimit+3)

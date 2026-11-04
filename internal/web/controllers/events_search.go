@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,11 +14,23 @@ import (
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
 
+var eventsSearchErrorCodes = map[string][]string{
+	events.FieldQuery: {events.CodeLength},
+}
+
+func eventsSearchErrorMessageID(field, code string) string {
+	if slices.Contains(eventsSearchErrorCodes[field], code) {
+		return "events_search.error_" + code
+	}
+	return "events_search.error_generic"
+}
+
 type eventsSearchData struct {
-	Query    string
-	Cards    []EventCard
-	Searched bool
-	Errors   map[string]string
+	Query     string
+	Cards     []EventCard
+	Searched  bool
+	Truncated bool
+	Errors    map[string]string
 }
 
 type EventsSearch struct {
@@ -39,31 +52,28 @@ func (c EventsSearch) Show(w http.ResponseWriter, r *http.Request) {
 			c.serverError(w, r, err)
 			return
 		}
-		for _, row := range rows {
-			data.Cards = append(data.Cards, EventCard{
-				Title: row.Event.Title, URL: "/events/" + row.Event.Slug, Venue: row.VenueName + ", " + row.VenueCity,
-				StartsAt: row.Event.StartsAt, PosterURL: posterURL(row.Event.PosterKey),
-			})
-		}
+		data.Cards = upcomingCards(rows)
 		c.View.Render(w, r, http.StatusOK, "pages/events_search", data)
 		return
 	}
 	data.Searched = true
-	found, err := c.Events.Search(r.Context(), now, events.SearchQuery{Text: data.Query})
+	found, err := c.Events.Search(r.Context(), now, events.SearchQuery{Text: data.Query, Limit: events.SearchMaxLimit})
 	var verr *events.ValidationError
 	switch {
 	case errors.As(err, &verr):
 		data.Searched = false
-		data.Errors = map[string]string{events.FieldQuery: "events_search.error_" + verr.Fields[events.FieldQuery]}
+		data.Errors = map[string]string{events.FieldQuery: eventsSearchErrorMessageID(events.FieldQuery, verr.Fields[events.FieldQuery])}
 		c.View.Render(w, r, http.StatusBadRequest, "pages/events_search", data)
 		return
 	case err != nil:
 		c.serverError(w, r, err)
 		return
 	}
+	data.Truncated = len(found) == events.SearchMaxLimit
 	for _, res := range found {
 		data.Cards = append(data.Cards, EventCard{
-			Title: res.Title, URL: "/events/" + res.Slug, Venue: res.VenueName + ", " + res.VenueCity, StartsAt: res.StartsAt,
+			Title: res.Title, URL: "/events/" + res.Slug, Venue: res.VenueName + ", " + res.VenueCity,
+			StartsAt: res.StartsAt, PosterURL: posterURL(res.PosterKey),
 		})
 	}
 	c.View.Render(w, r, http.StatusOK, "pages/events_search", data)
