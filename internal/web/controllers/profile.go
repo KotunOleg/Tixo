@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -36,14 +37,21 @@ type telegramSection struct {
 }
 
 type profileData struct {
-	Telegram     *telegramSection
-	Tokens       []apiTokenRow
-	Name         string
-	Errors       map[string]string
-	JustIssued   bool
-	IssuedName   string
-	IssuedRaw    string
-	TelegramLive bool
+	Telegram   *telegramSection
+	Tokens     []apiTokenRow
+	Name       string
+	Errors     map[string]string
+	JustIssued bool
+	IssuedName string
+	IssuedRaw  string
+}
+
+type tokenResult struct {
+	JustIssued bool              `json:"justIssued,omitempty"`
+	IssuedName string            `json:"issuedName,omitempty"`
+	IssuedRaw  string            `json:"issuedRaw,omitempty"`
+	Name       string            `json:"name,omitempty"`
+	Errors     map[string]string `json:"errors,omitempty"`
 }
 
 type Profile struct {
@@ -55,13 +63,21 @@ type Profile struct {
 }
 
 func (p Profile) Show(w http.ResponseWriter, r *http.Request) {
-	p.render(w, r, http.StatusOK, profileData{TelegramLive: true})
+	data := profileData{}
+	if payload, ok := auth.PopTokenResult(r.Context(), p.Sessions); ok {
+		var res tokenResult
+		if err := json.Unmarshal([]byte(payload), &res); err == nil {
+			data.JustIssued, data.IssuedName, data.IssuedRaw = res.JustIssued, res.IssuedName, res.IssuedRaw
+			data.Name, data.Errors = res.Name, res.Errors
+		}
+	}
+	p.render(w, r, http.StatusOK, data)
 }
 
 func (p Profile) CreateToken(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 	if err := r.ParseForm(); err != nil {
-		p.render(w, r, http.StatusBadRequest, profileData{})
+		p.redirectToProfile(w, r, tokenResult{})
 		return
 	}
 	u, _ := auth.CurrentUser(r.Context())
@@ -73,7 +89,7 @@ func (p Profile) CreateToken(w http.ResponseWriter, r *http.Request) {
 		for field, code := range verr.Fields {
 			errs[field] = "profile.tokens.form.error." + field + "_" + code
 		}
-		p.render(w, r, http.StatusUnprocessableEntity, profileData{Name: name, Errors: errs})
+		p.redirectToProfile(w, r, tokenResult{Name: name, Errors: errs})
 		return
 	}
 	if err != nil {
@@ -81,7 +97,17 @@ func (p Profile) CreateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.Log.InfoContext(r.Context(), "api token issued", "token_id", token.ID, "user_id", u.ID, "request_id", middleware.GetReqID(r.Context()))
-	p.render(w, r, http.StatusCreated, profileData{JustIssued: true, IssuedName: token.Name, IssuedRaw: raw})
+	p.redirectToProfile(w, r, tokenResult{JustIssued: true, IssuedName: token.Name, IssuedRaw: raw})
+}
+
+func (p Profile) redirectToProfile(w http.ResponseWriter, r *http.Request, res tokenResult) {
+	payload, err := json.Marshal(res)
+	if err != nil {
+		p.serverError(w, r, err)
+		return
+	}
+	auth.SetTokenResult(r.Context(), p.Sessions, string(payload))
+	redirectLocal(w, i18n.Path(i18n.FromContext(r.Context()), "/profile"), http.StatusSeeOther)
 }
 
 func (p Profile) RevokeToken(w http.ResponseWriter, r *http.Request) {

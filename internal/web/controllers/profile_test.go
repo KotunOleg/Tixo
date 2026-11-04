@@ -17,8 +17,8 @@ var profileTokenIDPattern = regexp.MustCompile(`/profile/tokens/(\d+)/revoke`)
 func (s *authSite) issueToken(t *testing.T, cookie *http.Cookie, name string) int64 {
 	t.Helper()
 	rec := s.postForm(t, "/profile/tokens", url.Values{"name": {name}}, cookie)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("issue token %q = %d: %s", name, rec.Code, rec.Body.String())
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/profile" {
+		t.Fatalf("issue token %q = %d → %q, want 303 to /profile", name, rec.Code, rec.Header().Get("Location"))
 	}
 	list := s.request(t, http.MethodGet, "/profile", cookie)
 	m := profileTokenIDPattern.FindStringSubmatch(list.Body.String())
@@ -45,43 +45,41 @@ func TestIssueTokenShowsRawValueOnce(t *testing.T) {
 	cookie := s.signInAs(t, "sub-owner", "owner@example.com", "Owner")
 
 	rec := s.postForm(t, "/profile/tokens", url.Values{"name": {"laptop"}}, cookie)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("create token = %d, want 201\n%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/profile" {
+		t.Fatalf("create token = %d → %q, want 303 to /profile", rec.Code, rec.Header().Get("Location"))
 	}
-	body := rec.Body.String()
-	if !strings.Contains(body, `value="`) || strings.Count(body, "laptop") == 0 {
-		t.Fatalf("response does not show the issued token: %s", body)
+
+	rec1 := s.request(t, http.MethodGet, "/profile", cookie)
+	body := rec1.Body.String()
+	if !strings.Contains(body, `id="profile-issued-token"`) || strings.Count(body, "laptop") == 0 {
+		t.Fatalf("profile page after the redirect does not show the issued token: %s", body)
 	}
 
 	rec2 := s.request(t, http.MethodGet, "/profile", cookie)
 	if strings.Count(rec2.Body.String(), `id="profile-issued-token"`) != 0 {
-		t.Fatalf("raw token is shown again on a plain GET /profile")
+		t.Fatalf("raw token is shown again on a second GET /profile")
 	}
 	if !strings.Contains(rec2.Body.String(), "laptop") {
 		t.Fatalf("token name missing from the list: %s", rec2.Body.String())
 	}
 }
 
-func TestIssueTokenResponseDoesNotPollTelegramStatus(t *testing.T) {
+func TestCreateTokenRedirectsInsteadOfRenderingOnTheTokensPath(t *testing.T) {
 	s := newAuthSite(t)
 	cookie := s.signInAs(t, "sub-owner-poll", "owner-poll@example.com", "Owner")
 
-	s.postForm(t, "/profile/telegram/link", nil, cookie)
-
 	rec := s.postForm(t, "/profile/tokens", url.Values{"name": {"laptop"}}, cookie)
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("create token = %d, want 201\n%s", rec.Code, rec.Body.String())
-	}
-	if body := rec.Body.String(); strings.Contains(body, "data-status-url") {
-		t.Fatalf("POST /profile/tokens response starts telegram polling and would resubmit the form on reload: %s", body)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/profile" {
+		t.Fatalf("create token = %d → %q, want 303 to /profile", rec.Code, rec.Header().Get("Location"))
 	}
 
 	rec = s.postForm(t, "/profile/tokens", url.Values{"name": {"  "}}, cookie)
-	if rec.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("create blank-name token = %d, want 422\n%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/profile" {
+		t.Fatalf("create blank-name token = %d → %q, want 303 to /profile", rec.Code, rec.Header().Get("Location"))
 	}
-	if body := rec.Body.String(); strings.Contains(body, "data-status-url") {
-		t.Fatalf("422 POST /profile/tokens response starts telegram polling: %s", body)
+
+	if rec := s.request(t, http.MethodGet, "/en/profile", cookie); rec.Code != http.StatusOK {
+		t.Fatalf("switching language after creating a token: GET /en/profile = %d, want 200 (browser must be left on a GET-able path)", rec.Code)
 	}
 }
 
@@ -90,8 +88,12 @@ func TestIssueTokenRejectsBlankName(t *testing.T) {
 	cookie := s.signInAs(t, "sub-owner", "owner2@example.com", "Owner")
 
 	rec := s.postForm(t, "/profile/tokens", url.Values{"name": {"  "}}, cookie)
-	if rec.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("create blank-name token = %d, want 422\n%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/profile" {
+		t.Fatalf("create blank-name token = %d → %q, want 303 to /profile", rec.Code, rec.Header().Get("Location"))
+	}
+	body := s.request(t, http.MethodGet, "/profile", cookie).Body.String()
+	if !strings.Contains(body, `id="profile-token-errors"`) {
+		t.Fatalf("profile page after the redirect does not show the validation error: %s", body)
 	}
 }
 

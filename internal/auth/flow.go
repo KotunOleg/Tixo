@@ -16,12 +16,13 @@ import (
 )
 
 const (
-	keyState    = "oauth.state"
-	keyVerifier = "oauth.verifier"
-	keyNext     = "oauth.next"
-	keyUserID   = "user_id"
-	keyFlash    = "flash"
-	keyPurchase = "ga4.purchase"
+	keyState       = "oauth.state"
+	keyVerifier    = "oauth.verifier"
+	keyNext        = "oauth.next"
+	keyUserID      = "user_id"
+	keyFlash       = "flash"
+	keyPurchase    = "ga4.purchase"
+	keyTokenResult = "profile.token_result"
 )
 
 var ErrBadState = errors.New("oauth state is missing or does not match")
@@ -96,6 +97,15 @@ func PopPurchase(ctx context.Context, sm *scs.SessionManager, orderID int64) (st
 
 func purchaseKey(orderID int64) string {
 	return fmt.Sprintf("%s.%d", keyPurchase, orderID)
+}
+
+func SetTokenResult(ctx context.Context, sm *scs.SessionManager, payloadJSON string) {
+	sm.Put(ctx, keyTokenResult, payloadJSON)
+}
+
+func PopTokenResult(ctx context.Context, sm *scs.SessionManager) (string, bool) {
+	payload := sm.PopString(ctx, keyTokenResult)
+	return payload, payload != ""
 }
 
 func SafeNext(raw string) string {
