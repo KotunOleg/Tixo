@@ -401,7 +401,7 @@ WITH needle AS (
     SELECT '%' || replace(replace(replace($6::text, '\', '\\'), '%', '\%'), '_', '\_') || '%' AS q,
            '%' || replace(replace(replace($7::text, '\', '\\'), '%', '\%'), '_', '\_') || '%' AS city
 )
-SELECT e.slug, e.title, e.starts_at, e.genre,
+SELECT e.slug, e.title, e.starts_at, e.genre, e.poster_key,
        coalesce(p.price_from, 0)::bigint AS price_from, (p.price_from IS NOT NULL)::boolean AS has_price,
        v.name AS venue_name, v.city AS venue_city
 FROM events e
@@ -445,6 +445,7 @@ type SearchPublicEventsRow struct {
 	Title     string
 	StartsAt  time.Time
 	Genre     string
+	PosterKey pgtype.Text
 	PriceFrom int64
 	HasPrice  bool
 	VenueName string
@@ -473,6 +474,7 @@ func (q *Queries) SearchPublicEvents(ctx context.Context, arg SearchPublicEvents
 			&i.Title,
 			&i.StartsAt,
 			&i.Genre,
+			&i.PosterKey,
 			&i.PriceFrom,
 			&i.HasPrice,
 			&i.VenueName,

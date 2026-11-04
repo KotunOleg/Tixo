@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 
+	dbgen "github.com/KotunOleg/Tixo/internal/db/gen"
 	"github.com/KotunOleg/Tixo/internal/events"
 	"github.com/KotunOleg/Tixo/internal/web/view"
 )
@@ -20,7 +21,7 @@ type EventCard struct {
 }
 
 type homeData struct {
-	Upcoming []EventCard
+	Cards []EventCard
 }
 
 type Home struct {
@@ -38,12 +39,18 @@ func (h Home) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			h.View.ServerError(w, r)
 			return
 		}
-		for _, row := range rows {
-			data.Upcoming = append(data.Upcoming, EventCard{
-				Title: row.Event.Title, URL: "/events/" + row.Event.Slug, Venue: row.VenueName + ", " + row.VenueCity,
-				StartsAt: row.Event.StartsAt, PosterURL: posterURL(row.Event.PosterKey),
-			})
-		}
+		data.Cards = upcomingCards(rows)
 	}
 	h.View.Render(w, r, http.StatusOK, "pages/home", data)
+}
+
+func upcomingCards(rows []dbgen.ListUpcomingPublishedEventsRow) []EventCard {
+	cards := make([]EventCard, 0, len(rows))
+	for _, row := range rows {
+		cards = append(cards, EventCard{
+			Title: row.Event.Title, URL: "/events/" + row.Event.Slug, Venue: row.VenueName + ", " + row.VenueCity,
+			StartsAt: row.Event.StartsAt, PosterURL: posterURL(row.Event.PosterKey),
+		})
+	}
+	return cards
 }

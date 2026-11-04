@@ -26,6 +26,7 @@ type publicEvent struct {
 	startsIn    time.Duration
 	tiers       []tiers.Input
 	soldOut     bool
+	posterKey   string
 }
 
 func (s *authSite) publicEvent(t *testing.T, e publicEvent) int64 {
@@ -61,6 +62,11 @@ func (s *authSite) publicEvent(t *testing.T, e publicEvent) int64 {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if e.posterKey != "" {
+		if _, err := s.pool.Exec(ctx, "UPDATE events SET poster_key = $1 WHERE id = $2", e.posterKey, ev.ID); err != nil {
+			t.Fatal(err)
+		}
 	}
 	for _, in := range e.tiers {
 		tier, err := tiers.New(s.pool).Create(ctx, org.ID, ev.ID, in)
